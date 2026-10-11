@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.44.0] - 2026-10-11
+
+### Features
+
+- feat(web): sign in with the identity provider from the web app, the desktop and the CLI (#318)
+
 ## [0.43.0] - 2026-10-10
 
 ### Features
