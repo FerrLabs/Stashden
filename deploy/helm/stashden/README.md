@@ -67,6 +67,28 @@ jwt:
 The bootstrap administrator is created once, on a database with no accounts, and ignored after that.
 Rotating `jwt.secret` invalidates every session token in circulation.
 
+## Ingress and large uploads
+
+A default ingress-nginx caps a request body at 1 MiB and cuts transfers off after a minute, which
+breaks WebDAV uploads and large downloads. Give the ingress what they need:
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  host: stashden.example.com
+  tls:
+    enabled: true
+    secretName: stashden-tls
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+```
+
+`docs/reverse-proxy-and-tls.md` in the repository explains each one and covers other proxies.
+
 ## Upgrading from the roxycloud chart
 
 The chart was called `roxycloud` before the project became Stashden, and the chart name is part of
@@ -132,6 +154,7 @@ this chart is capable of deleting the blob store.
 | `ingress.enabled` | `false` | Create an Ingress |
 | `ingress.host` | none | Required when the Ingress is on |
 | `ingress.className` | cluster default | Ingress class |
+| `ingress.annotations` | `{}` | Ingress annotations, such as the proxy body size and timeouts |
 | `ingress.tls.enabled` | `false` | Serve the host over TLS |
 | `ingress.tls.secretName` | none | Required when TLS is on |
 | `resources` | none | Container requests and limits |

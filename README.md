@@ -217,6 +217,12 @@ have rotted, a reference count or a quota that has drifted, and repairs the last
 `--repair`. `docs/backup-and-restore.md` has the order, the commands for compose and S3, and what
 the check reports.
 
+`docs/reverse-proxy-and-tls.md` covers what to put in front of the server: TLS, the body size and
+timeouts large uploads need, the methods WebDAV uses, and the Windows WebClient settings that refuse
+Basic auth over plain HTTP. `docs/upgrading.md` has the routine for a new release and the ones that
+asked something of the people running it. `JWT_SECRET` should be a generated value of at least 32
+characters (`openssl rand -hex 32`); the server warns at startup when it is shorter.
+
 ```bash
 helm install stashden oci://ghcr.io/ferrlabs/charts/stashden   --set database.url='postgres://stashden:password@postgres/stashden'   --set jwt.secret="$(openssl rand -hex 32)"
 ```
