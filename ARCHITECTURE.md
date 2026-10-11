@@ -20,10 +20,10 @@ exception.
 ## v1 scope
 
 In: upload and download, folder tree, rename and move, trash with restore, search by name,
-sharing by link, per-user quotas, WebDAV.
+sharing by link, per-user quotas, WebDAV, and folder sync from the desktop app and the CLI.
 
-Out, deferred to v2: CalDAV, CardDAV, WOPI office editing, end-to-end encryption, desktop and
-mobile sync clients, federated sharing.
+Out, deferred to v2: CalDAV, CardDAV, WOPI office editing, end-to-end encryption, mobile sync
+clients, federated sharing.
 
 ## Surfaces
 
@@ -38,7 +38,7 @@ shortlist and the reasons for Stashden. None of the hosts below is registered ye
 | Web app | `app.stashden.dev` | Angular SPA, components local to this repo |
 | API | `api.stashden.dev` | Rust, axum 0.8, sqlx, Postgres |
 | WebDAV | `api.stashden.dev/dav` | Same binary, separate router |
-| CLI | `stashden` | Rust, ships with the server image |
+| CLI | `stashden` | Rust, built from `cli/`; the server image carries only `stashden-api` |
 | Desktop | `app/` | Tauri 2 shell around the same Angular build |
 
 ## Identity
@@ -53,7 +53,9 @@ Two authentication paths, because DAV clients cannot do anything modern:
 
 | Caller | Mechanism |
 |---|---|
-| Web app | Password login (Argon2id) or OIDC, exchanged for a session token the server can revoke |
+| Web app | Password login (Argon2id) or OIDC, exchanged for a session token the server can revoke and kept in `localStorage` |
+| CLI | The same session token from `stashden login`, or an app password for an unattended sync |
+| Desktop app | Signs in once, mints an app password named after the computer and keeps it in the system keychain |
 | WebDAV client | Scoped app password over Basic auth, minted in the web app |
 | Share link | Opaque token in the URL, optionally password-protected |
 | Provider | `OIDC` authorization code with `PKCE`, mapped to an account by a verified address |
@@ -71,6 +73,12 @@ that can change the account.
 The FerrLabs hosted deployment is the same binary with OIDC pointed at the FerrLabs identity
 provider. It gets no special code path, which keeps the self-hosted build and the one we operate on
 the same tested surface.
+
+The CLI and the desktop app have no redirect address of their own, so they borrow the web app's. They
+listen on a random port of `127.0.0.1`, open the web app with that port and a one-time value, and the
+web app runs the flow in the browser and posts the session token to that port at the end. Only a
+local process holding the one-time value is accepted, and the provider needs one registered redirect
+URI, the web app's root, rather than one per client.
 
 A provider signs people in alongside passwords rather than instead of them: a self-hoster with no
 identity provider still needs a way in, and `PUT /v1/auth/methods` is what turns passwords off once
@@ -108,7 +116,7 @@ One Cargo workspace at the root, plus the browser surfaces.
 crates/core/     domain types: paths, hashes, nodes. No I/O, no framework
 crates/client/   API client and sync engine, shared by the CLI and the desktop app
 api/             the axum server and the migrations
-cli/             `stashden`, the command-line client and admin tool
+cli/             `stashden`, the command-line client
 app/             the desktop client: a Tauri shell around web/
 web/             Angular SPA, the only interface
 site/            Angular marketing and documentation, prerendered
@@ -154,8 +162,8 @@ which is the only thing the interface needs to show progress, pauses and conflic
 other way through one `sync_control` call.
 
 The layering is one-way: `core` knows nothing, `client` and `api` know `core`, the binaries know
-their library. Nothing below `api/src/routes` imports axum, which is what lets the current 29 tests
-run with no database, no network and no display in about a tenth of a second.
+their library. Nothing below `api/src/routes` imports axum, which is what lets those tests
+run with no database, no network and no display.
 
 ### One interface, two hosts
 
@@ -210,7 +218,8 @@ The chart deploys the API against a database it does not manage. Bundling Postgr
 a second database's upgrades and backups for people who already run an operator, and the ones who do
 not are better served by the compose file. It pins one replica: the blob store is a directory behind
 a `ReadWriteOnce` claim, and two pods writing that tree would corrupt refcounts Postgres believes.
-Both constraints are the local blob backend's, and both lift when S3 lands.
+Both constraints are the local blob backend's. With the S3 backend the chart accepts more than one
+replica and switches the deployment to `RollingUpdate`.
 
 ### What stays out
 
@@ -285,7 +294,8 @@ match the row, so the bytes are safe from that point on. This is why a 201 alway
 there, even when a sweep ran in the middle of the request.
 
 `etag` changes on every content or metadata write. WebDAV clients depend on it for conditional
-requests, and the SPA uses it for optimistic concurrency.
+requests, and the sync engine sends it as `If-Match` so an upload over something that changed fails
+instead of overwriting it. The web app does not send it, and `If-None-Match` on a read answers 304.
 
 ### Blob backends
 
@@ -352,8 +362,9 @@ sequenceDiagram
 ```
 
 Hashing happens while streaming, not after buffering: a large upload never lands in memory, and the
-digest is known by the time the last chunk is written. Uploads above the inline threshold go through
-a resumable session so a dropped connection resumes instead of restarting.
+digest is known by the time the last chunk is written. The web app, the CLI and the desktop app send
+anything above eight mebibytes through a resumable session in chunks of that size, so a dropped
+connection resumes instead of restarting; smaller files and every WebDAV client use a single `PUT`.
 
 ## Trust boundaries
 
@@ -397,8 +408,8 @@ another's nodes, through a grant (below). `routes::files::bytes_of` is
 the single place that turns a node into bytes, so the authenticated download and the anonymous one
 cannot drift apart in what they attach or what they check.
 
-Backend keys are never exposed to clients. Downloads stream through the API or through a
-short-lived signed URL the API mints, so revoking access takes effect immediately.
+Backend keys are never exposed to clients. Downloads stream through the API, so revoking access
+takes effect immediately.
 
 ### User bytes never render on the app's origin
 

@@ -114,10 +114,11 @@ since the chart's default now points there and it is the same image.
 
 ## One replica
 
-`replicas` is not a value. The blob store is a directory, the claim is `ReadWriteOnce`, and two pods
-writing the same tree would corrupt refcounts that Postgres believes are true. The deployment uses
-the `Recreate` strategy for the same reason: a rolling update would try to attach the volume twice.
-That constraint lifts when the S3 backend lands.
+With the local blob backend the blob store is a directory, the claim is `ReadWriteOnce`, and two
+pods writing the same tree would corrupt refcounts that Postgres believes are true. The chart
+refuses `replicaCount` above 1 there and uses the `Recreate` strategy, because a rolling update
+would try to attach the volume twice. With `blobs.backend=s3` the pods share nothing, so
+`replicaCount` can be raised and the deployment rolls out normally.
 
 ## Uninstalling
 

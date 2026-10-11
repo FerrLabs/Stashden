@@ -24,7 +24,9 @@ The project was called RoxyCloud until version 0.32 ([#188](https://github.com/F
 Nothing has to be redone by hand:
 
 - the desktop app updates to Stashden and removes the RoxyCloud install it replaces, keeping the
-  signed-in account and the folders it syncs;
+  server address and the folders it syncs. The signed-in session is not carried over, because the
+  old app held it in memory only, so you sign in once more and the new app keeps its credential in
+  the system keychain from then on;
 - a synced folder's `.roxycloud-sync.json` is taken over the first time the new version opens it;
 - the CLI is now `stashden`, and still reads `ROXYCLOUD_URL`, `ROXYCLOUD_TOKEN` and
   `ROXYCLOUD_PASSWORD`, with a warning, when the `STASHDEN_*` names are not set;
@@ -42,8 +44,8 @@ Done: content-addressed blob store with dedup, on local disk or S3, the node tre
 and upload, download, listing, trash and restore over REST.
 
 Done too: password accounts with Argon2id, session tokens, and login from the web app, the desktop
-shell and the CLI, OIDC alongside passwords, plus the marketing and documentation site in English
-and French. The file browser uploads, previews, renames and deletes, shows who is signed in and lets
+shell and the CLI, signing in through an OIDC provider from all three alongside passwords, plus the
+marketing and documentation site in English and French. The file browser uploads, previews, renames and deletes, shows who is signed in and lets
 them sign out, and renaming doubles as moving: type a path instead of a name and the node lands
 there. A folder opens at `/#/files/{path}`, so no folder name can collide with a page of the app, and
 an older link without `files/` is redirected there, except exactly `/#/accounts`, `/#/sync` and
@@ -72,9 +74,13 @@ desktops, the app says so and stays signed in until it closes.
 
 ```
 api/        Rust: the server, the domain, the migrations
+crates/     core (domain types) and client (API client and sync engine)
+cli/        the stashden command-line client
+app/        the desktop app, a Tauri shell around web/
 web/        Angular app, shared by the browser and the desktop shell
 site/       Angular marketing and documentation site, prerendered
 deploy/     Dockerfile, compose file, Helm chart
+docs/       backup, upgrade and reverse proxy guides
 ```
 
 ## Installing the desktop app
@@ -238,14 +244,14 @@ chart's default image needs no override.
 GET    /health              the process is up, touches nothing
 GET    /ready               Postgres and the blob store answer, 503 when one does not
 GET    /metrics             Prometheus text, only when METRICS_TOKEN is set, bearer token
-POST   /v1/auth/login       exchange email and password for a session token
+POST   /v1/auth/login       exchange email and password for a session token (no session needed)
 GET    /v1/auth/me          the authenticated account
 PUT    /v1/auth/me          change your display name
 POST   /v1/auth/logout      end this session
-GET    /v1/auth/methods     what this installation offers to sign in with
+GET    /v1/auth/methods     what this installation offers to sign in with (no session needed)
 PUT    /v1/auth/methods     turn password login off or on            (admin)
-POST   /v1/auth/oidc/start  begin an authorization code flow
-POST   /v1/auth/oidc/callback  finish one, answering a session token
+POST   /v1/auth/oidc/start  begin an authorization code flow (no session needed)
+POST   /v1/auth/oidc/callback  finish one, answering a session token (no session needed)
 GET    /v1/folders            list the root
 GET    /v1/folders/{*path}    list a directory
 POST   /v1/folders/{*path}    create one, and the ones above it; 409 if the name is taken
