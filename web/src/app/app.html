@@ -34,7 +34,13 @@
         @if (error(); as message) {
           <p class="failure" role="alert">{{ message }}</p>
         }
-        <rx-login-form [busy]="busy()" (submitted)="signIn($event)" />
+        <rx-login-form
+          [busy]="busy()"
+          [methods]="methods()"
+          (submitted)="signIn($event)"
+          (providerChosen)="signInWithProvider($event)"
+          (serverChanged)="loadMethods($event)"
+        />
       </section>
     }
   </main>

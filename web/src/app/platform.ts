@@ -15,6 +15,14 @@ import {
 import type { Minted, NewShare, Share } from './share';
 import type { SyncCommand, Syncing } from './sync/syncing';
 import type { Version } from './version';
+import {
+  loopbackAddress,
+  parseHandoff,
+  serializeHandoff,
+  type Handoff,
+  type Methods,
+  type Returned,
+} from './provider';
 
 export type PlatformKind = 'browser' | 'desktop';
 
@@ -28,11 +36,19 @@ export type Release = {
   available: Available | null;
 };
 
+export type ProviderSignIn =
+  | { kind: 'redirected' }
+  | { kind: 'signedIn'; warning: string | null };
+
 export interface Platform {
   readonly kind: PlatformKind;
   authenticated(): boolean;
   resume?(): Promise<boolean>;
   login(email: string, password: string, server?: string): Promise<string | null>;
+  methods(server?: string): Promise<Methods>;
+  loginWithProvider(server?: string): Promise<ProviderSignIn>;
+  rememberHandoff?(handoff: Handoff): void;
+  completeProviderLogin?(returned: Returned): Promise<boolean>;
   server?(): string;
   checkUpdate?(): Promise<Release>;
   installUpdate?(): Promise<void>;
@@ -94,6 +110,7 @@ export class RequestFailed extends Error {
 }
 
 const TOKEN_KEY = 'stashden.token';
+const HANDOFF_KEY = 'stashden.handoff';
 const SERVER_KEY = 'stashden.server';
 const KEY_PREFIX = 'stashden.';
 const LEGACY_KEY_PREFIX = 'roxycloud.';
@@ -159,6 +176,44 @@ function browserPlatform(baseUrl: string): Platform {
       });
       localStorage.setItem(TOKEN_KEY, session.token);
       return null;
+    },
+    methods: () => json<Methods>('/v1/auth/methods'),
+    loginWithProvider: async () => {
+      const started = await json<{ authorize_url: string }>('/v1/auth/oidc/start', {
+        method: 'POST',
+      });
+      window.location.assign(started.authorize_url);
+      return { kind: 'redirected' };
+    },
+    rememberHandoff: (handoff) => {
+      try {
+        sessionStorage.setItem(HANDOFF_KEY, serializeHandoff(handoff));
+      } catch {
+        return;
+      }
+    },
+    completeProviderLogin: async ({ code, state }) => {
+      const session = await json<{ token: string; expires_in: number }>(
+        '/v1/auth/oidc/callback',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, state }),
+        },
+      );
+      let handoff: Handoff | null = null;
+      try {
+        handoff = parseHandoff(sessionStorage.getItem(HANDOFF_KEY));
+        sessionStorage.removeItem(HANDOFF_KEY);
+      } catch {
+        handoff = null;
+      }
+      if (handoff !== null) {
+        window.location.replace(loopbackAddress(handoff, session.token, session.expires_in));
+        return false;
+      }
+      localStorage.setItem(TOKEN_KEY, session.token);
+      return true;
     },
     signOut: async () => {
       try {
@@ -343,6 +398,18 @@ function desktopPlatform(fallback: string): Platform {
       return connected;
     },
     server: remembered,
+    methods: (server) => command<Methods>('sign_in_methods', { server: addressOf(server ?? remembered()) }),
+    loginWithProvider: async (server) => {
+      const address = addressOf(server ?? remembered());
+      const warning = await command<string | null>('login_with_provider', { server: address });
+      try {
+        localStorage.setItem(SERVER_KEY, address);
+      } catch {
+        // A browser that refuses storage still signs in, it just forgets the address.
+      }
+      connected = true;
+      return { kind: 'signedIn', warning };
+    },
     login: async (email, password, server) => {
       const address = addressOf(server ?? remembered());
       const { invoke } = await core();

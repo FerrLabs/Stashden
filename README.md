@@ -158,7 +158,7 @@ Migrations run on boot. Configuration is environment only:
 | `OIDC_ISSUER` | | Provider to discover; all four `OIDC_*` are needed together |
 | `OIDC_CLIENT_ID` | | |
 | `OIDC_CLIENT_SECRET` | | |
-| `OIDC_REDIRECT_URL` | | Where the provider sends the browser back |
+| `OIDC_REDIRECT_URL` | | Where the provider sends the browser back: the address of the web app, with a trailing `/` (`https://stashden.example.com/`) |
 | `OIDC_CREATE_ACCOUNTS` | `false` | Whether a verified address with no account becomes one |
 | `BLOB_BACKEND` | `local` | `local` or `s3` |
 | `UPLOAD_ROOT` | beside `BLOB_ROOT` | Scratch space for resumable uploads in flight; refused at startup if unset when the backend is `s3` |
@@ -597,6 +597,19 @@ directions: it neither takes over an existing account nor creates a new one. A m
 `email_verified` claim is not a verified address; a provider that says nothing has vouched for
 nothing.
 
+The web app asks `GET /v1/auth/methods` and draws a "Sign in with your identity provider" button
+when the server has one, in place of the password form once an administrator has turned passwords
+off. Register `OIDC_REDIRECT_URL` with the provider exactly as configured: the web app is a single
+page behind a hash router, so the provider sends the browser back to its root with `code` and
+`state` in the query, and the page spends them and removes them from the address bar at once.
+
+The command line and the desktop app have no redirect address of their own, so they borrow the web
+app's. `stashden login --browser` and the desktop app's provider button listen on a random port of
+`127.0.0.1`, open the web app with that port and a one-time value, and let it run the flow in the
+browser. At the end the web app sends the session token to that loopback port, where only a
+process on the same machine holding the one-time value is accepted. No second redirect address
+needs registering with the provider.
+
 `PUT /v1/auth/methods` turns password login off once the provider is known to work. It is a setting
 rather than an environment variable so that an administrator can do it from the running system, and
 it is refused when no provider is configured, because turning off the only way in is not a change
@@ -720,6 +733,10 @@ STASHDEN_EMAIL=you@example.com STASHDEN_APP_PASSWORD=... stashden sync ~/Stashde
 
 It reaches files and sync but cannot manage the account, and revoking it from the web app signs the
 sync out on its next request.
+
+With a provider, `stashden login --browser` replaces the email and password and takes the same
+`--create-app-password` flag, so an account that can only sign in through the provider still gets
+an app password for an unattended sync.
 
 A save is not a sync. Changes are collected until the folder has been quiet for a moment, and a
 folder that never goes quiet still syncs at a ceiling rather than waiting forever. Editors that

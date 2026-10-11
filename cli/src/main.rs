@@ -41,7 +41,14 @@ struct Cli {
 enum Command {
     /// Exchange an email and password for a session token
     Login {
-        email: String,
+        #[arg(required_unless_present = "browser")]
+        email: Option<String>,
+        #[arg(
+            long,
+            conflicts_with_all = ["email", "password"],
+            help = "Sign in through the browser with the server's identity provider"
+        )]
+        browser: bool,
         #[arg(long, env = "STASHDEN_PASSWORD", hide_env_values = true)]
         password: Option<String>,
         #[arg(
@@ -94,21 +101,37 @@ async fn main() -> Result<()> {
     match &cli.command {
         Command::Login {
             email,
+            browser,
             password,
             create_app_password,
         } => {
-            let password =
-                legacy::settle(password.clone(), "STASHDEN_PASSWORD", "ROXYCLOUD_PASSWORD")
-                    .context("a password is needed: pass --password or set STASHDEN_PASSWORD")?;
-            let (remote, session) = Remote::login(&server, email, &password)
+            let (remote, session) = if *browser {
+                Remote::login_in_browser(&server, |address| {
+                    eprintln!("Finish signing in in your browser, or open {address}");
+                })
                 .await
-                .context("logging in")?;
+                .context("signing in through the browser")?
+            } else {
+                let email = email.as_deref().context("an email is needed")?;
+                let password =
+                    legacy::settle(password.clone(), "STASHDEN_PASSWORD", "ROXYCLOUD_PASSWORD")
+                        .context(
+                            "a password is needed: pass --password or set STASHDEN_PASSWORD",
+                        )?;
+                Remote::login(&server, email, &password)
+                    .await
+                    .context("logging in")?
+            };
             match create_app_password {
                 Some(name) => {
                     let minted = remote
                         .mint_app_password(name)
                         .await
                         .context("minting the app password")?;
+                    let email = match email {
+                        Some(email) => email.clone(),
+                        None => remote.me().await.context("reading the account")?.email,
+                    };
                     if let Err(error) = remote.logout().await {
                         eprintln!(
                             "the session used to mint it stays open until it expires: {error}"

@@ -39,6 +39,8 @@ pub enum RemoteError {
     Status(StatusCode),
     #[error("talking to the server failed")]
     Transport(#[from] reqwest::Error),
+    #[error("the sign in through the browser did not finish: {0}")]
+    Browser(String),
     #[error("reading or writing {path}")]
     Io {
         path: std::path::PathBuf,
@@ -56,7 +58,7 @@ impl RemoteError {
             Self::NotFound(_) => Some(StatusCode::NOT_FOUND),
             Self::Conflict(_) => Some(StatusCode::CONFLICT),
             Self::Changed(_) => Some(StatusCode::PRECONDITION_FAILED),
-            Self::Path(_) | Self::Transport(_) | Self::Io { .. } => None,
+            Self::Path(_) | Self::Transport(_) | Self::Browser(_) | Self::Io { .. } => None,
         }
     }
 
@@ -99,7 +101,24 @@ pub struct Session {
     pub expires_in: i64,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, serde::Serialize)]
+pub struct Methods {
+    pub password: bool,
+    pub oidc: bool,
+}
+
 impl Remote {
+    pub async fn methods(base_url: &str) -> Result<Methods, RemoteError> {
+        let base = base_url.trim_end_matches('/');
+        let response = Client::builder()
+            .build()?
+            .get(format!("{base}/v1/auth/methods"))
+            .send()
+            .await?;
+        check(response.status(), "the sign in methods")?;
+        Ok(response.json().await?)
+    }
+
     pub async fn login(
         base_url: &str,
         email: &str,

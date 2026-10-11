@@ -10,6 +10,7 @@ import { Session } from './account';
 import { linkTo } from './folder';
 import type { Credentials } from './login-form/credentials';
 import { LoginForm } from './login-form/login-form';
+import { arrivalAt, type Arrival, type Methods } from './provider';
 import { PLATFORM, RequestFailed } from './platform';
 import { Prompt } from './shared/prompt';
 import { SHARE_PREFIX } from './share';
@@ -46,11 +47,68 @@ export class App {
   protected readonly listingAppPasswords = signal(false);
   protected readonly updating = signal(false);
 
+  protected readonly methods = signal<Methods | null>(null);
+
   constructor() {
+    const arrival = this.platform.kind === 'browser' ? arrivalAt(window.location.search) : null;
+    if (arrival !== null) {
+      history.replaceState(null, '', window.location.pathname + window.location.hash);
+      void this.arrive(arrival);
+      return;
+    }
+    if (this.platform.server === undefined) {
+      void this.loadMethods();
+    }
     if (this.connected()) {
       void this.start();
     } else {
       void this.resume();
+    }
+  }
+
+  private async arrive(arrival: Arrival): Promise<void> {
+    this.busy.set(true);
+    try {
+      if (arrival.kind === 'handoff') {
+        this.platform.rememberHandoff?.(arrival.handoff);
+        await this.platform.loginWithProvider();
+        return;
+      }
+      if (await this.platform.completeProviderLogin?.(arrival.returned)) {
+        this.connected.set(true);
+        await this.session.load();
+      }
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      this.error.set(`Signing in with the identity provider failed: ${message}`);
+      void this.loadMethods();
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async loadMethods(server?: string): Promise<void> {
+    try {
+      this.methods.set(await this.platform.methods(server));
+    } catch {
+      this.methods.set(null);
+    }
+  }
+
+  protected async signInWithProvider(server: string | undefined): Promise<void> {
+    this.error.set(null);
+    this.busy.set(true);
+    try {
+      const outcome = await this.platform.loginWithProvider(server);
+      if (outcome.kind === 'signedIn') {
+        this.notice.set(outcome.warning);
+        this.connected.set(true);
+        await this.session.load();
+      }
+    } catch (cause: unknown) {
+      this.error.set(String(cause));
+    } finally {
+      this.busy.set(false);
     }
   }
 
