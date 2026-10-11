@@ -5,7 +5,7 @@ mod sync;
 use std::path::PathBuf;
 
 use stashden_client::sync::watch::Session as SyncSession;
-use stashden_client::{Remote, RemoteError, free_path};
+use stashden_client::{Methods, Remote, RemoteError, free_path};
 use stashden_core::grant::{Given, NewGrant, Received};
 use stashden_core::node::{Hit, Node, Trashed};
 use stashden_core::share::{Minted, NewShare, Share};
@@ -39,6 +39,33 @@ async fn login(
     let (session, _) = Remote::login(&server, &email, &password)
         .await
         .map_err(|error| error.to_string())?;
+    settle(&desktop, server, session).await
+}
+
+#[tauri::command]
+async fn login_with_provider(
+    desktop: State<'_, Desktop>,
+    server: String,
+) -> Result<Option<String>, String> {
+    let (session, _) = Remote::login_in_browser(&server, |_| {})
+        .await
+        .map_err(|error| error.to_string())?;
+    settle(&desktop, server, session).await
+}
+
+#[tauri::command]
+async fn sign_in_methods(server: String) -> Result<Methods, String> {
+    Remote::methods(&server)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn settle(
+    desktop: &Desktop,
+    server: String,
+    session: Remote,
+) -> Result<Option<String>, String> {
+    let email = session.me().await.map_err(|error| error.to_string())?.email;
     let minted = session
         .mint_app_password(&format!("Stashden desktop on {}", this_computer()))
         .await
@@ -50,7 +77,7 @@ async fn login(
         email,
         secret: minted.secret,
     };
-    connect(&desktop, credentials.clone()).await?;
+    connect(desktop, credentials.clone()).await?;
     Ok(keychain::keep(credentials)
         .await
         .err()
@@ -437,6 +464,8 @@ fn main() {
         .manage(Desktop::default())
         .invoke_handler(tauri::generate_handler![
             login,
+            login_with_provider,
+            sign_in_methods,
             resume,
             sign_out,
             list_folder,
