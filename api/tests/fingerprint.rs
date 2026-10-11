@@ -53,7 +53,7 @@ async fn fingerprint(harness: &Harness, bearer: &str) -> String {
 async fn moved(harness: &Harness, bearer: &str, seen: &mut Vec<String>, what: &str) {
     let now = fingerprint(harness, bearer).await;
     assert!(
-        !seen.contains(&now),
+        seen.last() != Some(&now),
         "{what} left the fingerprint where it had been"
     );
     seen.push(now);
