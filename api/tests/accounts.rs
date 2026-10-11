@@ -359,6 +359,94 @@ database_test!(
     }
 );
 
+database_test!(
+    a_moved_share_inside_one_the_new_address_already_has_is_folded_into_it,
+    harness,
+    {
+        let (owner, owner_bearer) = member(&harness, "owner@example.com", Role::Member).await;
+        let (_, admin) = member(&harness, "admin@example.com", Role::Admin).await;
+        let (guest_id, guest) = member(&harness, "old@example.com", Role::Member).await;
+        harness.write(owner, "photos/2024/a.jpg", b"sand").await;
+        share(
+            &harness,
+            &owner_bearer,
+            "photos/2024",
+            "old@example.com",
+            "write",
+        )
+        .await;
+        share(&harness, &owner_bearer, "photos", "new@example.com", "read").await;
+
+        let (status, body) = call(
+            &harness,
+            "PUT",
+            &format!("/v1/users/{guest_id}/email"),
+            Some(&admin),
+            r#"{"email":"new@example.com"}"#,
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(
+            names(&harness, "/v1/folders/Shared%20with%20me", &guest).await,
+            ["photos"]
+        );
+        let (written, _) = call(
+            &harness,
+            "PUT",
+            "/v1/files/Shared%20with%20me/photos/2024/from-guest.txt",
+            Some(&guest),
+            "written through the outer share, which took the write access",
+        )
+        .await;
+        assert_eq!(written, StatusCode::CREATED);
+    }
+);
+
+database_test!(
+    a_moved_share_around_one_the_new_address_already_has_replaces_it,
+    harness,
+    {
+        let (owner, owner_bearer) = member(&harness, "owner@example.com", Role::Member).await;
+        let (_, admin) = member(&harness, "admin@example.com", Role::Admin).await;
+        let (guest_id, guest) = member(&harness, "old@example.com", Role::Member).await;
+        harness.write(owner, "photos/2024/a.jpg", b"sand").await;
+        share(&harness, &owner_bearer, "photos", "old@example.com", "read").await;
+        share(
+            &harness,
+            &owner_bearer,
+            "photos/2024",
+            "new@example.com",
+            "write",
+        )
+        .await;
+
+        let (status, body) = call(
+            &harness,
+            "PUT",
+            &format!("/v1/users/{guest_id}/email"),
+            Some(&admin),
+            r#"{"email":"new@example.com"}"#,
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(
+            names(&harness, "/v1/folders/Shared%20with%20me", &guest).await,
+            ["photos"]
+        );
+        let (written, _) = call(
+            &harness,
+            "PUT",
+            "/v1/files/Shared%20with%20me/photos/2024/from-guest.txt",
+            Some(&guest),
+            "the outer share kept the inner one's write access",
+        )
+        .await;
+        assert_eq!(written, StatusCode::CREATED);
+    }
+);
+
 async fn names(harness: &Harness, uri: &str, bearer: &str) -> Vec<String> {
     let (status, listing) = call(harness, "GET", uri, Some(bearer), "").await;
     assert_eq!(status, StatusCode::OK, "{listing}");
