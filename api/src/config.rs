@@ -64,11 +64,18 @@ pub enum ConfigError {
     },
 }
 
+pub const MIN_JWT_SECRET_CHARS: usize = 32;
+
 const DEFAULT_QUOTA_BYTES: i64 = 10 * 1024 * 1024 * 1024;
 const VERSIONS_KEPT: i64 = 10;
 const DEFAULT_SESSION_TTL_SECONDS: i64 = 12 * 60 * 60;
 const DEFAULT_BLOB_SWEEP_INTERVAL_SECONDS: u64 = 60 * 60;
 const DEFAULT_BLOB_GRACE_PERIOD_SECONDS: u64 = 24 * 60 * 60;
+
+#[must_use]
+pub fn jwt_secret_is_short(secret: &str) -> bool {
+    secret.chars().count() < MIN_JWT_SECRET_CHARS
+}
 
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
@@ -212,6 +219,20 @@ mod tests {
                 name: "TRASH_RETENTION_DAYS",
                 ..
             })
+        ));
+    }
+
+    #[test]
+    fn a_secret_shorter_than_the_minimum_is_flagged() {
+        assert!(jwt_secret_is_short("dev-secret"));
+        assert!(jwt_secret_is_short(&"x".repeat(MIN_JWT_SECRET_CHARS - 1)));
+    }
+
+    #[test]
+    fn a_generated_secret_is_not() {
+        assert!(!jwt_secret_is_short(&"x".repeat(MIN_JWT_SECRET_CHARS)));
+        assert!(!jwt_secret_is_short(
+            "9f2c7a4be01d38c65a7b94e0f1d2a3c4b5e6f708192a3b4c5d6e7f8091a2b3c4"
         ));
     }
 

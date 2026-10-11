@@ -27,6 +27,13 @@ async fn main() -> Result<()> {
         };
     }
 
+    if stashden_api::config::jwt_secret_is_short(&cfg.jwt_secret) {
+        warn!(
+            minimum = stashden_api::config::MIN_JWT_SECRET_CHARS,
+            "JWT_SECRET is shorter than it should be; generate one with `openssl rand -hex 32`"
+        );
+    }
+
     let state = AppState::from_config(&cfg).await?;
 
     sqlx::migrate!("./migrations")
