@@ -75,6 +75,8 @@ impl Harness {
                 sessions: Arc::new(Sessions::new("test-secret", chrono::Duration::hours(1))),
                 decoders: Arc::new(tokio::sync::Semaphore::new(2)),
                 oidc: None,
+                metrics: Arc::new(stashden_api::metrics::Metrics::default()),
+                metrics_token: None,
                 http: reqwest::Client::new(),
                 default_quota_bytes: 1_000_000,
                 versions_kept: 3,

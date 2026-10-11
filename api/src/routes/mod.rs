@@ -11,16 +11,24 @@ pub mod uploads;
 pub mod users;
 pub mod versions;
 
+use std::time::Duration;
+
 use axum::Json;
+use axum::extract::State;
+use axum::http::{HeaderMap, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Router, routing::delete, routing::post, routing::put};
 use serde_json::{Value, json};
 
+use crate::error::ApiError;
 use crate::state::AppState;
 
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
+        .route("/metrics", get(metrics))
         .route("/v1/auth/login", post(auth::login))
         .route("/v1/auth/me", get(auth::me).put(auth::update_profile))
         .route("/v1/auth/logout", post(auth::logout))
@@ -98,4 +106,44 @@ pub fn router(state: AppState) -> Router {
 
 async fn health() -> Json<Value> {
     Json(json!({ "status": "ok" }))
+}
+
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+
+async fn ready(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
+    let database = tokio::time::timeout(PROBE_TIMEOUT, sqlx::query("SELECT 1").execute(&state.db))
+        .await
+        .is_ok_and(|result| result.is_ok());
+    let blobs = tokio::time::timeout(PROBE_TIMEOUT, state.blobs.ping())
+        .await
+        .is_ok_and(|result| result.is_ok());
+
+    let status = if database && blobs {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (
+        status,
+        Json(json!({
+            "status": if database && blobs { "ok" } else { "unavailable" },
+            "database": database,
+            "blobs": blobs,
+        })),
+    )
+}
+
+async fn metrics(State(state): State<AppState>, headers: HeaderMap) -> Result<Response, ApiError> {
+    let expected = state.metrics_token.as_deref().ok_or(ApiError::NotFound)?;
+    let presented = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .ok_or(ApiError::Unauthenticated)?;
+    if !crate::metrics::same_token(presented, expected) {
+        return Err(ApiError::Unauthenticated);
+    }
+
+    let body = state.metrics.render(state.db.size(), state.db.num_idle());
+    Ok(([(header::CONTENT_TYPE, "text/plain; version=0.0.4")], body).into_response())
 }

@@ -23,6 +23,8 @@ pub struct AppState {
     pub default_quota_bytes: i64,
     pub versions_kept: i64,
     pub trash_retention: Option<chrono::TimeDelta>,
+    pub metrics: Arc<crate::metrics::Metrics>,
+    pub metrics_token: Option<Arc<str>>,
 }
 
 async fn open_blobs(backend: &BlobBackend) -> Result<Arc<dyn BlobStore>> {
@@ -90,6 +92,8 @@ impl AppState {
                 std::thread::available_parallelism().map_or(4, std::num::NonZeroUsize::get),
             )),
             oidc: cfg.oidc.clone().map(Arc::new),
+            metrics: Arc::new(crate::metrics::Metrics::default()),
+            metrics_token: cfg.metrics_token.as_deref().map(Arc::from),
             // A provider that accepts the connection and then says nothing would otherwise hold
             // the four calls on the sign-in path open indefinitely.
             http: reqwest::Client::builder()

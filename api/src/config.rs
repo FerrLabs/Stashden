@@ -33,6 +33,7 @@ pub struct Config {
     pub blob_sweep_interval_seconds: u64,
     pub blob_grace_period_seconds: u64,
     pub oidc: Option<OidcConfig>,
+    pub metrics_token: Option<String>,
     pub bootstrap_admin: Option<BootstrapAdmin>,
 }
 
@@ -111,6 +112,7 @@ impl Config {
                 DEFAULT_BLOB_GRACE_PERIOD_SECONDS,
             )?,
             oidc: oidc(),
+            metrics_token: optional("METRICS_TOKEN"),
             bootstrap_admin: bootstrap_admin(),
         })
     }
