@@ -142,22 +142,33 @@ pub async fn reassign(
     .await?;
 
     for (id, node_id, access, mount_name) in moving {
-        let already = sqlx::query_as::<_, (Uuid, Access)>(
-            "SELECT id, access FROM grants WHERE grantee_email = $1 AND node_id = $2",
+        let node = node_by_id(tx, node_id).await?;
+        let mut access = access;
+        let mut inside = false;
+
+        let held = sqlx::query_as::<_, (Uuid, Uuid, Access)>(
+            "SELECT id, node_id, access FROM grants WHERE grantee_email = $1",
         )
         .bind(new.as_str())
-        .bind(node_id)
-        .fetch_optional(&mut **tx)
+        .fetch_all(&mut **tx)
         .await?;
 
-        if let Some((existing, existing_access)) = already {
-            if access.may_write() && !existing_access.may_write() {
-                sqlx::query("UPDATE grants SET access = $2 WHERE id = $1")
-                    .bind(existing)
-                    .bind(access)
-                    .execute(&mut **tx)
-                    .await?;
+        for (held_id, held_node_id, held_access) in &held {
+            let held_node = node_by_id(tx, *held_node_id).await?;
+            if contains(tx, &held_node, &node).await? {
+                if access.may_write() && !held_access.may_write() {
+                    sqlx::query("UPDATE grants SET access = $2 WHERE id = $1")
+                        .bind(held_id)
+                        .bind(access)
+                        .execute(&mut **tx)
+                        .await?;
+                }
+                inside = true;
+                break;
             }
+        }
+
+        if inside {
             sqlx::query("DELETE FROM grants WHERE id = $1")
                 .bind(id)
                 .execute(&mut **tx)
@@ -165,15 +176,43 @@ pub async fn reassign(
             continue;
         }
 
+        for (held_id, held_node_id, held_access) in &held {
+            let held_node = node_by_id(tx, *held_node_id).await?;
+            if contains(tx, &node, &held_node).await? {
+                if held_access.may_write() {
+                    access = Access::Write;
+                }
+                sqlx::query("DELETE FROM grants WHERE id = $1")
+                    .bind(held_id)
+                    .execute(&mut **tx)
+                    .await?;
+            }
+        }
+
         let mount_name = free_mount_name(tx, new, &mount_name).await?;
-        sqlx::query("UPDATE grants SET grantee_email = $2, mount_name = $3 WHERE id = $1")
-            .bind(id)
-            .bind(new.as_str())
-            .bind(mount_name)
-            .execute(&mut **tx)
-            .await?;
+        sqlx::query(
+            "UPDATE grants SET grantee_email = $2, mount_name = $3, access = $4 WHERE id = $1",
+        )
+        .bind(id)
+        .bind(new.as_str())
+        .bind(mount_name)
+        .bind(access)
+        .execute(&mut **tx)
+        .await?;
     }
     Ok(())
+}
+
+async fn node_by_id(tx: &mut Transaction<'_, Postgres>, id: Uuid) -> Result<Node, ApiError> {
+    sqlx::query_as::<_, Node>(concat!(
+        "SELECT ",
+        node_columns!(),
+        " FROM nodes WHERE id = $1"
+    ))
+    .bind(id)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(Into::into)
 }
 
 fn numbered(name: &str, ordinal: u32) -> String {
