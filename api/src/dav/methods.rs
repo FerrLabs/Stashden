@@ -1,10 +1,8 @@
 use std::fmt::Write;
 
-use axum::body::Body;
 use axum::extract::{Request, State};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use super::auth::DavCaller;
@@ -15,7 +13,7 @@ use crate::access::{self, Place};
 use crate::db;
 use crate::error::ApiError;
 use crate::incoming::{self, Received};
-use crate::routes::files::never_rendered;
+use crate::routes::files::{blob_bytes, never_rendered};
 use crate::state::AppState;
 use crate::trash;
 use sqlx::{Postgres, Transaction};
@@ -351,30 +349,27 @@ async fn read(
         return Ok(refused());
     };
 
-    let headers = [
-        (
-            header::ETAG,
-            HeaderValue::from_str(&node.etag).map_err(|_| ApiError::WrongKind {
-                expected: "printable etag",
-            })?,
-        ),
-        (
-            header::CONTENT_LENGTH,
-            HeaderValue::from(u64::try_from(node.size).unwrap_or(0)),
-        ),
-    ];
+    let etag = HeaderValue::from_str(&node.etag).map_err(|_| ApiError::WrongKind {
+        expected: "printable etag",
+    })?;
 
     if head_only {
-        return Ok((headers, never_rendered(), ()).into_response());
+        return Ok((
+            [
+                (header::ETAG, etag),
+                (
+                    header::CONTENT_LENGTH,
+                    HeaderValue::from(u64::try_from(node.size).unwrap_or(0)),
+                ),
+                (header::ACCEPT_RANGES, HeaderValue::from_static("bytes")),
+            ],
+            never_rendered(),
+            (),
+        )
+            .into_response());
     }
 
-    let file = state.blobs.read(hash).await?;
-    Ok((
-        headers,
-        never_rendered(),
-        Body::from_stream(ReaderStream::new(file)),
-    )
-        .into_response())
+    blob_bytes(&state, hash, node.size, etag, request.headers()).await
 }
 
 struct Destination {

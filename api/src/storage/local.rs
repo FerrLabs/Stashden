@@ -4,7 +4,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::StreamExt;
 use tokio::fs;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use super::{BlobStore, Reader, StorageError, Upload, Written, is_recent, shards};
 use stashden_core::blob::BlobHash;
@@ -102,6 +102,23 @@ impl BlobStore for LocalBlobStore {
             }
             Err(err) => Err(err.into()),
         }
+    }
+
+    async fn read_range(
+        &self,
+        hash: BlobHash,
+        start: u64,
+        end: u64,
+    ) -> Result<Reader, StorageError> {
+        let mut file = match fs::File::open(self.path_for(hash)).await {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                return Err(StorageError::NotFound(hash));
+            }
+            Err(err) => return Err(err.into()),
+        };
+        file.seek(std::io::SeekFrom::Start(start)).await?;
+        Ok(Box::pin(file.take(end - start + 1)))
     }
 
     async fn remove(&self, hash: BlobHash) -> Result<(), StorageError> {

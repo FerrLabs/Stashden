@@ -250,7 +250,7 @@ GET    /v1/folders            list the root
 GET    /v1/folders/{*path}    list a directory
 POST   /v1/folders/{*path}    create one, and the ones above it; 409 if the name is taken
 PUT    /v1/files/{*path}      upload, creating parent directories; honours If-Match and If-None-Match: *
-GET    /v1/files/{*path}      download
+GET    /v1/files/{*path}      download, with Range and If-None-Match honoured
 DELETE /v1/files/{*path}      move to trash
 POST   /v1/move               rename a node, or move it under another directory
 GET    /v1/uploads            the sessions this account is holding open

@@ -14,6 +14,7 @@ pub mod metrics;
 pub mod oidc;
 pub mod password;
 pub mod precondition;
+pub mod ranges;
 pub mod recovery;
 pub mod routes;
 pub mod search;

@@ -118,7 +118,7 @@ pub async fn download(
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let node = resolve(&state, &token, &[], &headers).await?;
-    contents(&state, &node).await
+    contents(&state, &node, &headers).await
 }
 
 pub async fn download_at(
@@ -127,7 +127,7 @@ pub async fn download_at(
     headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let node = resolve(&state, &token, &parse_path(&path)?, &headers).await?;
-    contents(&state, &node).await
+    contents(&state, &node, &headers).await
 }
 
 /// A public URL is stable and carries no credential, so a shared cache left to its own heuristics
@@ -183,8 +183,12 @@ async fn listing(state: &AppState, node: Node) -> Result<Response, ApiError> {
         .into_response())
 }
 
-async fn contents(state: &AppState, node: &Node) -> Result<Response, ApiError> {
-    let mut response = super::files::bytes_of(state, node).await?;
+async fn contents(
+    state: &AppState,
+    node: &Node,
+    headers: &HeaderMap,
+) -> Result<Response, ApiError> {
+    let mut response = super::files::bytes_of(state, node, headers).await?;
     response.headers_mut().extend(never_cached());
     Ok(response)
 }

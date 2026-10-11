@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, State};
-use axum::http::HeaderValue;
+use axum::http::{HeaderMap, HeaderValue};
 use axum::response::Response;
 use uuid::Uuid;
 
@@ -32,6 +32,7 @@ pub async fn content(
     State(state): State<AppState>,
     caller: Caller,
     Path((id, path)): Path<(Uuid, String)>,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let segments = parse_path(&path)?;
     let mut tx = state.db.begin().await?;
@@ -44,7 +45,7 @@ pub async fn content(
             expected: "printable etag",
         }
     })?;
-    blob_bytes(&state, version.blob_hash, version.size, etag).await
+    blob_bytes(&state, version.blob_hash, version.size, etag, &headers).await
 }
 
 pub async fn restore(
