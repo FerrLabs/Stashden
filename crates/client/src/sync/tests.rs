@@ -21,6 +21,8 @@ struct FakeServer {
     root: PathBuf,
     held: Held,
     before_upload: Option<Box<dyn Fn() + Send + Sync>>,
+    fingerprinting: bool,
+    walks: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 fn changed(path: &RelPath) -> io::Error {
@@ -35,9 +37,19 @@ impl Transport for FakeServer {
     type Error = io::Error;
 
     async fn snapshot(&self) -> Result<Snapshot, Self::Error> {
+        self.walks.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut snapshot = Snapshot::new();
         list_everything(&self.root, None, &mut snapshot)?;
         Ok(snapshot)
+    }
+
+    async fn fingerprint(&self) -> Result<Option<String>, Self::Error> {
+        if !self.fingerprinting {
+            return Ok(None);
+        }
+        let mut snapshot = Snapshot::new();
+        list_everything(&self.root, None, &mut snapshot)?;
+        Ok(Some(format!("{snapshot:?}")))
     }
 
     async fn download_to(&self, path: &RelPath, destination: &Path) -> Result<(), Self::Error> {
@@ -143,6 +155,8 @@ impl Pair {
                 root: self.server.clone(),
                 held,
                 before_upload: None,
+                fingerprinting: false,
+                walks: std::sync::Arc::default(),
             },
         )
         .expect("the engine opens")
@@ -155,9 +169,32 @@ impl Pair {
                 root: self.server.clone(),
                 held: Held::default(),
                 before_upload: Some(Box::new(interfere)),
+                fingerprinting: false,
+                walks: std::sync::Arc::default(),
             },
         )
         .expect("the engine opens")
+    }
+
+    fn engine_fingerprinting(
+        &self,
+    ) -> (
+        Engine<FakeServer>,
+        std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    ) {
+        let walks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let engine = Engine::open(
+            self.local.clone(),
+            FakeServer {
+                root: self.server.clone(),
+                held: Held::default(),
+                before_upload: None,
+                fingerprinting: true,
+                walks: walks.clone(),
+            },
+        )
+        .expect("the engine opens");
+        (engine, walks)
     }
 
     fn write_local(&self, relative: &str, contents: &[u8]) {
@@ -195,6 +232,56 @@ fn names(root: &Path) -> Vec<String> {
         .keys()
         .map(|path| path.as_str().to_owned())
         .collect()
+}
+
+#[tokio::test]
+async fn an_unchanged_server_is_not_walked_again() {
+    let pair = Pair::new("fingerprint-idle");
+    pair.write_server("notes/b.txt", b"theirs");
+    let (mut engine, walks) = pair.engine_fingerprinting();
+
+    engine.sync_once().await.expect("first pass");
+    engine.sync_once().await.expect("second pass");
+    engine.sync_once().await.expect("third pass");
+
+    assert_eq!(walks.load(std::sync::atomic::Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn a_changed_server_is_walked_and_the_change_arrives() {
+    let pair = Pair::new("fingerprint-change");
+    pair.write_server("notes/b.txt", b"theirs");
+    let (mut engine, walks) = pair.engine_fingerprinting();
+    engine.sync_once().await.expect("first pass");
+
+    pair.write_server("notes/c.txt", b"newer");
+    let report = engine.sync_once().await.expect("second pass");
+
+    assert_eq!(report.downloaded, 1);
+    assert_eq!(walks.load(std::sync::atomic::Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn a_server_with_no_fingerprint_is_walked_every_pass() {
+    let pair = Pair::new("fingerprint-absent");
+    pair.write_server("notes/b.txt", b"theirs");
+    let walks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut engine = Engine::open(
+        pair.local.clone(),
+        FakeServer {
+            root: pair.server.clone(),
+            held: Held::default(),
+            before_upload: None,
+            fingerprinting: false,
+            walks: walks.clone(),
+        },
+    )
+    .expect("the engine opens");
+
+    engine.sync_once().await.expect("first pass");
+    engine.sync_once().await.expect("second pass");
+
+    assert_eq!(walks.load(std::sync::atomic::Ordering::SeqCst), 2);
 }
 
 #[tokio::test]

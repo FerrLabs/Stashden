@@ -9,6 +9,7 @@ pub mod dav;
 pub mod db;
 pub mod departure;
 pub mod error;
+pub mod fingerprint;
 pub mod grants;
 pub mod incoming;
 pub mod metrics;

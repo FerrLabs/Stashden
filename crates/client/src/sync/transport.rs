@@ -16,6 +16,10 @@ pub trait Transport {
 
     fn snapshot(&self) -> impl Future<Output = Result<Snapshot, Self::Error>> + Send;
 
+    fn fingerprint(&self) -> impl Future<Output = Result<Option<String>, Self::Error>> + Send {
+        async { Ok(None) }
+    }
+
     fn download_to(
         &self,
         path: &RelPath,

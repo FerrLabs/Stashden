@@ -130,6 +130,21 @@ impl Remote {
         Ok(response.json().await?)
     }
 
+    pub async fn tree_fingerprint(&self) -> Result<Option<String>, RemoteError> {
+        #[derive(Deserialize)]
+        struct Answer {
+            fingerprint: String,
+        }
+
+        let url = format!("{}/v1/tree/fingerprint", self.base());
+        let response = self.http().get(&url).authorized(self).send().await?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        check(response.status(), "the tree fingerprint")?;
+        Ok(Some(response.json::<Answer>().await?.fingerprint))
+    }
+
     pub async fn walk(&self) -> Result<Snapshot, RemoteError> {
         let mut snapshot = Snapshot::new();
         let mut pending = vec![None];
@@ -181,6 +196,10 @@ impl Transport for Remote {
 
     async fn snapshot(&self) -> Result<Snapshot, Self::Error> {
         self.walk().await
+    }
+
+    async fn fingerprint(&self) -> Result<Option<String>, Self::Error> {
+        self.tree_fingerprint().await
     }
 
     async fn download_to(&self, path: &RelPath, destination: &Path) -> Result<(), Self::Error> {

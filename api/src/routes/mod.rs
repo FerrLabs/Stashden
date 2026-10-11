@@ -8,6 +8,7 @@ pub mod search;
 pub mod shares;
 pub mod thumbnails;
 pub mod trash;
+pub mod tree;
 pub mod uploads;
 pub mod users;
 pub mod versions;
@@ -81,6 +82,7 @@ pub fn router(state: AppState) -> Router {
             get(shares::download_at),
         )
         .route("/v1/search", get(search::search))
+        .route("/v1/tree/fingerprint", get(tree::fingerprint))
         .route("/v1/thumbnails/{*path}", get(thumbnails::get))
         .route("/v1/uploads", get(uploads::mine).post(uploads::begin))
         .route(
