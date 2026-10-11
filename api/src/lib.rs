@@ -1,5 +1,6 @@
 pub mod access;
 pub mod app_passwords;
+pub mod archive;
 pub mod attempts;
 pub mod auth;
 pub mod check;

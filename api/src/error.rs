@@ -56,6 +56,8 @@ pub enum ApiError {
     AlreadyWriting,
     #[error("expected a {expected}")]
     WrongKind { expected: &'static str },
+    #[error("this {what}")]
+    TooLarge { what: &'static str },
     #[error(transparent)]
     NotAnImage(#[from] crate::thumbnails::NotAnImage),
     #[error("storage failure")]
@@ -105,6 +107,7 @@ impl ApiError {
             | Self::InvalidEmail(_)
             | Self::WrongKind { .. }
             | Self::NotAnImage(_) => StatusCode::BAD_REQUEST,
+            Self::TooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::QuotaExceeded => StatusCode::INSUFFICIENT_STORAGE,
             Self::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
             Self::TooManySessions { .. } | Self::TooManyAttempts { .. } => {

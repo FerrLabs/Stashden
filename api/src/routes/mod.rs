@@ -1,4 +1,5 @@
 pub mod app_passwords;
+pub mod archive;
 pub mod auth;
 pub mod files;
 pub mod grants;
@@ -68,6 +69,12 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/shares/{id}", delete(shares::revoke))
         .route("/v1/public/{token}", get(shares::open))
         .route("/v1/public/{token}/content", get(shares::download))
+        .route("/v1/public/{token}/archive", get(shares::archive))
+        .route(
+            "/v1/public/{token}/archive/{*path}",
+            get(shares::archive_at),
+        )
+        .route("/v1/archive/{*path}", get(archive::folder))
         .route("/v1/public/{token}/entries/{*path}", get(shares::open_at))
         .route(
             "/v1/public/{token}/content/{*path}",

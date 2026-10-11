@@ -237,6 +237,25 @@ export class FileBrowser {
     });
   }
 
+  protected readonly canArchive = this.platform.downloadArchive !== undefined;
+
+  protected async downloadFolder(node: Node): Promise<void> {
+    const archive = this.platform.downloadArchive;
+    if (archive === undefined) {
+      return;
+    }
+    await this.attempt(`downloading ${node.name}`, async () => {
+      try {
+        await archive(childOf(this.path(), node.name), node.name);
+        this.announcement.set(`Downloaded ${node.name}.zip`);
+      } catch (cause: unknown) {
+        if (!(cause instanceof DownloadCancelled)) {
+          throw cause;
+        }
+      }
+    });
+  }
+
   protected async rename(node: Node, destination: string): Promise<void> {
     this.renaming.set(null);
     const to = childOf(this.path(), destination);

@@ -75,6 +75,7 @@ export interface Platform {
   listFolder(path: string): Promise<Node[]>;
   read(path: string): Promise<Blob>;
   download(path: string, name: string): Promise<string | null>;
+  downloadArchive?(path: string, name: string): Promise<string | null>;
   remove(path: string): Promise<void>;
   rename(from: string, to: string): Promise<Node>;
   createFolder?(path: string): Promise<Node>;
@@ -305,6 +306,10 @@ function browserPlatform(baseUrl: string): Platform {
     upload: (path, file, progress) => uploadChunked(link, path, file, progress),
     download: async (path, name) => {
       await saveStreaming(() => call(`/v1/files${encodePath(path)}`), name);
+      return null;
+    },
+    downloadArchive: async (path, name) => {
+      await saveStreaming(() => call(`/v1/archive${encodePath(path)}`), `${name}.zip`);
       return null;
     },
     remove: async (path) => {
