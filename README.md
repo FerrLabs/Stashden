@@ -251,6 +251,7 @@ GET    /v1/folders/{*path}    list a directory
 POST   /v1/folders/{*path}    create one, and the ones above it; 409 if the name is taken
 PUT    /v1/files/{*path}      upload, creating parent directories; honours If-Match and If-None-Match: *
 GET    /v1/files/{*path}      download, with Range and If-None-Match honoured
+GET    /v1/archive/{*path}    a folder as a zip, streamed, stored not compressed, Zip64 past 4 GiB
 DELETE /v1/files/{*path}      move to trash
 POST   /v1/move               rename a node, or move it under another directory
 GET    /v1/uploads            the sessions this account is holding open
@@ -289,6 +290,8 @@ GET /v1/public/{token}                  what is behind a link, and its listing
 GET /v1/public/{token}/entries/{*path}  the same, for something under it
 GET /v1/public/{token}/content          download what the link names
 GET /v1/public/{token}/content/{*path}  download something under it
+GET /v1/public/{token}/archive          a shared folder as a zip
+GET /v1/public/{token}/archive/{*path}  a folder under it as a zip
 
 OPTIONS   /dav          what the WebDAV surface supports
 PROPFIND  /dav/{*path}  list a collection, Depth 0 or 1

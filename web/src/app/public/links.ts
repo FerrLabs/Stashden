@@ -40,6 +40,18 @@ export class PublicLinks {
     );
   }
 
+  async downloadArchive(
+    token: string,
+    password: string,
+    path: string,
+    name: string,
+  ): Promise<void> {
+    await saveStreaming(
+      () => this.get(token, `/archive${encodePath(path)}`, password),
+      `${name}.zip`,
+    );
+  }
+
   private async get(token: string, at: string, password: string): Promise<Response> {
     const response = await fetch(
       `${STASHDEN_API_URL}/v1/public/${encodeURIComponent(token)}${at}`,

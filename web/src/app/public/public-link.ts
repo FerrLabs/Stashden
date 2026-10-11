@@ -74,6 +74,21 @@ export class PublicLink {
     this.trail.update((trail) => trail.slice(0, depth));
   }
 
+  protected async saveFolder(): Promise<void> {
+    const name = this.trail().at(-1) ?? this.entry()?.name ?? 'folder';
+    this.failure.set(null);
+    this.busy.set(true);
+    try {
+      await this.links.downloadArchive(this.token(), this.password(), this.path(), name);
+    } catch (cause: unknown) {
+      if (!(cause instanceof DownloadCancelled)) {
+        this.failure.set(cause instanceof Error ? cause.message : String(cause));
+      }
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   protected async save(child: PublicEntry | null): Promise<void> {
     const target = child === null ? this.entry() : child;
     if (target === null) {

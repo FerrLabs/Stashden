@@ -44,6 +44,10 @@
           Download
         </button>
       } @else {
+        <button type="button" [disabled]="busy()" (click)="saveFolder()">
+          Download this folder as a zip
+        </button>
+
         @if (trail().length > 0) {
           <nav class="trail" aria-label="Folders above this one">
             <button type="button" class="crumb" (click)="upTo(0)">{{ root() }}</button>
