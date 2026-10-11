@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.46.0] - 2026-10-11
+
+### Features
+
+- feat(api): serve byte ranges and answer a current ETag with 304 (#321)
+
 ## [0.45.0] - 2026-10-11
 
 ### Features
