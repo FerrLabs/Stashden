@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.47.0] - 2026-10-11
+
+### Features
+
+- feat(api): download a folder as a zip, streamed (#324)
+
 ## [0.46.1] - 2026-10-11
 
 ### Bug Fixes
