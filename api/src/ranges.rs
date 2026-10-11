@@ -1,5 +1,7 @@
 use axum::http::{HeaderMap, header};
 
+use crate::precondition::text;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Delivery {
     Whole,
@@ -19,7 +21,8 @@ pub fn plan(headers: &HeaderMap, etag: &str, size: u64) -> Delivery {
     let Some(range) = text(headers, header::RANGE) else {
         return Delivery::Whole;
     };
-    if text(headers, header::IF_RANGE).is_some_and(|guard| guard != etag) {
+    if text(headers, header::IF_RANGE).is_some_and(|guard| guard != etag || guard.starts_with("W/"))
+    {
         return Delivery::Whole;
     }
     parse(range, size)
@@ -78,13 +81,6 @@ fn parse(range: &str, size: u64) -> Delivery {
             _ => Delivery::Whole,
         },
     }
-}
-
-fn text(headers: &HeaderMap, name: header::HeaderName) -> Option<&str> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
 }
 
 #[cfg(test)]
@@ -189,6 +185,17 @@ mod tests {
             plan_for(&[(header::IF_NONE_MATCH, "\"other\"")], 100),
             Delivery::Whole
         );
+    }
+
+    #[test]
+    fn if_range_never_accepts_a_weak_tag() {
+        let headers = {
+            let mut map = HeaderMap::new();
+            map.insert(header::RANGE, HeaderValue::from_static("bytes=0-9"));
+            map.insert(header::IF_RANGE, HeaderValue::from_static("W/\"abc\""));
+            map
+        };
+        assert_eq!(plan(&headers, "W/\"abc\"", 100), Delivery::Whole);
     }
 
     #[test]

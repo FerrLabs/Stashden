@@ -49,7 +49,7 @@ impl Precondition {
     }
 }
 
-fn text(headers: &HeaderMap, name: header::HeaderName) -> Option<&str> {
+pub(crate) fn text(headers: &HeaderMap, name: header::HeaderName) -> Option<&str> {
     headers
         .get(name)
         .and_then(|value| value.to_str().ok())

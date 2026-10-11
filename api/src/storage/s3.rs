@@ -369,13 +369,18 @@ impl BlobStore for S3BlobStore {
         Ok(Box::pin(object.body.into_async_read()))
     }
 
-    async fn read_from(&self, hash: BlobHash, offset: u64) -> Result<Reader, StorageError> {
+    async fn read_range(
+        &self,
+        hash: BlobHash,
+        start: u64,
+        end: u64,
+    ) -> Result<Reader, StorageError> {
         let object = match self
             .client
             .get_object()
             .bucket(&self.bucket)
             .key(self.key_for(hash))
-            .range(format!("bytes={offset}-"))
+            .range(format!("bytes={start}-{end}"))
             .send()
             .await
         {

@@ -88,8 +88,15 @@ pub trait BlobStore: Send + Sync {
 
     async fn read(&self, hash: BlobHash) -> Result<Reader, StorageError>;
 
-    /// The bytes from `offset` to the end, for a range request.
-    async fn read_from(&self, hash: BlobHash, offset: u64) -> Result<Reader, StorageError>;
+    /// Bytes `start` through `end` inclusive, for a range request. Asking for no more than is
+    /// wanted matters on the object store, where an open-ended read that is then dropped leaves a
+    /// connection streaming data nobody reads.
+    async fn read_range(
+        &self,
+        hash: BlobHash,
+        start: u64,
+        end: u64,
+    ) -> Result<Reader, StorageError>;
 
     /// Absent is not an error: the sweep removes what nothing points at, and losing a race with
     /// another sweeper is not a failure.

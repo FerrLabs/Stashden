@@ -4,7 +4,6 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
-use tokio::io::AsyncReadExt;
 use tokio_util::io::ReaderStream;
 
 use crate::access::{self, Place};
@@ -125,8 +124,7 @@ pub(crate) async fn blob_bytes(
             [
                 (
                     header::CONTENT_RANGE,
-                    HeaderValue::from_str(&format!("bytes */{total}"))
-                        .map_err(|_| ApiError::Credential)?,
+                    content_range(&format!("bytes */{total}"))?,
                 ),
                 accepts,
             ],
@@ -147,7 +145,7 @@ pub(crate) async fn blob_bytes(
         }
         Delivery::Partial { start, end } => {
             let length = end - start + 1;
-            let file = state.blobs.read_from(hash, start).await?;
+            let file = state.blobs.read_range(hash, start, end).await?;
             Ok((
                 StatusCode::PARTIAL_CONTENT,
                 [
@@ -155,17 +153,22 @@ pub(crate) async fn blob_bytes(
                     (header::CONTENT_LENGTH, HeaderValue::from(length)),
                     (
                         header::CONTENT_RANGE,
-                        HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
-                            .map_err(|_| ApiError::Credential)?,
+                        content_range(&format!("bytes {start}-{end}/{total}"))?,
                     ),
                     accepts,
                 ],
                 never_rendered(),
-                Body::from_stream(ReaderStream::new(file.take(length))),
+                Body::from_stream(ReaderStream::new(file)),
             )
                 .into_response())
         }
     }
+}
+
+fn content_range(value: &str) -> Result<HeaderValue, ApiError> {
+    HeaderValue::from_str(value).map_err(|_| ApiError::WrongKind {
+        expected: "printable content range",
+    })
 }
 
 /// Every route that answers with bytes a user uploaded carries these, because the API serves the
