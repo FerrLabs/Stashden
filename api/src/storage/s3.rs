@@ -369,6 +369,24 @@ impl BlobStore for S3BlobStore {
         Ok(Box::pin(object.body.into_async_read()))
     }
 
+    async fn read_from(&self, hash: BlobHash, offset: u64) -> Result<Reader, StorageError> {
+        let object = match self
+            .client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(self.key_for(hash))
+            .range(format!("bytes={offset}-"))
+            .send()
+            .await
+        {
+            Ok(object) => object,
+            Err(err) if is_missing(&err) => return Err(StorageError::NotFound(hash)),
+            Err(err) => return Err(remote(&err)),
+        };
+
+        Ok(Box::pin(object.body.into_async_read()))
+    }
+
     /// Unlike `discard`, a refusal here is reported. The sweep deletes the row that names the blob
     /// only once this succeeds, so swallowing the error would leave an object nothing names and no
     /// later sweep can find.

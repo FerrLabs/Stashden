@@ -4,6 +4,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
+use tokio::io::AsyncReadExt;
 use tokio_util::io::ReaderStream;
 
 use crate::access::{self, Place};
@@ -12,6 +13,7 @@ use crate::db;
 use crate::error::ApiError;
 use crate::incoming::{self, Received};
 use crate::precondition::Precondition;
+use crate::ranges::{self, Delivery};
 use crate::state::AppState;
 use crate::trash;
 use stashden_core::blob::BlobHash;
@@ -83,19 +85,24 @@ pub async fn get(
     State(state): State<AppState>,
     caller: Caller,
     Path(path): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let node = located(&state, &caller, &path).await?.into_node()?;
-    bytes_of(&state, &node).await
+    bytes_of(&state, &node, &headers).await
 }
 
 /// Every route that answers with the contents of a file goes through here, share links included,
 /// so the headers that keep uploaded bytes from rendering are attached once rather than remembered
 /// by each caller.
-pub(crate) async fn bytes_of(state: &AppState, node: &Node) -> Result<Response, ApiError> {
+pub(crate) async fn bytes_of(
+    state: &AppState,
+    node: &Node,
+    request: &HeaderMap,
+) -> Result<Response, ApiError> {
     let (NodeKind::File, Some(hash)) = (node.kind, node.blob_hash) else {
         return Err(ApiError::WrongKind { expected: "file" });
     };
-    blob_bytes(state, hash, node.size, etag_header(node)?).await
+    blob_bytes(state, hash, node.size, etag_header(node)?, request).await
 }
 
 pub(crate) async fn blob_bytes(
@@ -103,21 +110,62 @@ pub(crate) async fn blob_bytes(
     hash: BlobHash,
     size: i64,
     etag: HeaderValue,
+    request: &HeaderMap,
 ) -> Result<Response, ApiError> {
-    let file = state.blobs.read(hash).await?;
+    let total = u64::try_from(size).unwrap_or(0);
+    let accepts = (header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    let tag = etag.to_str().unwrap_or_default().to_owned();
 
-    Ok((
-        [
-            (header::ETAG, etag),
-            (
-                header::CONTENT_LENGTH,
-                HeaderValue::from(u64::try_from(size).unwrap_or(0)),
-            ),
-        ],
-        never_rendered(),
-        Body::from_stream(ReaderStream::new(file)),
-    )
-        .into_response())
+    match ranges::plan(request, &tag, total) {
+        Delivery::NotModified => {
+            Ok((StatusCode::NOT_MODIFIED, [(header::ETAG, etag), accepts]).into_response())
+        }
+        Delivery::Unsatisfiable => Ok((
+            StatusCode::RANGE_NOT_SATISFIABLE,
+            [
+                (
+                    header::CONTENT_RANGE,
+                    HeaderValue::from_str(&format!("bytes */{total}"))
+                        .map_err(|_| ApiError::Credential)?,
+                ),
+                accepts,
+            ],
+        )
+            .into_response()),
+        Delivery::Whole => {
+            let file = state.blobs.read(hash).await?;
+            Ok((
+                [
+                    (header::ETAG, etag),
+                    (header::CONTENT_LENGTH, HeaderValue::from(total)),
+                    accepts,
+                ],
+                never_rendered(),
+                Body::from_stream(ReaderStream::new(file)),
+            )
+                .into_response())
+        }
+        Delivery::Partial { start, end } => {
+            let length = end - start + 1;
+            let file = state.blobs.read_from(hash, start).await?;
+            Ok((
+                StatusCode::PARTIAL_CONTENT,
+                [
+                    (header::ETAG, etag),
+                    (header::CONTENT_LENGTH, HeaderValue::from(length)),
+                    (
+                        header::CONTENT_RANGE,
+                        HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
+                            .map_err(|_| ApiError::Credential)?,
+                    ),
+                    accepts,
+                ],
+                never_rendered(),
+                Body::from_stream(ReaderStream::new(file.take(length))),
+            )
+                .into_response())
+        }
+    }
 }
 
 /// Every route that answers with bytes a user uploaded carries these, because the API serves the

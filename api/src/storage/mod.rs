@@ -88,6 +88,9 @@ pub trait BlobStore: Send + Sync {
 
     async fn read(&self, hash: BlobHash) -> Result<Reader, StorageError>;
 
+    /// The bytes from `offset` to the end, for a range request.
+    async fn read_from(&self, hash: BlobHash, offset: u64) -> Result<Reader, StorageError>;
+
     /// Absent is not an error: the sweep removes what nothing points at, and losing a race with
     /// another sweeper is not a failure.
     async fn remove(&self, hash: BlobHash) -> Result<(), StorageError>;
