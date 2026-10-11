@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.48.0] - 2026-10-11
+
+### Features
+
+- feat(sync): skip the remote walk while the tree fingerprint is unchanged (#325)
+
 ## [0.47.0] - 2026-10-11
 
 ### Features
