@@ -7,6 +7,7 @@ pub mod search;
 pub mod shares;
 pub mod thumbnails;
 pub mod trash;
+pub mod tree;
 pub mod uploads;
 pub mod users;
 pub mod versions;
@@ -28,6 +29,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route("/v1/tree/fingerprint", get(tree::fingerprint))
         .route("/metrics", get(metrics))
         .route("/v1/auth/login", post(auth::login))
         .route("/v1/auth/me", get(auth::me).put(auth::update_profile))

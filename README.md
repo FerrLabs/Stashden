@@ -266,6 +266,7 @@ PATCH  /v1/uploads/{id}       append at Upload-Offset
 POST   /v1/uploads/{id}/finish  hash what arrived and place it
 DELETE /v1/uploads/{id}       abandon it, taking the staged bytes
 GET    /v1/search?q=          find a node by part of its name
+GET    /v1/tree/fingerprint   one value that changes when anything this account can see changes
 GET    /v1/thumbnails/{*path} a thumbnail of an image, made on demand
 GET    /v1/app-passwords      the credentials this account has minted
 POST   /v1/app-passwords      mint one, shown once

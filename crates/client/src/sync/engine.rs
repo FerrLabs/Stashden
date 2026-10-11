@@ -84,6 +84,7 @@ pub struct Engine<T> {
     transport: T,
     state: SyncState,
     rules: Rules,
+    remembered: Option<(String, super::snapshot::Snapshot)>,
 }
 
 impl<T: Transport> Engine<T> {
@@ -102,6 +103,7 @@ impl<T: Transport> Engine<T> {
             transport,
             state,
             rules,
+            remembered: None,
         })
     }
 
@@ -113,11 +115,7 @@ impl<T: Transport> Engine<T> {
 
     pub async fn sync_once(&mut self) -> Result<Report, SyncError> {
         let scan = self.scan().await?;
-        let mut remote = self
-            .transport
-            .snapshot()
-            .await
-            .map_err(|source| SyncError::Transport(Box::new(source)))?;
+        let mut remote = self.remote_snapshot().await?;
         remote.retain(|path, _| !ignore::hides(path));
 
         let held = self
@@ -161,6 +159,31 @@ impl<T: Transport> Engine<T> {
         self.record_agreed_directories(&scan, &remote);
         self.state.save(&state_path(&self.root))?;
         Ok(report)
+    }
+
+    async fn remote_snapshot(&mut self) -> Result<super::snapshot::Snapshot, SyncError> {
+        let fingerprint = self
+            .transport
+            .fingerprint()
+            .await
+            .map_err(|source| SyncError::Transport(Box::new(source)))?;
+
+        if let (Some(now), Some((then, snapshot))) = (&fingerprint, &self.remembered)
+            && now == then
+        {
+            return Ok(snapshot.clone());
+        }
+
+        self.remembered = None;
+        let snapshot = self
+            .transport
+            .snapshot()
+            .await
+            .map_err(|source| SyncError::Transport(Box::new(source)))?;
+        if let Some(fingerprint) = fingerprint {
+            self.remembered = Some((fingerprint, snapshot.clone()));
+        }
+        Ok(snapshot)
     }
 
     fn record_agreed_directories(&mut self, scan: &LocalScan, remote: &super::snapshot::Snapshot) {
