@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.45.0] - 2026-10-11
+
+### Features
+
+- feat(api): readiness check, graceful shutdown and a token-gated metrics endpoint (#320)
+
 ## [0.44.1] - 2026-10-11
 
 ### Bug Fixes
