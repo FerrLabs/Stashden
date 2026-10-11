@@ -159,9 +159,11 @@ the next sync forever.
 
 An idle pass costs two requests instead of one per directory. The server answers
 `GET /v1/tree/fingerprint` with a hash over the account's own nodes and over each folder shared with
-it: how many rows there are, how many are trashed, the newest `updated_at` and `deleted_at`, and the
-total size. A purge removes rows, so the count catches what a feed ordered by `updated_at` would
-never see. The engine asks for the fingerprint before it walks, keeps the pair in memory, and reuses
+it: how many rows there are, how many are trashed, the newest `updated_at` and `deleted_at`, the
+total size, and an order-independent hash of every row's id, parent, name, etag and trash state. A
+purge removes rows, so the count catches what a feed ordered by `updated_at` would never see, and
+the row hash catches a same-size overwrite that committed after a later-started transaction, whose
+`updated_at` is the time the transaction began rather than the time it committed. The engine asks for the fingerprint before it walks, keeps the pair in memory, and reuses
 the remembered snapshot only while the value is unchanged. A change that lands between the
 fingerprint and the walk leaves the stored value stale, which costs one extra walk and never a missed
 change. A server without the route answers 404 and every pass walks, as before.

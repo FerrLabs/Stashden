@@ -5,7 +5,14 @@ use uuid::Uuid;
 use crate::error::ApiError;
 use crate::grants;
 
-type Totals = (i64, Option<DateTime<Utc>>, Option<DateTime<Utc>>, i64, i64);
+type Totals = (
+    i64,
+    Option<DateTime<Utc>>,
+    Option<DateTime<Utc>>,
+    i64,
+    i64,
+    i64,
+);
 
 pub async fn of(
     tx: &mut Transaction<'_, Postgres>,
@@ -17,7 +24,10 @@ pub async fn of(
     let own = sqlx::query_as::<_, Totals>(
         "SELECT count(*), max(updated_at), max(deleted_at),
                 count(*) FILTER (WHERE deleted_at IS NOT NULL),
-                COALESCE(sum(size), 0)::bigint
+                COALESCE(sum(size), 0)::bigint,
+                COALESCE(bit_xor(hashtextextended(
+                    id::text || ':' || COALESCE(parent_id::text, '') || ':' || name || ':' || etag
+                        || ':' || COALESCE(deleted_at::text, ''), 0)), 0)
          FROM nodes WHERE owner_id = $1",
     )
     .bind(owner_id)
@@ -32,14 +42,19 @@ pub async fn of(
 
         let below = sqlx::query_as::<_, Totals>(
             "WITH RECURSIVE sub AS (
-                 SELECT id, updated_at, deleted_at, size FROM nodes WHERE id = $1
+                 SELECT id, parent_id, name, etag, updated_at, deleted_at, size
+                 FROM nodes WHERE id = $1
                  UNION ALL
-                 SELECT child.id, child.updated_at, child.deleted_at, child.size
+                 SELECT child.id, child.parent_id, child.name, child.etag, child.updated_at,
+                        child.deleted_at, child.size
                  FROM nodes child JOIN sub ON child.parent_id = sub.id
              )
              SELECT count(*), max(updated_at), max(deleted_at),
                     count(*) FILTER (WHERE deleted_at IS NOT NULL),
-                    COALESCE(sum(size), 0)::bigint
+                    COALESCE(sum(size), 0)::bigint,
+                    COALESCE(bit_xor(hashtextextended(
+                        id::text || ':' || COALESCE(parent_id::text, '') || ':' || name || ':'
+                            || etag || ':' || COALESCE(deleted_at::text, ''), 0)), 0)
              FROM sub",
         )
         .bind(node.id)
@@ -52,7 +67,7 @@ pub async fn of(
 }
 
 fn feed(hasher: &mut blake3::Hasher, totals: &Totals) {
-    let (count, updated, deleted, trashed, size) = totals;
+    let (count, updated, deleted, trashed, size, identity) = totals;
     hasher.update(&count.to_le_bytes());
     hasher.update(
         &updated
@@ -66,4 +81,5 @@ fn feed(hasher: &mut blake3::Hasher, totals: &Totals) {
     );
     hasher.update(&trashed.to_le_bytes());
     hasher.update(&size.to_le_bytes());
+    hasher.update(&identity.to_le_bytes());
 }

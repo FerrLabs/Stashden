@@ -59,6 +59,25 @@ async fn moved(harness: &Harness, bearer: &str, seen: &mut Vec<String>, what: &s
     seen.push(now);
 }
 
+database_test!(
+    a_same_size_overwrite_that_committed_late_still_moves_the_fingerprint,
+    harness,
+    {
+        let owner = harness.account("owner@example.com", Role::Member).await;
+        let bearer = harness.session(owner.id).await;
+        harness.write(owner.id, "config.txt", b"aaaa").await;
+        harness.write(owner.id, "other.txt", b"zzzz").await;
+        let before = fingerprint(&harness, &bearer).await;
+
+        sqlx::query("UPDATE nodes SET etag = '\"rewritten\"' WHERE name = 'config.txt'")
+            .execute(&harness.state.db)
+            .await
+            .expect("rewriting the etag without touching updated_at");
+
+        assert_ne!(before, fingerprint(&harness, &bearer).await);
+    }
+);
+
 database_test!(an_untouched_tree_keeps_its_fingerprint, harness, {
     let owner = harness.account("owner@example.com", Role::Member).await;
     let bearer = harness.session(owner.id).await;

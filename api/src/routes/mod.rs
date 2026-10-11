@@ -29,7 +29,6 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
-        .route("/v1/tree/fingerprint", get(tree::fingerprint))
         .route("/metrics", get(metrics))
         .route("/v1/auth/login", post(auth::login))
         .route("/v1/auth/me", get(auth::me).put(auth::update_profile))
@@ -76,6 +75,7 @@ pub fn router(state: AppState) -> Router {
             get(shares::download_at),
         )
         .route("/v1/search", get(search::search))
+        .route("/v1/tree/fingerprint", get(tree::fingerprint))
         .route("/v1/thumbnails/{*path}", get(thumbnails::get))
         .route("/v1/uploads", get(uploads::mine).post(uploads::begin))
         .route(
