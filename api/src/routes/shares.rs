@@ -121,6 +121,31 @@ pub async fn download(
     contents(&state, &node, &headers).await
 }
 
+pub async fn archive(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let node = resolve(&state, &token, &[], &headers).await?;
+    zipped(&state, &node).await
+}
+
+pub async fn archive_at(
+    State(state): State<AppState>,
+    Path((token, path)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let node = resolve(&state, &token, &parse_path(&path)?, &headers).await?;
+    zipped(&state, &node).await
+}
+
+async fn zipped(state: &AppState, node: &Node) -> Result<Response, ApiError> {
+    let members = crate::archive::members(&state.db, node).await?;
+    let mut response = crate::archive::respond(state, node, members);
+    response.headers_mut().extend(never_cached());
+    Ok(response)
+}
+
 pub async fn download_at(
     State(state): State<AppState>,
     Path((token, path)): Path<(String, String)>,

@@ -5778,6 +5778,7 @@ dependencies = [
  "blake3",
  "bytes",
  "chrono",
+ "crc32fast",
  "futures",
  "getrandom 0.4.3",
  "http-body-util",
@@ -5801,6 +5802,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "zip",
 ]
 
 [[package]]
