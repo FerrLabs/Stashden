@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.44.1] - 2026-10-11
+
+### Bug Fixes
+
+- fix(accounts): fold a moved share into an overlapping one when an address is renamed (#319)
+
 ## [0.44.0] - 2026-10-11
 
 ### Features
