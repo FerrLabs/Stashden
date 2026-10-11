@@ -8,7 +8,6 @@ use stashden_api::build_router;
 use stashden_api::state::AppState;
 use tower::ServiceExt;
 
-
 async fn get(state: &AppState, path: &str, bearer: Option<&str>) -> (StatusCode, String) {
     let mut request = Request::builder().method("GET").uri(path);
     if let Some(token) = bearer {
