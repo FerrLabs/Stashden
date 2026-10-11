@@ -146,16 +146,22 @@ pub async fn reassign(
         let mut access = access;
         let mut inside = false;
 
-        let held = sqlx::query_as::<_, (Uuid, Uuid, Access)>(
-            "SELECT id, node_id, access FROM grants WHERE grantee_email = $1",
+        let held_rows = sqlx::query_as::<_, (Uuid, Uuid, Access)>(
+            "SELECT id, node_id, access FROM grants
+             WHERE grantee_email = $1
+               AND node_id IN (SELECT id FROM nodes WHERE owner_id = $2)",
         )
         .bind(new.as_str())
+        .bind(node.owner_id)
         .fetch_all(&mut **tx)
         .await?;
+        let mut held = Vec::with_capacity(held_rows.len());
+        for (held_id, held_node_id, held_access) in held_rows {
+            held.push((held_id, node_by_id(tx, held_node_id).await?, held_access));
+        }
 
-        for (held_id, held_node_id, held_access) in &held {
-            let held_node = node_by_id(tx, *held_node_id).await?;
-            if contains(tx, &held_node, &node).await? {
+        for (held_id, held_node, held_access) in &held {
+            if contains(tx, held_node, &node).await? {
                 if access.may_write() && !held_access.may_write() {
                     sqlx::query("UPDATE grants SET access = $2 WHERE id = $1")
                         .bind(held_id)
@@ -176,9 +182,8 @@ pub async fn reassign(
             continue;
         }
 
-        for (held_id, held_node_id, held_access) in &held {
-            let held_node = node_by_id(tx, *held_node_id).await?;
-            if contains(tx, &node, &held_node).await? {
+        for (held_id, held_node, held_access) in &held {
+            if contains(tx, &node, held_node).await? {
                 if held_access.may_write() {
                     access = Access::Write;
                 }

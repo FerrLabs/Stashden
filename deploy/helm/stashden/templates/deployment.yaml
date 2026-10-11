@@ -38,6 +38,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         fsGroup: 10001
+      terminationGracePeriodSeconds: 40
       containers:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -130,6 +131,10 @@ spec:
                   name: {{ include "stashden.fullname" . }}
                   key: bootstrap-admin-password
             {{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
           livenessProbe:
             httpGet:
               path: /health
@@ -140,11 +145,13 @@ spec:
               path: /ready
               port: http
             periodSeconds: 5
+            timeoutSeconds: 6
           startupProbe:
             httpGet:
               path: /ready
               port: http
             periodSeconds: 3
+            timeoutSeconds: 6
             failureThreshold: 40
           {{- with .Values.resources }}
           resources:

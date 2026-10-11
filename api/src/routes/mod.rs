@@ -111,12 +111,12 @@ async fn health() -> Json<Value> {
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 async fn ready(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
-    let database = tokio::time::timeout(PROBE_TIMEOUT, sqlx::query("SELECT 1").execute(&state.db))
-        .await
-        .is_ok_and(|result| result.is_ok());
-    let blobs = tokio::time::timeout(PROBE_TIMEOUT, state.blobs.ping())
-        .await
-        .is_ok_and(|result| result.is_ok());
+    let (database, blobs) = tokio::join!(
+        tokio::time::timeout(PROBE_TIMEOUT, sqlx::query("SELECT 1").execute(&state.db)),
+        tokio::time::timeout(PROBE_TIMEOUT, state.blobs.ping()),
+    );
+    let database = database.is_ok_and(|result| result.is_ok());
+    let blobs = blobs.is_ok_and(|result| result.is_ok());
 
     let status = if database && blobs {
         StatusCode::OK

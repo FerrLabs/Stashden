@@ -93,8 +93,9 @@ ingress:
 
 Liveness uses `/health`, which only says the process is up, so a database outage does not restart
 the pod. Readiness and startup use `/ready`, which asks Postgres and the blob store, so a pod that
-cannot reach either stops receiving traffic. On SIGTERM the server stops accepting connections and
-gives running transfers 25 seconds, which fits inside the default termination grace period of 30.
+cannot reach either stops receiving traffic. A `preStop` sleep of 5 seconds lets the endpoint
+removal propagate before the server stops accepting connections, and then running transfers get 25
+seconds, inside a termination grace period of 40.
 
 ## Upgrading from the roxycloud chart
 
