@@ -4,10 +4,12 @@ use std::time::Duration;
 use stashden_api::{build_router, config::Config, state::AppState, sweeper, users};
 use stashden_core::role::Role;
 use stashden_core::user::Email;
+use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 const RESET_PASSWORD: &str = "reset-password";
 const CHECK: &str = "check";
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(25);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -63,8 +65,58 @@ async fn main() -> Result<()> {
     let listener = tokio::net::TcpListener::bind(&bind)
         .await
         .with_context(|| format!("binding {bind}"))?;
-    axum::serve(listener, app).await.context("serving")?;
+
+    let stop = CancellationToken::new();
+    tokio::spawn({
+        let stop = stop.clone();
+        async move {
+            terminated().await;
+            info!("shutting down, letting running transfers finish");
+            stop.cancel();
+        }
+    });
+
+    let serving = axum::serve(listener, app).with_graceful_shutdown({
+        let stop = stop.clone();
+        async move { stop.cancelled().await }
+    });
+    tokio::select! {
+        served = std::future::IntoFuture::into_future(serving) => served.context("serving")?,
+        () = async {
+            stop.cancelled().await;
+            tokio::time::sleep(SHUTDOWN_GRACE).await;
+        } => warn!(
+            seconds = SHUTDOWN_GRACE.as_secs(),
+            "transfers were still running, stopping anyway"
+        ),
+    }
     Ok(())
+}
+
+async fn terminated() {
+    let interrupt = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let terminate = async {
+            match signal(SignalKind::terminate()) {
+                Ok(mut stream) => {
+                    stream.recv().await;
+                }
+                Err(_) => std::future::pending::<()>().await,
+            }
+        };
+        tokio::select! {
+            () = interrupt => {}
+            () = terminate => {}
+        }
+    }
+
+    #[cfg(not(unix))]
+    interrupt.await;
 }
 
 async fn check(cfg: &Config, flags: Vec<String>) -> Result<()> {

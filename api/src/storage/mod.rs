@@ -103,6 +103,10 @@ pub trait BlobStore: Send + Sync {
     ///
     /// Answers how much it removed.
     async fn sweep_staged(&self, grace: Duration) -> Result<u64, StorageError>;
+
+    /// Whether the store is reachable right now, cheaply enough for a readiness probe to ask every
+    /// few seconds.
+    async fn ping(&self) -> Result<(), StorageError>;
 }
 
 /// Whether bytes stamped `at` are young enough that the sweep should leave them alone.

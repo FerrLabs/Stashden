@@ -119,6 +119,11 @@ impl BlobStore for LocalBlobStore {
             .is_ok_and(|at| is_recent(at, grace))
     }
 
+    async fn ping(&self) -> Result<(), StorageError> {
+        fs::metadata(self.root.join("tmp")).await?;
+        Ok(())
+    }
+
     async fn sweep_staged(&self, grace: Duration) -> Result<u64, StorageError> {
         let mut entries = fs::read_dir(self.root.join("tmp")).await?;
         let mut removed = 0;

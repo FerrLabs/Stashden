@@ -89,6 +89,13 @@ ingress:
 
 `docs/reverse-proxy-and-tls.md` in the repository explains each one and covers other proxies.
 
+## Probes and shutdown
+
+Liveness uses `/health`, which only says the process is up, so a database outage does not restart
+the pod. Readiness and startup use `/ready`, which asks Postgres and the blob store, so a pod that
+cannot reach either stops receiving traffic. On SIGTERM the server stops accepting connections and
+gives running transfers 25 seconds, which fits inside the default termination grace period of 30.
+
 ## Upgrading from the roxycloud chart
 
 The chart was called `roxycloud` before the project became Stashden, and the chart name is part of

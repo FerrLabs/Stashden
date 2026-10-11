@@ -415,6 +415,16 @@ impl BlobStore for S3BlobStore {
         removed += self.sweep_unfinished_uploads(grace).await?;
         Ok(removed)
     }
+
+    async fn ping(&self) -> Result<(), StorageError> {
+        self.client
+            .head_bucket()
+            .bucket(&self.bucket)
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(|err| remote(&err))
+    }
 }
 
 impl S3BlobStore {

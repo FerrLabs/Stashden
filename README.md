@@ -177,6 +177,7 @@ Migrations run on boot. Configuration is environment only:
 | `BLOB_SWEEP_INTERVAL_SECONDS` | 1 h | How often orphaned blobs are collected, `0` disables it |
 | `TRASH_RETENTION_DAYS` | `0` | Days something stays in the trash before the sweep deletes it for good; `0` keeps it until it is purged |
 | `BLOB_GRACE_PERIOD_SECONDS` | 24 h | How long an unreferenced blob is kept before collection |
+| `METRICS_TOKEN` | unset | Enables `GET /metrics`, which then needs `Authorization: Bearer <token>`; without it the route answers 404 |
 | `BOOTSTRAP_ADMIN_EMAIL` | unset | Creates the first administrator on an empty database |
 | `BOOTSTRAP_ADMIN_PASSWORD` | unset | Required alongside the email, minimum 12 characters |
 
@@ -234,7 +235,9 @@ chart's default image needs no override.
 ## Endpoints
 
 ```
-GET    /health
+GET    /health              the process is up, touches nothing
+GET    /ready               Postgres and the blob store answer, 503 when one does not
+GET    /metrics             Prometheus text, only when METRICS_TOKEN is set, bearer token
 POST   /v1/auth/login       exchange email and password for a session token
 GET    /v1/auth/me          the authenticated account
 PUT    /v1/auth/me          change your display name

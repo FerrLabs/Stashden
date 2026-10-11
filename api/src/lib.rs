@@ -10,6 +10,7 @@ pub mod departure;
 pub mod error;
 pub mod grants;
 pub mod incoming;
+pub mod metrics;
 pub mod oidc;
 pub mod password;
 pub mod precondition;
@@ -75,7 +76,7 @@ pub fn build_router(
     // CORS wraps the REST surface alone: the layer answers every OPTIONS itself, which would take
     // the one WebDAV clients read to decide what the server supports.
     let api = routes::router(state.clone()).layer(cors);
-    let router = api.merge(dav::router().with_state(state));
+    let router = api.merge(dav::router().with_state(state.clone()));
 
     let router = match web_root {
         Some(root) => router
@@ -87,7 +88,9 @@ pub fn build_router(
         None => router,
     };
 
-    router.layer(TraceLayer::new_for_http())
+    router
+        .layer(axum::middleware::from_fn_with_state(state, metrics::count))
+        .layer(TraceLayer::new_for_http())
 }
 
 async fn revalidate_html(mut response: Response) -> Response {
