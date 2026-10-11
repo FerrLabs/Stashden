@@ -50,6 +50,15 @@ async fn fingerprint(harness: &Harness, bearer: &str) -> String {
         .to_owned()
 }
 
+async fn moved(harness: &Harness, bearer: &str, seen: &mut Vec<String>, what: &str) {
+    let now = fingerprint(harness, bearer).await;
+    assert!(
+        !seen.contains(&now),
+        "{what} left the fingerprint where it had been"
+    );
+    seen.push(now);
+}
+
 database_test!(an_untouched_tree_keeps_its_fingerprint, harness, {
     let owner = harness.account("owner@example.com", Role::Member).await;
     let bearer = harness.session(owner.id).await;
@@ -67,15 +76,6 @@ database_test!(every_kind_of_change_moves_the_fingerprint, harness, {
     harness.write(owner.id, "a/one.txt", b"1").await;
     harness.write(owner.id, "a/two.txt", b"2").await;
     let mut seen = vec![fingerprint(&harness, &bearer).await];
-
-    async fn moved(harness: &Harness, bearer: &str, seen: &mut Vec<String>, what: &str) {
-        let now = fingerprint(harness, bearer).await;
-        assert!(
-            !seen.contains(&now),
-            "{what} left the fingerprint where it had been"
-        );
-        seen.push(now);
-    }
 
     harness.write(owner.id, "a/three.txt", b"3").await;
     moved(&harness, &bearer, &mut seen, "adding a file").await;
