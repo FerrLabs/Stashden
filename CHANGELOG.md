@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.46.1] - 2026-10-11
+
+### Bug Fixes
+
+- fix(api): probe readiness concurrently, narrow the held-share lookup and drain before shutdown (#322)
+
 ## [0.46.0] - 2026-10-11
 
 ### Features
