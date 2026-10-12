@@ -9,7 +9,7 @@ COPY web web
 # Same origin as the API that serves it, so the image carries no deployment's URL.
 RUN pnpm --filter @stashden/web build --define STASHDEN_API_URL="''"
 
-FROM rust:1.98-slim-bookworm AS builder
+FROM rust:1.99-slim-bookworm AS builder
 WORKDIR /build
 RUN apt-get update \
  && apt-get install -y --no-install-recommends pkg-config \
