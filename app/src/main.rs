@@ -243,6 +243,30 @@ async fn download_file(
     Ok(destination.to_string_lossy().into_owned())
 }
 
+#[tauri::command]
+async fn download_archive(
+    app: AppHandle,
+    desktop: State<'_, Desktop>,
+    path: String,
+) -> Result<String, String> {
+    let guard = desktop.remote.lock().await;
+    let remote = guard.as_ref().ok_or("not connected to a server")?;
+    let name = path
+        .rsplit_once('/')
+        .map_or(path.as_str(), |(_, name)| name);
+    let directory = app
+        .path()
+        .download_dir()
+        .map_err(|error| error.to_string())?;
+    let destination = free_path(&directory, &format!("{name}.zip"));
+
+    remote
+        .download_archive(&path, &destination)
+        .await
+        .map_err(|error| format!("{path}: {error}"))?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
 fn into_downloads(app: &AppHandle, path: &str) -> Result<PathBuf, String> {
     let directory = app
         .path()
@@ -473,6 +497,7 @@ fn main() {
             update_profile,
             read_file,
             download_file,
+            download_archive,
             move_node,
             delete_node,
             create_folder,

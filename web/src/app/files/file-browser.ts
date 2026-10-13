@@ -246,8 +246,10 @@ export class FileBrowser {
     }
     await this.attempt(`downloading ${node.name}`, async () => {
       try {
-        await archive(childOf(this.path(), node.name), node.name);
-        this.announcement.set(`Downloaded ${node.name}.zip`);
+        const saved = await archive(childOf(this.path(), node.name), node.name);
+        this.announcement.set(
+          saved ? `Saved ${node.name}.zip to ${saved}` : `Downloaded ${node.name}.zip`,
+        );
       } catch (cause: unknown) {
         if (!(cause instanceof DownloadCancelled)) {
           throw cause;
