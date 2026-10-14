@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use stashden_core::user::{Email, User};
 
 use crate::attempts::{self, Scope};
-use crate::auth::{Caller, SessionCaller};
+use crate::auth::{Caller, Credential, SessionCaller};
 use crate::error::ApiError;
 use crate::state::AppState;
 use crate::{password, sessions, users};
@@ -85,10 +85,26 @@ pub async fn update_profile(
     ))
 }
 
-pub async fn me(State(state): State<AppState>, caller: Caller) -> Result<Json<User>, ApiError> {
-    users::by_id(&state.db, caller.user_id())
+#[derive(Serialize)]
+pub struct Me {
+    #[serde(flatten)]
+    user: User,
+    fresh_sign_in: bool,
+}
+
+pub async fn me(State(state): State<AppState>, caller: Caller) -> Result<Json<Me>, ApiError> {
+    let user = users::by_id(&state.db, caller.user_id())
         .await?
         .filter(User::is_active)
-        .map(Json)
-        .ok_or(ApiError::Unauthenticated)
+        .ok_or(ApiError::Unauthenticated)?;
+    let fresh_sign_in = match caller.via {
+        Credential::Session(id) => {
+            sessions::signed_in_recently_through_provider(&state.db, id).await?
+        }
+        Credential::AppPassword(_) => false,
+    };
+    Ok(Json(Me {
+        user,
+        fresh_sign_in,
+    }))
 }

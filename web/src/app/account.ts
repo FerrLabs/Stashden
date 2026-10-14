@@ -20,6 +20,7 @@ export type Account = {
   display_name: string;
   role: Role;
   has_password: boolean;
+  fresh_sign_in: boolean;
 };
 
 @Injectable({ providedIn: 'root' })

@@ -22,6 +22,8 @@ export class ChangePassword {
   private readonly session = inject(Session);
 
   protected readonly asksCurrent = this.session.account()?.has_password ?? true;
+  protected readonly needsFreshSignIn =
+    !this.asksCurrent && !(this.session.account()?.fresh_sign_in ?? false);
 
   readonly dismissed = output<void>();
   readonly changed = output<void>();
@@ -52,6 +54,17 @@ export class ChangePassword {
     } catch (cause: unknown) {
       this.failure.set(cause instanceof Error ? cause.message : String(cause));
     } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async signInAgain(): Promise<void> {
+    this.failure.set(null);
+    this.busy.set(true);
+    try {
+      await this.platform.loginWithProvider();
+    } catch (cause: unknown) {
+      this.failure.set(cause instanceof Error ? cause.message : String(cause));
       this.busy.set(false);
     }
   }

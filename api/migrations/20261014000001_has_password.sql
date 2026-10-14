@@ -1,1 +1,3 @@
 ALTER TABLE users ADD COLUMN has_password BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE sessions ADD COLUMN via_provider BOOLEAN NOT NULL DEFAULT false;

@@ -55,12 +55,23 @@ pub async fn create(
     plaintext: &str,
     role: Role,
 ) -> Result<User, ApiError> {
+    insert(tx, email, display_name, plaintext, role, true).await
+}
+
+async fn insert(
+    tx: &mut Transaction<'_, Postgres>,
+    email: &Email,
+    display_name: &str,
+    plaintext: &str,
+    role: Role,
+    has_password: bool,
+) -> Result<User, ApiError> {
     password::check_strength(plaintext, password::MIN_ACCOUNT_PASSWORD_LEN)?;
     let hash = password::hash(plaintext)?;
 
     sqlx::query_as::<_, User>(concat!(
-        "INSERT INTO users (id, email, display_name, password_hash, role)
-         VALUES ($1, $2, $3, $4, $5)
+        "INSERT INTO users (id, email, display_name, password_hash, has_password, role)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING ",
         user_columns!()
     ))
@@ -68,6 +79,7 @@ pub async fn create(
     .bind(email.as_str())
     .bind(display_name)
     .bind(hash)
+    .bind(has_password)
     .bind(role)
     .fetch_one(&mut **tx)
     .await
@@ -86,13 +98,7 @@ pub async fn create_provisioned(
     random_password: &str,
     role: Role,
 ) -> Result<User, ApiError> {
-    let mut user = create(tx, email, display_name, random_password, role).await?;
-    sqlx::query("UPDATE users SET has_password = false WHERE id = $1")
-        .bind(user.id)
-        .execute(&mut **tx)
-        .await?;
-    user.has_password = false;
-    Ok(user)
+    insert(tx, email, display_name, random_password, role, false).await
 }
 
 pub async fn count(pool: &PgPool) -> Result<i64, ApiError> {

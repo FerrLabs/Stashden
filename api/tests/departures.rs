@@ -509,7 +509,12 @@ async fn provisioned(harness: &Harness, email: &str) -> (Uuid, String) {
     .await
     .expect("provisioning");
     tx.commit().await.expect("commit");
-    let token = harness.session(user.id).await;
+    let token = harness
+        .state
+        .sessions
+        .open_through_provider(&harness.state.db, user.id)
+        .await
+        .expect("opening a provider session");
     (user.id, format!("Bearer {token}"))
 }
 
@@ -597,3 +602,73 @@ database_test!(
         );
     }
 );
+
+database_test!(
+    a_provisioned_account_needs_a_recent_sign_in_through_the_provider,
+    harness,
+    {
+        person(&harness, "admin@example.com", Role::Admin).await;
+        let (id, _) = provisioned(&harness, "guest@example.com").await;
+        let ordinary = format!("Bearer {}", harness.session(id).await);
+
+        let leaving = call(
+            &harness,
+            "POST",
+            "/v1/auth/me/delete",
+            &ordinary,
+            r#"{"email":"guest@example.com"}"#,
+        )
+        .await;
+        let setting = call(
+            &harness,
+            "PUT",
+            "/v1/auth/password",
+            &ordinary,
+            r#"{"password":"a-brand-new-password"}"#,
+        )
+        .await;
+
+        assert_eq!(leaving.0, StatusCode::UNAUTHORIZED);
+        assert_eq!(setting.0, StatusCode::UNAUTHORIZED);
+        assert!(
+            leaving.1["error"]
+                .as_str()
+                .expect("a message")
+                .contains("identity provider")
+        );
+        let (_, me) = call(&harness, "GET", "/v1/auth/me", &ordinary, "").await;
+        assert_eq!(me["fresh_sign_in"], false);
+    }
+);
+
+database_test!(an_old_provider_session_is_not_a_recent_sign_in, harness, {
+    person(&harness, "admin@example.com", Role::Admin).await;
+    let (id, session) = provisioned(&harness, "guest@example.com").await;
+    sqlx::query("UPDATE sessions SET created_at = now() - interval '1 hour' WHERE user_id = $1")
+        .bind(id)
+        .execute(&harness.state.db)
+        .await
+        .expect("aging the session");
+
+    let (status, _) = call(
+        &harness,
+        "POST",
+        "/v1/auth/me/delete",
+        &session,
+        r#"{"email":"guest@example.com"}"#,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (_, me) = call(&harness, "GET", "/v1/auth/me", &session, "").await;
+    assert_eq!(me["fresh_sign_in"], false);
+});
+
+database_test!(a_fresh_provider_session_is_reported_as_such, harness, {
+    person(&harness, "admin@example.com", Role::Admin).await;
+    let (_, session) = provisioned(&harness, "guest@example.com").await;
+
+    let (_, me) = call(&harness, "GET", "/v1/auth/me", &session, "").await;
+
+    assert_eq!(me["fresh_sign_in"], true);
+});

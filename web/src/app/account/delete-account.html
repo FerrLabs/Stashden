@@ -6,50 +6,66 @@
       are released and collected after the grace period.
     </p>
 
-    <label>
-      Hand your files to (optional)
-      <input
-        type="email"
-        autocomplete="off"
-        placeholder="colleague@example.com"
-        [value]="heir()"
-        (input)="heir.set($any($event.target).value)"
-      />
-    </label>
-
-    @if (hasPassword) {
-      <label>
-        Your password
-        <input
-          type="password"
-          autocomplete="current-password"
-          required
-          [value]="password()"
-          (input)="password.set($any($event.target).value)"
-        />
-      </label>
+    @if (needsFreshSignIn) {
+      <p class="hint">
+        Your account signs in through your identity provider. Sign in again to confirm it is you,
+        then come back here.
+      </p>
+      @if (failure(); as message) {
+        <p class="failure" role="alert">{{ message }}</p>
+      }
+      <div class="actions">
+        <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
+        <button type="button" class="primary" [disabled]="busy()" (click)="signInAgain()">
+          Sign in again
+        </button>
+      </div>
     } @else {
       <label>
-        Type your address to confirm
+        Hand your files to (optional)
         <input
           type="email"
           autocomplete="off"
-          required
-          [value]="password()"
-          (input)="password.set($any($event.target).value)"
+          placeholder="colleague@example.com"
+          [value]="heir()"
+          (input)="heir.set($any($event.target).value)"
         />
       </label>
-    }
 
-    @if (failure(); as message) {
-      <p class="failure" role="alert">{{ message }}</p>
-    }
+      @if (hasPassword) {
+        <label>
+          Your password
+          <input
+            type="password"
+            autocomplete="current-password"
+            required
+            [value]="confirmation()"
+            (input)="confirmation.set($any($event.target).value)"
+          />
+        </label>
+      } @else {
+        <label>
+          Type your address to confirm
+          <input
+            type="email"
+            autocomplete="off"
+            required
+            [value]="confirmation()"
+            (input)="confirmation.set($any($event.target).value)"
+          />
+        </label>
+      }
 
-    <div class="actions">
-      <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
-      <button type="submit" class="danger" [disabled]="busy() || password().length === 0">
-        {{ busy() ? 'Deleting' : 'Delete my account' }}
-      </button>
-    </div>
+      @if (failure(); as message) {
+        <p class="failure" role="alert">{{ message }}</p>
+      }
+
+      <div class="actions">
+        <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
+        <button type="submit" class="danger" [disabled]="busy() || confirmation().length === 0">
+          {{ busy() ? 'Deleting' : 'Delete my account' }}
+        </button>
+      </div>
+    }
   </form>
 </dialog>

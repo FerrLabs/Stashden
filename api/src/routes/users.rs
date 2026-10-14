@@ -249,6 +249,11 @@ pub async fn delete_own_account(
     Json(request): Json<Farewell>,
 ) -> Result<StatusCode, ApiError> {
     attempts::spend(&state.db, Scope::Login, caller.user.email.as_str()).await?;
+    if !caller.user.has_password
+        && !sessions::signed_in_recently_through_provider(&state.db, caller.session_id).await?
+    {
+        return Err(ApiError::FreshSignInRequired);
+    }
     let confirmed = if caller.user.has_password {
         password::verify(
             request.password.as_deref().unwrap_or_default(),
@@ -306,6 +311,8 @@ pub async fn change_password(
         if !password::verify(current, &caller.user.password_hash) {
             return Err(ApiError::InvalidCredentials);
         }
+    } else if !sessions::signed_in_recently_through_provider(&state.db, caller.session_id).await? {
+        return Err(ApiError::FreshSignInRequired);
     }
     attempts::forget(&state.db, Scope::Login, caller.user.email.as_str()).await?;
     let mut tx = state.db.begin().await?;

@@ -22,13 +22,15 @@ export class DeleteAccount {
   private readonly session = inject(Session);
 
   protected readonly hasPassword = this.session.account()?.has_password ?? true;
+  protected readonly needsFreshSignIn =
+    !this.hasPassword && !(this.session.account()?.fresh_sign_in ?? false);
 
   readonly dismissed = output<void>();
   readonly deleted = output<void>();
 
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
-  protected readonly password = signal('');
+  protected readonly confirmation = signal('');
   protected readonly heir = signal('');
   protected readonly busy = signal(false);
   protected readonly failure = signal<string | null>(null);
@@ -46,15 +48,26 @@ export class DeleteAccount {
     this.failure.set(null);
     this.busy.set(true);
     try {
-      const confirmation = this.hasPassword
-        ? { password: this.password() }
-        : { email: this.password().trim() };
-      await leave(confirmation, this.heir().trim() || null);
+      const proof = this.hasPassword
+        ? { password: this.confirmation() }
+        : { email: this.confirmation().trim() };
+      await leave(proof, this.heir().trim() || null);
       this.dialog().nativeElement.close();
       this.deleted.emit();
     } catch (cause: unknown) {
       this.failure.set(cause instanceof Error ? cause.message : String(cause));
     } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async signInAgain(): Promise<void> {
+    this.failure.set(null);
+    this.busy.set(true);
+    try {
+      await this.platform.loginWithProvider();
+    } catch (cause: unknown) {
+      this.failure.set(cause instanceof Error ? cause.message : String(cause));
       this.busy.set(false);
     }
   }
