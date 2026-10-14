@@ -476,6 +476,7 @@ function desktopPlatform(fallback: string): Platform {
       const { invoke } = await core();
       return invoke<string>('download_file', { path });
     },
+    downloadArchive: (path) => command<string>('download_archive', { path }),
     remove: async (path) => {
       const { invoke } = await core();
       await invoke<void>('delete_node', { path });

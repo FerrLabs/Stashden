@@ -119,6 +119,17 @@ impl Remote {
         save(response, destination).await
     }
 
+    pub async fn download_archive(
+        &self,
+        path: &str,
+        destination: &Path,
+    ) -> Result<(), RemoteError> {
+        let url = self.endpoint("archive", path)?;
+        let response = self.http().get(&url).authorized(self).send().await?;
+        check(response.status(), path)?;
+        save(response, destination).await
+    }
+
     pub async fn received(&self) -> Result<Vec<Received>, RemoteError> {
         self.grants_received().await
     }

@@ -456,3 +456,22 @@ database_test!(
         );
     }
 );
+
+database_test!(the_client_downloads_a_folder_as_a_zip, harness, {
+    let owner = harness.account("archive@example.com", Role::Member).await;
+    harness.write(owner.id, "pack/a.txt", b"alpha").await;
+    harness.write(owner.id, "pack/deeper/b.txt", b"beta").await;
+    let remote = connect(&harness, &owner).await;
+
+    let destination = tempfile::NamedTempFile::new().expect("a scratch file");
+    remote
+        .download_archive("pack", destination.path())
+        .await
+        .expect("downloading the folder");
+
+    let bytes = std::fs::read(destination.path()).expect("reading it back");
+    assert_eq!(&bytes[..2], b"PK");
+    let text = String::from_utf8_lossy(&bytes);
+    assert!(text.contains("pack/a.txt"));
+    assert!(text.contains("pack/deeper/b.txt"));
+});
