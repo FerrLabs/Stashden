@@ -59,6 +59,7 @@ export interface Platform {
   watchSync?(listener: (syncing: Syncing) => void): Promise<() => void>;
   signOut(): void | Promise<void>;
   changePassword?(current: string, password: string): Promise<void>;
+  deleteOwnAccount?(password: string, handOverTo: string | null): Promise<void>;
   listAppPasswords?(): Promise<AppPassword[]>;
   mintAppPassword?(name: string): Promise<MintedPassword>;
   revokeAppPassword?(id: string): Promise<void>;
@@ -242,6 +243,20 @@ function browserPlatform(baseUrl: string): Platform {
       if (!response.ok) {
         throw new Error(await messageFor(response));
       }
+    },
+    deleteOwnAccount: async (password, handOverTo) => {
+      const response = await fetch(`${baseUrl}/v1/auth/me/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...bearer() },
+        body: JSON.stringify({ password, hand_over_to: handOverTo }),
+      });
+      if (response.status === 401) {
+        throw new Error('that is not your password');
+      }
+      if (!response.ok) {
+        throw new Error(await messageFor(response));
+      }
+      localStorage.removeItem(TOKEN_KEY);
     },
     listAppPasswords: () => json<AppPassword[]>('/v1/app-passwords'),
     mintAppPassword: (name) =>

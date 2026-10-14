@@ -248,6 +248,7 @@ POST   /v1/auth/login       exchange email and password for a session token (no 
 GET    /v1/auth/me          the authenticated account
 PUT    /v1/auth/me          change your display name
 POST   /v1/auth/logout      end this session
+POST   /v1/auth/me/delete  delete your own account, with your password; `hand_over_to` gives its files to an address (session only, not an app password)
 GET    /v1/auth/methods     what this installation offers to sign in with (no session needed)
 PUT    /v1/auth/methods     turn password login off or on            (admin)
 POST   /v1/auth/oidc/start  begin an authorization code flow (no session needed)

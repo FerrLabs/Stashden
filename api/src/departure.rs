@@ -24,7 +24,25 @@ pub async fn remove(
         db::lock_owner(&mut tx, owner).await?;
     }
 
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('administrators', 0))")
+        .execute(&mut *tx)
+        .await?;
+
     let leaving = users::by_id_in(&mut tx, id).await?;
+    if leaving.is_admin {
+        let others = sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM users
+             WHERE id <> $1 AND role = 'admin' AND disabled_at IS NULL",
+        )
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if others == 0 {
+            return Err(ApiError::WrongKind {
+                expected: "second administrator in place before the only one is deleted",
+            });
+        }
+    }
     trash::empty(&mut tx, id).await?;
 
     if let Some(recipient) = hand_over_to {

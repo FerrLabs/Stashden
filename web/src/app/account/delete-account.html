@@ -1,0 +1,42 @@
+<dialog #dialog (cancel)="dismiss()">
+  <form method="dialog" (submit)="$event.preventDefault(); submit()">
+    <h2>Delete your account</h2>
+    <p class="hint">
+      This ends every session and removes the account. Without somebody to hand your files to, they
+      are released and collected after the grace period.
+    </p>
+
+    <label>
+      Hand your files to (optional)
+      <input
+        type="email"
+        autocomplete="off"
+        placeholder="colleague@example.com"
+        [value]="heir()"
+        (input)="heir.set($any($event.target).value)"
+      />
+    </label>
+
+    <label>
+      Your password
+      <input
+        type="password"
+        autocomplete="current-password"
+        required
+        [value]="password()"
+        (input)="password.set($any($event.target).value)"
+      />
+    </label>
+
+    @if (failure(); as message) {
+      <p class="failure" role="alert">{{ message }}</p>
+    }
+
+    <div class="actions">
+      <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
+      <button type="submit" class="danger" [disabled]="busy() || password().length === 0">
+        {{ busy() ? 'Deleting' : 'Delete my account' }}
+      </button>
+    </div>
+  </form>
+</dialog>

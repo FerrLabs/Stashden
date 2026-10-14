@@ -358,3 +358,141 @@ database_test!(
         assert!(top[0].starts_with('\u{8a9e}'));
     }
 );
+
+database_test!(an_account_can_delete_itself_with_its_password, harness, {
+    let (_, admin) = person(&harness, "admin@example.com", Role::Admin).await;
+    let (leaver, leaving) = person(&harness, "leaving@example.com", Role::Member).await;
+    harness.write(leaver, "mine.txt", b"gone with me").await;
+
+    let (status, body) = call(
+        &harness,
+        "POST",
+        "/v1/auth/me/delete",
+        &leaving,
+        &format!(r#"{{"password":"{}"}}"#, common::PASSWORD),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    let (status, _) = call(&harness, "GET", "/v1/auth/me", &leaving, "").await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, listing) = call(&harness, "GET", "/v1/users", &admin, "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(listing.as_array().expect("a list").len(), 1);
+});
+
+database_test!(
+    deleting_yourself_with_the_wrong_password_changes_nothing,
+    harness,
+    {
+        let (_, leaving) = person(&harness, "leaving@example.com", Role::Member).await;
+
+        let (status, _) = call(
+            &harness,
+            "POST",
+            "/v1/auth/me/delete",
+            &leaving,
+            r#"{"password":"not-the-password"}"#,
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        let (status, _) = call(&harness, "GET", "/v1/auth/me", &leaving, "").await;
+        assert_eq!(status, StatusCode::OK);
+    }
+);
+
+database_test!(
+    an_account_can_hand_its_files_to_another_address_when_it_leaves,
+    harness,
+    {
+        let (leaver, leaving) = person(&harness, "leaving@example.com", Role::Member).await;
+        let (_, heir) = person(&harness, "heir@example.com", Role::Member).await;
+        harness.write(leaver, "keepsake.txt", b"for you").await;
+
+        let (status, body) = call(
+            &harness,
+            "POST",
+            "/v1/auth/me/delete",
+            &leaving,
+            &format!(
+                r#"{{"password":"{}","hand_over_to":"heir@example.com"}}"#,
+                common::PASSWORD
+            ),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+        let (status, listing) = call(&harness, "GET", "/v1/folders", &heir, "").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(listing.as_array().expect("a listing").len(), 1);
+    }
+);
+
+database_test!(
+    an_unknown_hand_over_address_is_refused_like_an_unusable_one,
+    harness,
+    {
+        let (_, leaving) = person(&harness, "leaving@example.com", Role::Member).await;
+        person(&harness, "reader@example.com", Role::Reader).await;
+
+        let unknown = call(
+            &harness,
+            "POST",
+            "/v1/auth/me/delete",
+            &leaving,
+            &format!(
+                r#"{{"password":"{}","hand_over_to":"nobody@example.com"}}"#,
+                common::PASSWORD
+            ),
+        )
+        .await;
+        let reader = call(
+            &harness,
+            "POST",
+            "/v1/auth/me/delete",
+            &leaving,
+            &format!(
+                r#"{{"password":"{}","hand_over_to":"reader@example.com"}}"#,
+                common::PASSWORD
+            ),
+        )
+        .await;
+
+        assert_eq!(unknown.0, StatusCode::BAD_REQUEST);
+        assert_eq!(unknown, reader);
+    }
+);
+
+database_test!(the_only_administrator_cannot_delete_themselves, harness, {
+    let (_, admin) = person(&harness, "admin@example.com", Role::Admin).await;
+
+    let (status, body) = call(
+        &harness,
+        "POST",
+        "/v1/auth/me/delete",
+        &admin,
+        &format!(r#"{{"password":"{}"}}"#, common::PASSWORD),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    let (status, _) = call(&harness, "GET", "/v1/auth/me", &admin, "").await;
+    assert_eq!(status, StatusCode::OK);
+});
+
+database_test!(one_of_two_administrators_can_leave, harness, {
+    let (_, first) = person(&harness, "first@example.com", Role::Admin).await;
+    let (_, _second) = person(&harness, "second@example.com", Role::Admin).await;
+
+    let (status, body) = call(
+        &harness,
+        "POST",
+        "/v1/auth/me/delete",
+        &first,
+        &format!(r#"{{"password":"{}"}}"#, common::PASSWORD),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+});
