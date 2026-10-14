@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.50.0] - 2026-10-14
+
+### Features
+
+- feat(accounts): let an account delete itself, handing its files to someone (#343)
+
 ## [0.49.0] - 2026-10-14
 
 ### Features
