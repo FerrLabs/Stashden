@@ -47,7 +47,7 @@ pub struct NewEmail {
 
 #[derive(Deserialize)]
 pub struct PasswordChange {
-    current: String,
+    current: Option<String>,
     password: String,
 }
 
@@ -236,7 +236,8 @@ pub async fn reset_password(
 
 #[derive(Deserialize)]
 pub struct Farewell {
-    password: String,
+    password: Option<String>,
+    email: Option<String>,
     hand_over_to: Option<String>,
 }
 
@@ -248,7 +249,19 @@ pub async fn delete_own_account(
     Json(request): Json<Farewell>,
 ) -> Result<StatusCode, ApiError> {
     attempts::spend(&state.db, Scope::Login, caller.user.email.as_str()).await?;
-    if !password::verify(&request.password, &caller.user.password_hash) {
+    let confirmed = if caller.user.has_password {
+        password::verify(
+            request.password.as_deref().unwrap_or_default(),
+            &caller.user.password_hash,
+        )
+    } else {
+        request
+            .email
+            .as_deref()
+            .and_then(|typed| typed.parse::<Email>().ok())
+            .is_some_and(|typed| typed.as_str() == caller.user.email)
+    };
+    if !confirmed {
         return Err(ApiError::InvalidCredentials);
     }
     attempts::forget(&state.db, Scope::Login, caller.user.email.as_str()).await?;
@@ -288,8 +301,11 @@ pub async fn change_password(
     Json(request): Json<PasswordChange>,
 ) -> Result<StatusCode, ApiError> {
     attempts::spend(&state.db, Scope::Login, caller.user.email.as_str()).await?;
-    if !password::verify(&request.current, &caller.user.password_hash) {
-        return Err(ApiError::InvalidCredentials);
+    if caller.user.has_password {
+        let current = request.current.as_deref().unwrap_or_default();
+        if !password::verify(current, &caller.user.password_hash) {
+            return Err(ApiError::InvalidCredentials);
+        }
     }
     attempts::forget(&state.db, Scope::Login, caller.user.email.as_str()).await?;
     let mut tx = state.db.begin().await?;

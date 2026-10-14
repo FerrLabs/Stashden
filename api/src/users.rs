@@ -8,7 +8,7 @@ use crate::password;
 
 macro_rules! user_columns {
     () => {
-        "id, email, display_name, password_hash, role, (role = 'admin') AS is_admin, created_at, disabled_at"
+        "id, email, display_name, password_hash, has_password, role, (role = 'admin') AS is_admin, created_at, disabled_at"
     };
 }
 
@@ -77,6 +77,22 @@ pub async fn create(
         }
         other => other.into(),
     })
+}
+
+pub async fn create_provisioned(
+    tx: &mut Transaction<'_, Postgres>,
+    email: &Email,
+    display_name: &str,
+    random_password: &str,
+    role: Role,
+) -> Result<User, ApiError> {
+    let mut user = create(tx, email, display_name, random_password, role).await?;
+    sqlx::query("UPDATE users SET has_password = false WHERE id = $1")
+        .bind(user.id)
+        .execute(&mut **tx)
+        .await?;
+    user.has_password = false;
+    Ok(user)
 }
 
 pub async fn count(pool: &PgPool) -> Result<i64, ApiError> {
@@ -185,11 +201,12 @@ pub async fn set_password(
     password::check_strength(plaintext, password::MIN_ACCOUNT_PASSWORD_LEN)?;
     let hash = password::hash(plaintext)?;
 
-    let changed = sqlx::query("UPDATE users SET password_hash = $2 WHERE id = $1")
-        .bind(id)
-        .bind(hash)
-        .execute(executor)
-        .await?;
+    let changed =
+        sqlx::query("UPDATE users SET password_hash = $2, has_password = true WHERE id = $1")
+            .bind(id)
+            .bind(hash)
+            .execute(executor)
+            .await?;
 
     if changed.rows_affected() == 0 {
         return Err(ApiError::NotFound);

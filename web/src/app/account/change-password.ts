@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { Session } from '../account';
 import { PLATFORM } from '../platform';
 
 @Component({
@@ -18,6 +19,9 @@ import { PLATFORM } from '../platform';
 })
 export class ChangePassword {
   private readonly platform = inject(PLATFORM);
+  private readonly session = inject(Session);
+
+  protected readonly asksCurrent = this.session.account()?.has_password ?? true;
 
   readonly dismissed = output<void>();
   readonly changed = output<void>();
@@ -42,7 +46,7 @@ export class ChangePassword {
     this.failure.set(null);
     this.busy.set(true);
     try {
-      await change(this.current(), this.replacement());
+      await change(this.asksCurrent ? this.current() : null, this.replacement());
       this.dialog().nativeElement.close();
       this.changed.emit();
     } catch (cause: unknown) {

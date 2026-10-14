@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN has_password BOOLEAN NOT NULL DEFAULT true;

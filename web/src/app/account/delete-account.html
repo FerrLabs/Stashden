@@ -17,16 +17,29 @@
       />
     </label>
 
-    <label>
-      Your password
-      <input
-        type="password"
-        autocomplete="current-password"
-        required
-        [value]="password()"
-        (input)="password.set($any($event.target).value)"
-      />
-    </label>
+    @if (hasPassword) {
+      <label>
+        Your password
+        <input
+          type="password"
+          autocomplete="current-password"
+          required
+          [value]="password()"
+          (input)="password.set($any($event.target).value)"
+        />
+      </label>
+    } @else {
+      <label>
+        Type your address to confirm
+        <input
+          type="email"
+          autocomplete="off"
+          required
+          [value]="password()"
+          (input)="password.set($any($event.target).value)"
+        />
+      </label>
+    }
 
     @if (failure(); as message) {
       <p class="failure" role="alert">{{ message }}</p>

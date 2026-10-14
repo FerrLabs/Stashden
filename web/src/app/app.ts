@@ -194,6 +194,7 @@ export class App {
 
   protected noteChanged(): void {
     this.changing.set(false);
+    void this.session.load();
     this.notice.set('Your password has been changed.');
   }
 

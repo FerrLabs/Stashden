@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { Session } from '../account';
 import { PLATFORM } from '../platform';
 
 @Component({
@@ -18,6 +19,9 @@ import { PLATFORM } from '../platform';
 })
 export class DeleteAccount {
   private readonly platform = inject(PLATFORM);
+  private readonly session = inject(Session);
+
+  protected readonly hasPassword = this.session.account()?.has_password ?? true;
 
   readonly dismissed = output<void>();
   readonly deleted = output<void>();
@@ -42,7 +46,10 @@ export class DeleteAccount {
     this.failure.set(null);
     this.busy.set(true);
     try {
-      await leave(this.password(), this.heir().trim() || null);
+      const confirmation = this.hasPassword
+        ? { password: this.password() }
+        : { email: this.password().trim() };
+      await leave(confirmation, this.heir().trim() || null);
       this.dialog().nativeElement.close();
       this.deleted.emit();
     } catch (cause: unknown) {

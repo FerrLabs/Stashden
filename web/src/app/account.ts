@@ -19,6 +19,7 @@ export type Account = {
   email: string;
   display_name: string;
   role: Role;
+  has_password: boolean;
 };
 
 @Injectable({ providedIn: 'root' })
