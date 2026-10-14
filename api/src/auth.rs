@@ -56,7 +56,16 @@ impl Sessions {
     }
 
     pub async fn open(&self, pool: &PgPool, user_id: Uuid) -> Result<String, ApiError> {
-        let session_id = sessions::create(pool, user_id, Utc::now() + self.ttl).await?;
+        let session_id = sessions::create(pool, user_id, Utc::now() + self.ttl, false).await?;
+        Ok(self.issue(user_id, session_id)?)
+    }
+
+    pub async fn open_through_provider(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<String, ApiError> {
+        let session_id = sessions::create(pool, user_id, Utc::now() + self.ttl, true).await?;
         Ok(self.issue(user_id, session_id)?)
     }
 

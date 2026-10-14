@@ -79,6 +79,7 @@ pub struct User {
     pub is_admin: bool,
     #[serde(skip)]
     pub password_hash: String,
+    pub has_password: bool,
     pub created_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disabled_at: Option<DateTime<Utc>>,
@@ -141,6 +142,7 @@ mod tests {
             role,
             is_admin: role.may_administer(),
             password_hash: "$argon2id$v=19$m=19456,t=2,p=1$secret".to_owned(),
+            has_password: true,
             created_at: Utc::now(),
             disabled_at: None,
         }

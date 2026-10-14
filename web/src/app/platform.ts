@@ -36,6 +36,8 @@ export type Release = {
   available: Available | null;
 };
 
+export type Confirmation = { password: string } | { email: string };
+
 export type ProviderSignIn =
   | { kind: 'redirected' }
   | { kind: 'signedIn'; warning: string | null };
@@ -58,8 +60,8 @@ export interface Platform {
   syncStatus?(): Promise<Syncing | null>;
   watchSync?(listener: (syncing: Syncing) => void): Promise<() => void>;
   signOut(): void | Promise<void>;
-  changePassword?(current: string, password: string): Promise<void>;
-  deleteOwnAccount?(password: string, handOverTo: string | null): Promise<void>;
+  changePassword?(current: string | null, password: string): Promise<void>;
+  deleteOwnAccount?(confirmation: Confirmation, handOverTo: string | null): Promise<void>;
   listAppPasswords?(): Promise<AppPassword[]>;
   mintAppPassword?(name: string): Promise<MintedPassword>;
   revokeAppPassword?(id: string): Promise<void>;
@@ -238,20 +240,25 @@ function browserPlatform(baseUrl: string): Platform {
         body: JSON.stringify({ current, password }),
       });
       if (response.status === 401) {
-        throw new Error('that is not your current password');
+        throw new Error(await refusalFor(response, 'that is not your current password'));
       }
       if (!response.ok) {
         throw new Error(await messageFor(response));
       }
     },
-    deleteOwnAccount: async (password, handOverTo) => {
+    deleteOwnAccount: async (confirmation, handOverTo) => {
       const response = await fetch(`${baseUrl}/v1/auth/me/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...bearer() },
-        body: JSON.stringify({ password, hand_over_to: handOverTo }),
+        body: JSON.stringify({ ...confirmation, hand_over_to: handOverTo }),
       });
       if (response.status === 401) {
-        throw new Error('that is not your password');
+        throw new Error(
+          await refusalFor(
+            response,
+            'password' in confirmation ? 'that is not your password' : 'that is not your address',
+          ),
+        );
       }
       if (!response.ok) {
         throw new Error(await messageFor(response));
@@ -377,6 +384,11 @@ function browserPlatform(baseUrl: string): Platform {
       await call('/v1/trash', { method: 'DELETE' });
     },
   };
+}
+
+async function refusalFor(response: Response, fallback: string): Promise<string> {
+  const explanation = await explanationFrom(response);
+  return explanation?.includes('identity provider') ? explanation : fallback;
 }
 
 async function messageFor(response: Response): Promise<string> {

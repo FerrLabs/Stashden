@@ -44,6 +44,8 @@ pub enum ApiError {
     InvalidEmail(#[from] stashden_core::user::InvalidEmail),
     #[error("quota exceeded")]
     QuotaExceeded,
+    #[error("sign in again through your identity provider to confirm this")]
+    FreshSignInRequired,
     #[error("the file changed since this client last saw it")]
     PreconditionFailed,
     #[error("this upload is at {expected} bytes")]
@@ -89,9 +91,10 @@ impl From<crate::auth::SignFailed> for ApiError {
 impl ApiError {
     fn status(&self) -> StatusCode {
         match self {
-            Self::Unauthenticated | Self::InvalidCredentials | Self::SharePassword => {
-                StatusCode::UNAUTHORIZED
-            }
+            Self::Unauthenticated
+            | Self::InvalidCredentials
+            | Self::SharePassword
+            | Self::FreshSignInRequired => StatusCode::UNAUTHORIZED,
             Self::WeakPassword(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::NotFound | Self::Storage(StorageError::NotFound(_)) => StatusCode::NOT_FOUND,
             Self::Forbidden | Self::SessionRequired | Self::AcrossAccounts => StatusCode::FORBIDDEN,

@@ -118,7 +118,7 @@ pub async fn admit(
     let mut tx = pool.begin().await?;
     // The password is random and never shown to anybody. An account that arrives through a
     // provider has no password to sign in with, and leaving the column empty would make one.
-    let created = crate::users::create(
+    let created = crate::users::create_provisioned(
         &mut tx,
         &email,
         display,

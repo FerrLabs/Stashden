@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   afterNextRender,
   inject,
@@ -8,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { Session } from '../account';
 import { PLATFORM } from '../platform';
 
 @Component({
@@ -18,6 +20,12 @@ import { PLATFORM } from '../platform';
 })
 export class ChangePassword {
   private readonly platform = inject(PLATFORM);
+  private readonly session = inject(Session);
+
+  protected readonly asksCurrent = computed(() => this.session.account()?.has_password ?? true);
+  protected readonly needsFreshSignIn = computed(
+    () => !this.asksCurrent() && !(this.session.account()?.fresh_sign_in ?? false),
+  );
 
   readonly dismissed = output<void>();
   readonly changed = output<void>();
@@ -31,6 +39,15 @@ export class ChangePassword {
 
   constructor() {
     afterNextRender(() => this.dialog().nativeElement.showModal());
+    void this.refresh();
+  }
+
+  private async refresh(): Promise<void> {
+    try {
+      await this.session.load();
+    } catch {
+      return;
+    }
   }
 
   protected async submit(): Promise<void> {
@@ -42,12 +59,24 @@ export class ChangePassword {
     this.failure.set(null);
     this.busy.set(true);
     try {
-      await change(this.current(), this.replacement());
+      await change(this.asksCurrent() ? this.current() : null, this.replacement());
       this.dialog().nativeElement.close();
       this.changed.emit();
     } catch (cause: unknown) {
       this.failure.set(cause instanceof Error ? cause.message : String(cause));
+      await this.refresh();
     } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async signInAgain(): Promise<void> {
+    this.failure.set(null);
+    this.busy.set(true);
+    try {
+      await this.platform.loginWithProvider();
+    } catch (cause: unknown) {
+      this.failure.set(cause instanceof Error ? cause.message : String(cause));
       this.busy.set(false);
     }
   }
