@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.51.0] - 2026-10-14
+
+### Features
+
+- feat(accounts): let a provider-created account set a password and confirm leaving by its address (#344)
+
 ## [0.50.0] - 2026-10-14
 
 ### Features
