@@ -5,6 +5,7 @@ import { filter, map, startWith } from 'rxjs';
 import { AccountMenu } from './account/account-menu';
 import { AppPasswords } from './account/app-passwords';
 import { ChangePassword } from './account/change-password';
+import { DeleteAccount } from './account/delete-account';
 import { Update } from './account/update';
 import { Session } from './account';
 import { linkTo } from './folder';
@@ -17,7 +18,16 @@ import { SHARE_PREFIX } from './share';
 
 @Component({
   selector: 'rx-root',
-  imports: [AccountMenu, AppPasswords, ChangePassword, LoginForm, Prompt, RouterOutlet, Update],
+  imports: [
+    AccountMenu,
+    AppPasswords,
+    ChangePassword,
+    DeleteAccount,
+    LoginForm,
+    Prompt,
+    RouterOutlet,
+    Update,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,6 +52,7 @@ export class App {
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected readonly changing = signal(false);
+  protected readonly deleting = signal(false);
   protected readonly naming = signal(false);
   protected readonly notice = signal<string | null>(null);
   protected readonly listingAppPasswords = signal(false);
@@ -149,6 +160,14 @@ export class App {
     this.session.forget();
     this.connected.set(false);
     this.notice.set(null);
+    void this.router.navigate(linkTo(''));
+  }
+
+  protected accountDeleted(): void {
+    this.deleting.set(false);
+    this.session.forget();
+    this.connected.set(false);
+    this.notice.set('Your account has been deleted.');
     void this.router.navigate(linkTo(''));
   }
 

@@ -25,6 +25,7 @@ export class AccountMenu {
   private readonly session = inject(Session);
 
   readonly changingPassword = output<void>();
+  readonly deletingAccount = output<void>();
   readonly editingProfile = output<void>();
   readonly checkingForUpdates = output<void>();
   readonly openingAppPasswords = output<void>();
@@ -32,6 +33,7 @@ export class AccountMenu {
 
   protected readonly canChangePassword = this.platform.changePassword !== undefined;
   protected readonly canEditProfile = this.platform.updateProfile !== undefined;
+  protected readonly canDeleteAccount = this.platform.deleteOwnAccount !== undefined;
   protected readonly canUpdate = this.platform.checkUpdate !== undefined;
   protected readonly canSync = this.platform.startSync !== undefined;
   protected readonly canMintAppPasswords = this.platform.mintAppPassword !== undefined;
@@ -65,6 +67,11 @@ export class AccountMenu {
   protected changePassword(): void {
     this.open.set(false);
     this.changingPassword.emit();
+  }
+
+  protected deleteAccount(): void {
+    this.open.set(false);
+    this.deletingAccount.emit();
   }
 
   protected editProfile(): void {

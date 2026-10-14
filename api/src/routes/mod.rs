@@ -34,6 +34,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/auth/login", post(auth::login))
         .route("/v1/auth/me", get(auth::me).put(auth::update_profile))
         .route("/v1/auth/logout", post(auth::logout))
+        .route("/v1/auth/me/delete", post(users::delete_own_account))
         .route(
             "/v1/auth/methods",
             get(oidc::methods).put(oidc::set_methods),

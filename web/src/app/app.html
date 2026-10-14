@@ -10,6 +10,7 @@
       @if (connected()) {
         <rx-account-menu
           (changingPassword)="changePassword()"
+          (deletingAccount)="deleting.set(true)"
           (editingProfile)="naming.set(true)"
           (openingAppPasswords)="listingAppPasswords.set(true)"
           (checkingForUpdates)="updating.set(true)"
@@ -62,6 +63,10 @@
       (submitted)="rename($event)"
       (dismissed)="naming.set(false)"
     />
+  }
+
+  @if (deleting()) {
+    <rx-delete-account (deleted)="accountDeleted()" (dismissed)="deleting.set(false)" />
   }
 
   @if (changing()) {

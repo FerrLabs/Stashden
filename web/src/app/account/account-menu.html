@@ -45,6 +45,9 @@
       @if (canUpdate) {
         <button type="button" role="menuitem" (click)="checkForUpdates()">Check for updates</button>
       }
+      @if (canDeleteAccount) {
+        <button type="button" role="menuitem" (click)="deleteAccount()">Delete account</button>
+      }
       <button type="button" role="menuitem" (click)="signOut()">Sign out</button>
     </div>
   }

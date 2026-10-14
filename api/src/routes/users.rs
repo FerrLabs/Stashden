@@ -234,6 +234,52 @@ pub async fn reset_password(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Deserialize)]
+pub struct Farewell {
+    password: String,
+    hand_over_to: Option<String>,
+}
+
+/// Leaving asks for the password for the same reason changing it does, and it never takes an
+/// app password: a credential a sync client keeps on disk must not be able to end the account.
+pub async fn delete_own_account(
+    State(state): State<AppState>,
+    caller: SessionCaller,
+    Json(request): Json<Farewell>,
+) -> Result<StatusCode, ApiError> {
+    attempts::spend(&state.db, Scope::Login, caller.user.email.as_str()).await?;
+    if !password::verify(&request.password, &caller.user.password_hash) {
+        return Err(ApiError::InvalidCredentials);
+    }
+    attempts::forget(&state.db, Scope::Login, caller.user.email.as_str()).await?;
+
+    let unusable = || ApiError::WrongKind {
+        expected: "active account that can write to hand the files to",
+    };
+    let hand_over_to = match request.hand_over_to.as_deref().map(str::trim) {
+        None | Some("") => None,
+        Some(address) => {
+            let email: Email = address.parse().map_err(|_| unusable())?;
+            let recipient = users::by_email(&state.db, &email)
+                .await?
+                .ok_or_else(unusable)?;
+            if recipient.id == caller.user.id {
+                return Err(unusable());
+            }
+            Some(recipient.id)
+        }
+    };
+
+    crate::departure::remove(
+        &state.db,
+        caller.user.id,
+        hand_over_to,
+        state.default_quota_bytes,
+    )
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// Changing your own password asks for the current one, so a borrowed session cannot lock the owner
 /// out of their own account.
 pub async fn change_password(
