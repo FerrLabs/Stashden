@@ -6,7 +6,7 @@
       are released and collected after the grace period.
     </p>
 
-    @if (needsFreshSignIn) {
+    @if (needsFreshSignIn()) {
       <p class="hint">
         Your account signs in through your identity provider. Sign in again to confirm it is you,
         then come back here.
@@ -32,7 +32,7 @@
         />
       </label>
 
-      @if (hasPassword) {
+      @if (hasPassword()) {
         <label>
           Your password
           <input

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   afterNextRender,
   inject,
@@ -21,9 +22,10 @@ export class DeleteAccount {
   private readonly platform = inject(PLATFORM);
   private readonly session = inject(Session);
 
-  protected readonly hasPassword = this.session.account()?.has_password ?? true;
-  protected readonly needsFreshSignIn =
-    !this.hasPassword && !(this.session.account()?.fresh_sign_in ?? false);
+  protected readonly hasPassword = computed(() => this.session.account()?.has_password ?? true);
+  protected readonly needsFreshSignIn = computed(
+    () => !this.hasPassword() && !(this.session.account()?.fresh_sign_in ?? false),
+  );
 
   readonly dismissed = output<void>();
   readonly deleted = output<void>();
@@ -37,6 +39,15 @@ export class DeleteAccount {
 
   constructor() {
     afterNextRender(() => this.dialog().nativeElement.showModal());
+    void this.refresh();
+  }
+
+  private async refresh(): Promise<void> {
+    try {
+      await this.session.load();
+    } catch {
+      return;
+    }
   }
 
   protected async submit(): Promise<void> {
@@ -48,7 +59,7 @@ export class DeleteAccount {
     this.failure.set(null);
     this.busy.set(true);
     try {
-      const proof = this.hasPassword
+      const proof = this.hasPassword()
         ? { password: this.confirmation() }
         : { email: this.confirmation().trim() };
       await leave(proof, this.heir().trim() || null);
@@ -56,6 +67,7 @@ export class DeleteAccount {
       this.deleted.emit();
     } catch (cause: unknown) {
       this.failure.set(cause instanceof Error ? cause.message : String(cause));
+      await this.refresh();
     } finally {
       this.busy.set(false);
     }

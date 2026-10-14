@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   afterNextRender,
   inject,
@@ -21,9 +22,10 @@ export class ChangePassword {
   private readonly platform = inject(PLATFORM);
   private readonly session = inject(Session);
 
-  protected readonly asksCurrent = this.session.account()?.has_password ?? true;
-  protected readonly needsFreshSignIn =
-    !this.asksCurrent && !(this.session.account()?.fresh_sign_in ?? false);
+  protected readonly asksCurrent = computed(() => this.session.account()?.has_password ?? true);
+  protected readonly needsFreshSignIn = computed(
+    () => !this.asksCurrent() && !(this.session.account()?.fresh_sign_in ?? false),
+  );
 
   readonly dismissed = output<void>();
   readonly changed = output<void>();
@@ -37,6 +39,15 @@ export class ChangePassword {
 
   constructor() {
     afterNextRender(() => this.dialog().nativeElement.showModal());
+    void this.refresh();
+  }
+
+  private async refresh(): Promise<void> {
+    try {
+      await this.session.load();
+    } catch {
+      return;
+    }
   }
 
   protected async submit(): Promise<void> {
@@ -48,11 +59,12 @@ export class ChangePassword {
     this.failure.set(null);
     this.busy.set(true);
     try {
-      await change(this.asksCurrent ? this.current() : null, this.replacement());
+      await change(this.asksCurrent() ? this.current() : null, this.replacement());
       this.dialog().nativeElement.close();
       this.changed.emit();
     } catch (cause: unknown) {
       this.failure.set(cause instanceof Error ? cause.message : String(cause));
+      await this.refresh();
     } finally {
       this.busy.set(false);
     }
