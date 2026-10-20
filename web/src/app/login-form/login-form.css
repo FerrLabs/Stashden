@@ -1,6 +1,12 @@
 .forgot {
   display: block;
   margin-top: 1rem;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--accent-ink);
+  font: inherit;
   font-size: 0.9rem;
+  text-decoration: underline;
+  cursor: pointer;
 }

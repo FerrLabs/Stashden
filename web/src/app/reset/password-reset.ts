@@ -1,21 +1,15 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
-import { toSignal } from "@angular/core/rxjs-interop";
-import { ActivatedRoute, RouterLink } from "@angular/router";
-import { ResetRefused, Resets } from "./resets";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ResetRefused, Resets } from './resets';
 
-type Stage = "asking" | "mailed" | "choosing" | "changed";
+type Stage = 'asking' | 'mailed' | 'choosing' | 'changed';
 
 @Component({
-  selector: "rx-password-reset",
+  selector: 'rx-password-reset',
   imports: [RouterLink],
-  templateUrl: "./password-reset.html",
-  styleUrl: "./password-reset.css",
+  templateUrl: './password-reset.html',
+  styleUrl: './password-reset.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PasswordReset {
@@ -24,24 +18,22 @@ export class PasswordReset {
   private readonly params = toSignal(inject(ActivatedRoute).params, {
     initialValue: {},
   });
-  private readonly token = computed(
-    () => (this.params() as { token?: string }).token ?? null,
-  );
+  private readonly token = computed(() => (this.params() as { token?: string }).token ?? null);
 
-  private readonly done = signal<"mailed" | "changed" | null>(null);
+  private readonly done = signal<'mailed' | 'changed' | null>(null);
   protected readonly stage = computed<Stage>(
-    () => this.done() ?? (this.token() === null ? "asking" : "choosing"),
+    () => this.done() ?? (this.token() === null ? 'asking' : 'choosing'),
   );
 
-  protected readonly email = signal("");
-  protected readonly password = signal("");
+  protected readonly email = signal('');
+  protected readonly password = signal('');
   protected readonly busy = signal(false);
   protected readonly failure = signal<string | null>(null);
 
   protected async ask(): Promise<void> {
     await this.attempt(async () => {
       await this.resets.request(this.email().trim());
-      this.done.set("mailed");
+      this.done.set('mailed');
     });
   }
 
@@ -52,7 +44,7 @@ export class PasswordReset {
     }
     await this.attempt(async () => {
       await this.resets.redeem(token, this.password());
-      this.done.set("changed");
+      this.done.set('changed');
     });
   }
 
@@ -68,7 +60,7 @@ export class PasswordReset {
       this.failure.set(
         cause instanceof ResetRefused
           ? cause.message
-          : "The server did not answer, try again later.",
+          : 'The server did not answer, try again later.',
       );
     } finally {
       this.busy.set(false);

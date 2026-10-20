@@ -169,6 +169,21 @@ impl Remote {
         let remote = Self::new(base, session.token.clone())?;
         Ok((remote, session))
     }
+
+    pub fn reset_password_in_browser(base_url: &str) -> Result<(), RemoteError> {
+        let address = reset_address(base_url);
+        if open_in_browser(&address) {
+            Ok(())
+        } else {
+            Err(RemoteError::Browser(format!(
+                "no browser could be opened, visit {address}"
+            )))
+        }
+    }
+}
+
+fn reset_address(base_url: &str) -> String {
+    format!("{}/#/reset-password", base_url.trim_end_matches('/'))
 }
 
 #[cfg(test)]
@@ -176,6 +191,18 @@ mod tests {
     use super::*;
 
     const NONCE: &str = "0123456789abcdef";
+
+    #[test]
+    fn the_reset_page_is_the_web_app_route_on_the_server_whatever_its_trailing_slash() {
+        assert_eq!(
+            reset_address("https://files.example.com"),
+            "https://files.example.com/#/reset-password"
+        );
+        assert_eq!(
+            reset_address("https://files.example.com/"),
+            "https://files.example.com/#/reset-password"
+        );
+    }
 
     #[test]
     fn a_request_carrying_the_nonce_yields_the_session() {

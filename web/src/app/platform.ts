@@ -49,6 +49,7 @@ export interface Platform {
   login(email: string, password: string, server?: string): Promise<string | null>;
   methods(server?: string): Promise<Methods>;
   loginWithProvider(server?: string): Promise<ProviderSignIn>;
+  forgotPassword?(server: string): Promise<void>;
   rememberHandoff?(handoff: Handoff): void;
   completeProviderLogin?(returned: Returned): Promise<boolean>;
   server?(): string;
@@ -431,6 +432,7 @@ function desktopPlatform(fallback: string): Platform {
     },
     server: remembered,
     methods: (server) => command<Methods>('sign_in_methods', { server: addressOf(server ?? remembered()) }),
+    forgotPassword: (server) => command<void>('forgot_password', { server: addressOf(server) }),
     loginWithProvider: async (server) => {
       const address = addressOf(server ?? remembered());
       const warning = await command<string | null>('login_with_provider', { server: address });

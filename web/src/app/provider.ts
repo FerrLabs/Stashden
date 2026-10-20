@@ -1,6 +1,6 @@
 export type Methods = {
   password: boolean;
-  password_reset?: boolean;
+  password_reset: boolean;
   oidc: boolean;
 };
 
@@ -15,8 +15,8 @@ export type Handoff = {
 };
 
 export type Arrival =
-  | { kind: "returned"; returned: Returned }
-  | { kind: "handoff"; handoff: Handoff };
+  | { kind: 'returned'; returned: Returned }
+  | { kind: 'handoff'; handoff: Handoff };
 
 const NONCE = /^[0-9a-f]{32}$/;
 const LOWEST_PORT = 1024;
@@ -25,14 +25,14 @@ const HIGHEST_PORT = 65535;
 export function arrivalAt(search: string): Arrival | null {
   const query = new URLSearchParams(search);
 
-  const code = query.get("code");
-  const state = query.get("state");
-  if (code !== null && state !== null && code !== "" && state !== "") {
-    return { kind: "returned", returned: { code, state } };
+  const code = query.get('code');
+  const state = query.get('state');
+  if (code !== null && state !== null && code !== '' && state !== '') {
+    return { kind: 'returned', returned: { code, state } };
   }
 
-  const nonce = query.get("loopback_nonce");
-  const port = Number(query.get("loopback_port"));
+  const nonce = query.get('loopback_nonce');
+  const port = Number(query.get('loopback_port'));
   if (
     nonce !== null &&
     NONCE.test(nonce) &&
@@ -40,17 +40,13 @@ export function arrivalAt(search: string): Arrival | null {
     port >= LOWEST_PORT &&
     port <= HIGHEST_PORT
   ) {
-    return { kind: "handoff", handoff: { port, nonce } };
+    return { kind: 'handoff', handoff: { port, nonce } };
   }
 
   return null;
 }
 
-export function loopbackAddress(
-  handoff: Handoff,
-  token: string,
-  expiresIn: number,
-): string {
+export function loopbackAddress(handoff: Handoff, token: string, expiresIn: number): string {
   const query = new URLSearchParams({
     token,
     expires_in: String(expiresIn),
@@ -65,7 +61,7 @@ export function parseHandoff(stored: string | null): Handoff | null {
   }
   try {
     const parsed = arrivalAt(`?${stored}`);
-    return parsed?.kind === "handoff" ? parsed.handoff : null;
+    return parsed?.kind === 'handoff' ? parsed.handoff : null;
   } catch {
     return null;
   }

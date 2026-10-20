@@ -1,26 +1,21 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from "@angular/core";
-import { toSignal } from "@angular/core/rxjs-interop";
-import { NavigationEnd, Router, RouterOutlet } from "@angular/router";
-import { filter, map, startWith } from "rxjs";
-import { AccountMenu } from "./account/account-menu";
-import { AppPasswords } from "./account/app-passwords";
-import { ChangePassword } from "./account/change-password";
-import { DeleteAccount } from "./account/delete-account";
-import { Update } from "./account/update";
-import { Session } from "./account";
-import { linkTo } from "./folder";
-import type { Credentials } from "./login-form/credentials";
-import { LoginForm } from "./login-form/login-form";
-import { arrivalAt, type Arrival, type Methods } from "./provider";
-import { PLATFORM, RequestFailed } from "./platform";
-import { Prompt } from "./shared/prompt";
-import { RESET_PATH } from "./reset/resets";
-import { SHARE_PREFIX } from "./share";
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
+import { AccountMenu } from './account/account-menu';
+import { AppPasswords } from './account/app-passwords';
+import { ChangePassword } from './account/change-password';
+import { DeleteAccount } from './account/delete-account';
+import { Update } from './account/update';
+import { Session } from './account';
+import { linkTo } from './folder';
+import type { Credentials } from './login-form/credentials';
+import { LoginForm } from './login-form/login-form';
+import { arrivalAt, type Arrival, type Methods } from './provider';
+import { PLATFORM, RequestFailed } from './platform';
+import { Prompt } from './shared/prompt';
+import { RESET_PATH } from './reset/resets';
+import { SHARE_PREFIX } from './share';
 
 const standsAlone = (url: string): boolean =>
   url.startsWith(`${SHARE_PREFIX}/`) ||
@@ -28,7 +23,7 @@ const standsAlone = (url: string): boolean =>
   url.startsWith(`/${RESET_PATH}/`);
 
 @Component({
-  selector: "rx-root",
+  selector: 'rx-root',
   imports: [
     AccountMenu,
     AppPasswords,
@@ -39,8 +34,8 @@ const standsAlone = (url: string): boolean =>
     RouterOutlet,
     Update,
   ],
-  templateUrl: "./app.html",
-  styleUrl: "./app.css",
+  templateUrl: './app.html',
+  styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
@@ -72,16 +67,9 @@ export class App {
   protected readonly methods = signal<Methods | null>(null);
 
   constructor() {
-    const arrival =
-      this.platform.kind === "browser"
-        ? arrivalAt(window.location.search)
-        : null;
+    const arrival = this.platform.kind === 'browser' ? arrivalAt(window.location.search) : null;
     if (arrival !== null) {
-      history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.hash,
-      );
+      history.replaceState(null, '', window.location.pathname + window.location.hash);
       void this.arrive(arrival);
       return;
     }
@@ -98,7 +86,7 @@ export class App {
   private async arrive(arrival: Arrival): Promise<void> {
     this.busy.set(true);
     try {
-      if (arrival.kind === "handoff") {
+      if (arrival.kind === 'handoff') {
         this.platform.rememberHandoff?.(arrival.handoff);
         await this.platform.loginWithProvider();
         return;
@@ -109,9 +97,7 @@ export class App {
       }
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(
-        `Signing in with the identity provider failed: ${message}`,
-      );
+      this.error.set(`Signing in with the identity provider failed: ${message}`);
       void this.loadMethods();
     } finally {
       this.busy.set(false);
@@ -126,14 +112,12 @@ export class App {
     }
   }
 
-  protected async signInWithProvider(
-    server: string | undefined,
-  ): Promise<void> {
+  protected async signInWithProvider(server: string | undefined): Promise<void> {
     this.error.set(null);
     this.busy.set(true);
     try {
       const outcome = await this.platform.loginWithProvider(server);
-      if (outcome.kind === "signedIn") {
+      if (outcome.kind === 'signedIn') {
         this.notice.set(outcome.warning);
         this.connected.set(true);
         await this.session.load();
@@ -153,9 +137,7 @@ export class App {
       }
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(
-        `Sign in again, the saved session did not open: ${message}`,
-      );
+      this.error.set(`Sign in again, the saved session did not open: ${message}`);
     } finally {
       this.resuming.set(false);
     }
@@ -165,10 +147,7 @@ export class App {
     try {
       await this.session.load();
     } catch (cause: unknown) {
-      if (
-        cause instanceof RequestFailed &&
-        (cause.status === 401 || cause.status === 403)
-      ) {
+      if (cause instanceof RequestFailed && (cause.status === 401 || cause.status === 403)) {
         void this.signOut();
         return;
       }
@@ -187,15 +166,15 @@ export class App {
     this.session.forget();
     this.connected.set(false);
     this.notice.set(null);
-    void this.router.navigate(linkTo(""));
+    void this.router.navigate(linkTo(''));
   }
 
   protected accountDeleted(): void {
     this.deleting.set(false);
     this.session.forget();
     this.connected.set(false);
-    this.notice.set("Your account has been deleted.");
-    void this.router.navigate(linkTo(""));
+    this.notice.set('Your account has been deleted.');
+    void this.router.navigate(linkTo(''));
   }
 
   protected changePassword(): void {
@@ -212,7 +191,7 @@ export class App {
     try {
       this.session.account.set(await update(displayName));
       this.error.set(null);
-      this.notice.set("Your display name has been changed.");
+      this.notice.set('Your display name has been changed.');
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
       this.error.set(`Your display name was not changed: ${message}`);
@@ -222,7 +201,7 @@ export class App {
   protected noteChanged(): void {
     this.changing.set(false);
     void this.session.load();
-    this.notice.set("Your password has been changed.");
+    this.notice.set('Your password has been changed.');
   }
 
   protected async signIn(credentials: Credentials): Promise<void> {
