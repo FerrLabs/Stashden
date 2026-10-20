@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.52.0] - 2026-10-20
+
+### Features
+
+- feat(desktop): keep syncing in the background, several folders, resumed on launch (#361)
+
 ## [0.51.1] - 2026-10-16
 
 ### Bug Fixes
