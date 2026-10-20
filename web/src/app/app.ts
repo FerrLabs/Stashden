@@ -14,7 +14,13 @@ import { LoginForm } from './login-form/login-form';
 import { arrivalAt, type Arrival, type Methods } from './provider';
 import { PLATFORM, RequestFailed } from './platform';
 import { Prompt } from './shared/prompt';
+import { RESET_PATH } from './reset/resets';
 import { SHARE_PREFIX } from './share';
+
+const standsAlone = (url: string): boolean =>
+  url.startsWith(`${SHARE_PREFIX}/`) ||
+  url === `/${RESET_PATH}` ||
+  url.startsWith(`/${RESET_PATH}/`);
 
 @Component({
   selector: 'rx-root',
@@ -40,8 +46,8 @@ export class App {
   protected readonly recipient = toSignal(
     this.router.events.pipe(
       filter((event) => event instanceof NavigationEnd),
-      map(() => this.router.url.startsWith(`${SHARE_PREFIX}/`)),
-      startWith(this.router.url.startsWith(`${SHARE_PREFIX}/`)),
+      map(() => standsAlone(this.router.url)),
+      startWith(standsAlone(this.router.url)),
     ),
     { initialValue: false },
   );

@@ -97,13 +97,13 @@ pub async fn authenticate(pool: &PgPool, email: &Email, presented: &str) -> Opti
     Some((user, id))
 }
 
-fn secret() -> String {
+pub(crate) fn secret() -> String {
     let mut bytes = [0u8; SECRET_BYTES];
     getrandom::fill(&mut bytes).expect("the operating system has randomness");
     hex(&bytes)
 }
 
-fn fingerprint(secret: &str) -> String {
+pub(crate) fn fingerprint(secret: &str) -> String {
     blake3::hash(secret.as_bytes()).to_hex().to_string()
 }
 

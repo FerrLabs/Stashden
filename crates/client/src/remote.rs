@@ -104,6 +104,8 @@ pub struct Session {
 #[derive(Debug, Clone, Copy, Deserialize, serde::Serialize)]
 pub struct Methods {
     pub password: bool,
+    #[serde(default)]
+    pub password_reset: bool,
     pub oidc: bool,
 }
 

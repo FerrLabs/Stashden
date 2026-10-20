@@ -35,6 +35,14 @@ pub struct Config {
     pub oidc: Option<OidcConfig>,
     pub metrics_token: Option<String>,
     pub bootstrap_admin: Option<BootstrapAdmin>,
+    pub mail: Option<MailConfig>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MailConfig {
+    pub smtp_url: String,
+    pub from: String,
+    pub public_url: String,
 }
 
 #[derive(Debug, Clone)]
@@ -114,6 +122,7 @@ impl Config {
             oidc: oidc(),
             metrics_token: optional("METRICS_TOKEN"),
             bootstrap_admin: bootstrap_admin(),
+            mail: mail()?,
         })
     }
 }
@@ -175,6 +184,17 @@ fn oidc() -> Option<OidcConfig> {
         create_accounts: optional("OIDC_CREATE_ACCOUNTS")
             .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "yes")),
     })
+}
+
+fn mail() -> Result<Option<MailConfig>, ConfigError> {
+    let Some(smtp_url) = optional("SMTP_URL") else {
+        return Ok(None);
+    };
+    Ok(Some(MailConfig {
+        smtp_url,
+        from: required("MAIL_FROM")?,
+        public_url: required("PUBLIC_URL")?,
+    }))
 }
 
 fn bootstrap_admin() -> Option<BootstrapAdmin> {

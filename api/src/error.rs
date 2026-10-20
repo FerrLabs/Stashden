@@ -44,6 +44,8 @@ pub enum ApiError {
     InvalidEmail(#[from] stashden_core::user::InvalidEmail),
     #[error("quota exceeded")]
     QuotaExceeded,
+    #[error("this reset link is no longer valid, ask for a new one")]
+    ResetLinkInvalid,
     #[error("sign in again through your identity provider to confirm this")]
     FreshSignInRequired,
     #[error("the file changed since this client last saw it")]
@@ -109,6 +111,7 @@ impl ApiError {
             | Self::InvalidPath(_)
             | Self::InvalidEmail(_)
             | Self::WrongKind { .. }
+            | Self::ResetLinkInvalid
             | Self::NotAnImage(_) => StatusCode::BAD_REQUEST,
             Self::TooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::QuotaExceeded => StatusCode::INSUFFICIENT_STORAGE,

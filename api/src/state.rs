@@ -25,6 +25,7 @@ pub struct AppState {
     pub trash_retention: Option<chrono::TimeDelta>,
     pub metrics: Arc<crate::metrics::Metrics>,
     pub metrics_token: Option<Arc<str>>,
+    pub mail: Option<crate::mail::Mail>,
 }
 
 async fn open_blobs(backend: &BlobBackend) -> Result<Arc<dyn BlobStore>> {
@@ -94,6 +95,11 @@ impl AppState {
             oidc: cfg.oidc.clone().map(Arc::new),
             metrics: Arc::new(crate::metrics::Metrics::default()),
             metrics_token: cfg.metrics_token.as_deref().map(Arc::from),
+            mail: cfg
+                .mail
+                .as_ref()
+                .map(crate::mail::Mail::from_config)
+                .transpose()?,
             // A provider that accepts the connection and then says nothing would otherwise hold
             // the four calls on the sign-in path open indefinitely.
             http: reqwest::Client::builder()

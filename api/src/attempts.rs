@@ -24,6 +24,7 @@ const MEMORY_SECONDS: f64 = 24.0 * 60.0 * 60.0;
 pub enum Scope {
     Login,
     Share,
+    Reset,
 }
 
 impl Scope {
@@ -31,6 +32,7 @@ impl Scope {
         match self {
             Self::Login => "login",
             Self::Share => "share",
+            Self::Reset => "reset",
         }
     }
 }

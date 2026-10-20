@@ -21,6 +21,13 @@
       <input type="password" formControlName="password" autocomplete="current-password" required />
     </label>
     <button type="submit" class="primary" [disabled]="busy()">{{ busy() ? 'Signing in' : 'Sign in' }}</button>
+    @if (methods()?.password_reset) {
+      @if (opensResetElsewhere) {
+        <button type="button" class="forgot" (click)="forgotPassword()">Forgot your password?</button>
+      } @else {
+        <a class="forgot" routerLink="/reset-password">Forgot your password?</a>
+      }
+    }
   }
   @if (methods()?.oidc) {
     <button

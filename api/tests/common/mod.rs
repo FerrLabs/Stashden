@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use sqlx::{AssertSqlSafe, Executor, PgPool, postgres::PgPoolOptions};
 use stashden_api::auth::Sessions;
+use stashden_api::mail::{Letter, Mail, MailError, Mailer};
 use stashden_api::state::AppState;
 use stashden_api::storage::LocalBlobStore;
 use stashden_api::{db, trash, users};
@@ -77,6 +78,7 @@ impl Harness {
                 oidc: None,
                 metrics: Arc::new(stashden_api::metrics::Metrics::default()),
                 metrics_token: None,
+                mail: None,
                 http: reqwest::Client::new(),
                 default_quota_bytes: 1_000_000,
                 versions_kept: 3,
@@ -631,6 +633,44 @@ impl Harness {
         .await
         .expect("reading the blob")
         .map(|(count, since)| (count, since.is_some()))
+    }
+}
+
+pub struct Outbox(tokio::sync::mpsc::UnboundedSender<Letter>);
+
+#[async_trait::async_trait]
+impl Mailer for Outbox {
+    async fn send(&self, letter: Letter) -> Result<(), MailError> {
+        let _ = self.0.send(letter);
+        Ok(())
+    }
+}
+
+impl Harness {
+    pub fn with_mail(&self) -> (AppState, tokio::sync::mpsc::UnboundedReceiver<Letter>) {
+        let (sender, received) = tokio::sync::mpsc::unbounded_channel();
+        let state = AppState {
+            mail: Some(Mail {
+                mailer: Arc::new(Outbox(sender)),
+                public_url: Arc::from("https://files.example.com"),
+            }),
+            ..self.state.clone()
+        };
+        (state, received)
+    }
+
+    pub async fn reset_rows(&self) -> i64 {
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM password_resets")
+            .fetch_one(&self.state.db)
+            .await
+            .expect("counting the reset links")
+    }
+
+    pub async fn expire_resets(&self) {
+        sqlx::query("UPDATE password_resets SET expires_at = now() - INTERVAL '1 second'")
+            .execute(&self.state.db)
+            .await
+            .expect("expiring the reset links");
     }
 }
 

@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { PLATFORM } from '../platform';
 import type { Methods } from '../provider';
 import type { Credentials } from './credentials';
 
 @Component({
   selector: 'rx-login-form',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login-form.html',
+  styleUrl: './login-form.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginForm {
@@ -20,6 +22,7 @@ export class LoginForm {
   readonly serverChanged = output<string>();
 
   protected readonly asks = this.platform.server !== undefined;
+  protected readonly opensResetElsewhere = this.platform.forgotPassword !== undefined;
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     server: [this.platform.server?.() ?? '', this.asks ? [Validators.required] : []],
@@ -43,6 +46,14 @@ export class LoginForm {
       return;
     }
     this.providerChosen.emit(this.asks ? this.form.controls.server.value : undefined);
+  }
+
+  protected forgotPassword(): void {
+    if (!this.serverValid()) {
+      this.form.controls.server.markAsTouched();
+      return;
+    }
+    void this.platform.forgotPassword?.(this.form.controls.server.value);
   }
 
   protected serverLeft(): void {

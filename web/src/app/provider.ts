@@ -1,5 +1,6 @@
 export type Methods = {
   password: boolean;
+  password_reset: boolean;
   oidc: boolean;
 };
 

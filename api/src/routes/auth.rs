@@ -7,8 +7,9 @@ use stashden_core::user::{Email, User};
 use crate::attempts::{self, Scope};
 use crate::auth::{Caller, Credential, SessionCaller};
 use crate::error::ApiError;
+use crate::mail::Mail;
 use crate::state::AppState;
-use crate::{password, sessions, users};
+use crate::{password, password_resets, sessions, users};
 
 #[derive(Deserialize)]
 pub struct Credentials {
@@ -107,4 +108,57 @@ pub async fn me(State(state): State<AppState>, caller: Caller) -> Result<Json<Me
         user,
         fresh_sign_in,
     }))
+}
+
+#[derive(Deserialize)]
+pub struct Forgotten {
+    email: String,
+}
+
+#[derive(Deserialize)]
+pub struct Reset {
+    token: String,
+    password: String,
+}
+
+async fn reset_mail(state: &AppState) -> Result<Mail, ApiError> {
+    if !crate::settings::password_login_allowed(&state.db).await? {
+        return Err(ApiError::NotFound);
+    }
+    state.mail.clone().ok_or(ApiError::NotFound)
+}
+
+pub async fn forgot_password(
+    State(state): State<AppState>,
+    Json(request): Json<Forgotten>,
+) -> Result<StatusCode, ApiError> {
+    let mail = reset_mail(&state).await?;
+    let email: Email = request.email.parse()?;
+
+    attempts::spend(&state.db, Scope::Reset, email.as_str()).await?;
+
+    let Some(user) = users::by_email(&state.db, &email)
+        .await?
+        .filter(|user| user.is_active() && user.has_password)
+    else {
+        return Ok(StatusCode::ACCEPTED);
+    };
+
+    let secret = password_resets::issue(&state.db, user.id).await?;
+    let letter = password_resets::letter(&mail.public_url, email, &secret);
+    tokio::spawn(async move {
+        if let Err(error) = mail.mailer.send(letter).await {
+            tracing::error!(%error, "sending a password reset link failed");
+        }
+    });
+    Ok(StatusCode::ACCEPTED)
+}
+
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(request): Json<Reset>,
+) -> Result<StatusCode, ApiError> {
+    reset_mail(&state).await?;
+    password_resets::redeem(&state.db, &request.token, &request.password).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
