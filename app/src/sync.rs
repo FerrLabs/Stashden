@@ -66,7 +66,7 @@ impl Folders {
             _ => running.latest.last.clone(),
         };
         running.latest = Syncing {
-            folder: folder.clone(),
+            folder: folder.to_path_buf(),
             status: update,
             last,
         };
