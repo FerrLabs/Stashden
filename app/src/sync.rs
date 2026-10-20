@@ -70,7 +70,11 @@ impl Folders {
             status: update,
             last,
         };
-        Some(running.latest.clone())
+        let syncing = running.latest.clone();
+        if matches!(syncing.status, Status::Stopped) {
+            self.running.remove(folder);
+        }
+        Some(syncing)
     }
 
     fn take(&mut self, folder: &Path) -> Option<Session> {
