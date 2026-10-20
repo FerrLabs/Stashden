@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.53.0] - 2026-10-20
+
+### Features
+
+- feat(accounts): reset a forgotten password through a mailed link (#362)
+
 ## [0.52.0] - 2026-10-20
 
 ### Features
