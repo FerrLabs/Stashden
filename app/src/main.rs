@@ -63,8 +63,8 @@ async fn sign_in_methods(server: String) -> Result<Methods, String> {
 }
 
 #[tauri::command]
-fn forgot_password(server: String) -> Result<(), String> {
-    Remote::reset_password_in_browser(&server).map_err(|error| error.to_string())
+fn forgot_password(server: &str) -> Result<(), String> {
+    Remote::reset_password_in_browser(server).map_err(|error| error.to_string())
 }
 
 async fn settle(
