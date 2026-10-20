@@ -56,8 +56,8 @@ export interface Platform {
   installUpdate?(): Promise<void>;
   pickFolder?(): Promise<string | null>;
   startSync?(folder: string): Promise<void>;
-  controlSync?(command: SyncCommand): Promise<void>;
-  syncStatus?(): Promise<Syncing | null>;
+  controlSync?(folder: string, command: SyncCommand): Promise<void>;
+  syncStatus?(): Promise<Syncing[]>;
   watchSync?(listener: (syncing: Syncing) => void): Promise<() => void>;
   signOut(): void | Promise<void>;
   changePassword?(current: string | null, password: string): Promise<void>;
@@ -475,13 +475,13 @@ function desktopPlatform(fallback: string): Platform {
       const { invoke } = await core();
       await invoke<void>('start_sync', { folder });
     },
-    controlSync: async (command) => {
+    controlSync: async (folder, command) => {
       const { invoke } = await core();
-      await invoke<void>('sync_control', { command });
+      await invoke<void>('sync_control', { folder, command });
     },
     syncStatus: async () => {
       const { invoke } = await core();
-      return invoke<Syncing | null>('sync_status');
+      return invoke<Syncing[]>('sync_status');
     },
     watchSync: async (listener) => {
       const { listen } = await import('@tauri-apps/api/event');

@@ -168,9 +168,13 @@ the remembered snapshot only while the value is unchanged. A change that lands b
 fingerprint and the walk leaves the stored value stale, which costs one extra walk and never a missed
 change. A server without the route answers 404 and every pass walks, as before.
 
-The desktop app owns the session and forwards its status to the window as a `sync:status` event,
-which is the only thing the interface needs to show progress, pauses and conflicts. Commands go the
-other way through one `sync_control` call.
+The desktop app owns one session per synced folder and forwards each status to the window as a
+`sync:status` event carrying the folder, which is the only thing the interface needs to show
+progress, pauses and conflicts. Commands go the other way through one `sync_control` call that names
+the folder. The folders are remembered per account in `synced-folders.json` in the app config
+directory and started again once the app is signed in, whether by the saved session or by a new
+sign in. Closing the window while any folder syncs hides it instead, and the tray icon reopens it or
+quits; with nothing syncing, closing the window exits as before.
 
 The layering is one-way: `core` knows nothing, `client` and `api` know `core`, the binaries know
 their library. Nothing below `api/src/routes` imports axum, which is what lets those tests
