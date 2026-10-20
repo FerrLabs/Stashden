@@ -34,6 +34,23 @@ export function summarise(report: SyncReport): string {
   );
 }
 
+export function describe(status: SyncStatus): string {
+  switch (status.state) {
+    case 'idle':
+      return 'Watching for changes';
+    case 'syncing':
+      return 'Syncing';
+    case 'synced':
+      return 'In step with the server';
+    case 'failed':
+      return `The last pass failed: ${status.reason}`;
+    case 'paused':
+      return 'Paused, changes wait until you resume';
+    case 'stopped':
+      return 'Stopped';
+  }
+}
+
 export function needsAttention(report: SyncReport): boolean {
   return (
     report.conflicts.length > 0 ||

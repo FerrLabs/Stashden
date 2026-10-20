@@ -1,13 +1,15 @@
-use std::path::PathBuf;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use stashden_client::sync::watch::{Command, DEFAULT_POLL, Status, watch};
+use stashden_client::sync::watch::{Command, DEFAULT_POLL, Session, Status, watch};
 use stashden_client::{Debounce, Engine, Report};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
 
 use crate::Desktop;
+use crate::remembered::Remembered;
 
 const STATUS_EVENT: &str = "sync:status";
 
@@ -18,17 +20,132 @@ pub struct Syncing {
     last: Option<Report>,
 }
 
-#[derive(Default)]
-pub struct Tracked {
+struct Running {
+    session: Session,
     generation: u64,
-    latest: Option<Syncing>,
+    latest: Syncing,
 }
 
-impl Tracked {
-    pub fn forget(&mut self) {
-        self.generation += 1;
-        self.latest = None;
+#[derive(Default)]
+pub struct Folders {
+    generation: u64,
+    running: HashMap<PathBuf, Running>,
+}
+
+impl Folders {
+    pub fn is_empty(&self) -> bool {
+        self.running.is_empty()
     }
+
+    fn insert(&mut self, folder: PathBuf, session: Session) -> (u64, Option<Session>) {
+        self.generation += 1;
+        let generation = self.generation;
+        let latest = Syncing {
+            folder: folder.clone(),
+            status: Status::Idle,
+            last: None,
+        };
+        let replaced = self.running.insert(
+            folder,
+            Running {
+                session,
+                generation,
+                latest,
+            },
+        );
+        (generation, replaced.map(|replaced| replaced.session))
+    }
+
+    fn record(&mut self, folder: &Path, generation: u64, update: Status) -> Option<Syncing> {
+        let running = self.running.get_mut(folder)?;
+        if running.generation != generation {
+            return None;
+        }
+        let last = match &update {
+            Status::Synced(report) => Some(report.clone()),
+            _ => running.latest.last.clone(),
+        };
+        running.latest = Syncing {
+            folder: folder.clone(),
+            status: update,
+            last,
+        };
+        Some(running.latest.clone())
+    }
+
+    fn take(&mut self, folder: &Path) -> Option<Session> {
+        self.running.remove(folder).map(|running| running.session)
+    }
+
+    fn drain(&mut self) -> Vec<Session> {
+        self.running
+            .drain()
+            .map(|(_, running)| running.session)
+            .collect()
+    }
+
+    fn snapshot(&self) -> Vec<Syncing> {
+        let mut all: Vec<_> = self
+            .running
+            .values()
+            .map(|running| running.latest.clone())
+            .collect();
+        all.sort_by(|a, b| a.folder.cmp(&b.folder));
+        all
+    }
+}
+
+pub async fn stop_all(desktop: &Desktop) {
+    let sessions = desktop.folders.lock().await.drain();
+    for session in sessions {
+        session.stop().await;
+    }
+}
+
+pub async fn resume_saved(app: &AppHandle, desktop: &Desktop) {
+    let Some(account) = account(desktop).await else {
+        return;
+    };
+    let Ok(directory) = app.path().app_config_dir() else {
+        return;
+    };
+    for folder in Remembered::load(&directory).of(&account) {
+        let running = desktop.folders.lock().await.running.contains_key(folder);
+        if !running {
+            let _ = begin(app, desktop, folder.clone()).await;
+        }
+    }
+}
+
+async fn account(desktop: &Desktop) -> Option<String> {
+    desktop
+        .credentials
+        .lock()
+        .await
+        .as_ref()
+        .map(|credentials| credentials.email.clone())
+}
+
+async fn remember(
+    app: &AppHandle,
+    desktop: &Desktop,
+    folder: PathBuf,
+    keep: bool,
+) -> Result<(), String> {
+    let account = account(desktop).await.ok_or("not connected to a server")?;
+    let directory = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| error.to_string())?;
+    let mut remembered = Remembered::load(&directory);
+    if keep {
+        remembered.add(&account, folder);
+    } else {
+        remembered.remove(&account, &folder);
+    }
+    remembered
+        .save(&directory)
+        .map_err(|error| format!("the synced folders could not be saved: {error}"))
 }
 
 #[tauri::command]
@@ -51,12 +168,7 @@ pub async fn pick_folder(app: AppHandle) -> Result<Option<PathBuf>, String> {
         .map_err(|error| format!("that folder is not one this computer can open: {error}"))
 }
 
-#[tauri::command]
-pub async fn start_sync(
-    app: AppHandle,
-    desktop: State<'_, Desktop>,
-    folder: PathBuf,
-) -> Result<(), String> {
+async fn begin(app: &AppHandle, desktop: &Desktop, folder: PathBuf) -> Result<(), String> {
     let credentials = desktop
         .credentials
         .lock()
@@ -70,77 +182,67 @@ pub async fn start_sync(
         watch(engine, Debounce::default(), DEFAULT_POLL).map_err(|error| error.to_string())?;
     let mut status = session.subscribe();
 
-    let generation = {
-        let mut tracked = desktop.tracked.lock().await;
-        tracked.generation += 1;
-        tracked.latest = Some(Syncing {
-            folder: folder.clone(),
-            status: Status::Idle,
-            last: None,
-        });
-        tracked.generation
-    };
+    let (generation, replaced) = desktop.folders.lock().await.insert(folder.clone(), session);
+    if let Some(replaced) = replaced {
+        replaced.stop().await;
+    }
 
+    let app = app.clone();
     tauri::async_runtime::spawn(async move {
         while let Ok(update) = status.recv().await {
             let stopped = matches!(update, Status::Stopped);
             let desktop = app.state::<Desktop>();
-
-            let syncing = {
-                let mut tracked = desktop.tracked.lock().await;
-                if tracked.generation != generation {
-                    break;
-                }
-                let last = match &update {
-                    Status::Synced(report) => Some(report.clone()),
-                    _ => tracked
-                        .latest
-                        .as_ref()
-                        .and_then(|latest| latest.last.clone()),
-                };
-                let syncing = Syncing {
-                    folder: folder.clone(),
-                    status: update,
-                    last,
-                };
-                tracked.latest = Some(syncing.clone());
-                syncing
+            let recorded = desktop
+                .folders
+                .lock()
+                .await
+                .record(&folder, generation, update);
+            let Some(syncing) = recorded else {
+                break;
             };
-
             let _ = app.emit(STATUS_EVENT, syncing);
             if stopped {
                 break;
             }
         }
     });
-
-    let previous = desktop.sync.lock().await.replace(session);
-    if let Some(previous) = previous {
-        previous.stop().await;
-    }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn sync_control(desktop: State<'_, Desktop>, command: Command) -> Result<(), String> {
+pub async fn start_sync(
+    app: AppHandle,
+    desktop: State<'_, Desktop>,
+    folder: PathBuf,
+) -> Result<(), String> {
+    begin(&app, &desktop, folder.clone()).await?;
+    remember(&app, &desktop, folder, true).await
+}
+
+#[tauri::command]
+pub async fn sync_control(
+    app: AppHandle,
+    desktop: State<'_, Desktop>,
+    folder: PathBuf,
+    command: Command,
+) -> Result<(), String> {
     if command == Command::Stop {
-        let session = desktop.sync.lock().await.take();
-        return match session {
-            Some(session) => {
-                session.stop().await;
-                Ok(())
-            }
-            None => Err("no sync is running".to_owned()),
-        };
+        let session = desktop.folders.lock().await.take(&folder);
+        let session = session.ok_or("that folder is not syncing")?;
+        session.stop().await;
+        return remember(&app, &desktop, folder, false).await;
     }
 
-    let guard = desktop.sync.lock().await;
-    let session = guard.as_ref().ok_or("no sync is running")?;
-    session.send(command).await;
+    let guard = desktop.folders.lock().await;
+    let running = guard
+        .running
+        .get(&folder)
+        .ok_or("that folder is not syncing")?;
+    running.session.send(command).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn sync_status(desktop: State<'_, Desktop>) -> Result<Option<Syncing>, String> {
-    Ok(desktop.tracked.lock().await.latest.clone())
+pub async fn sync_status(desktop: State<'_, Desktop>) -> Result<Vec<Syncing>, String> {
+    Ok(desktop.folders.lock().await.snapshot())
 }

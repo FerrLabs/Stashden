@@ -1,10 +1,11 @@
 mod failure;
 mod keychain;
+mod remembered;
 mod sync;
+mod tray;
 
 use std::path::PathBuf;
 
-use stashden_client::sync::watch::Session as SyncSession;
 use stashden_client::{Methods, Remote, RemoteError, free_path};
 use stashden_core::grant::{Given, NewGrant, Received};
 use stashden_core::node::{Hit, Node, Trashed};
@@ -24,13 +25,13 @@ use uuid::Uuid;
 struct Desktop {
     remote: Mutex<Option<Remote>>,
     credentials: Mutex<Option<Credentials>>,
-    sync: Mutex<Option<SyncSession>>,
-    tracked: Mutex<sync::Tracked>,
+    folders: Mutex<sync::Folders>,
     offered: Mutex<Option<tauri_plugin_updater::Update>>,
 }
 
 #[tauri::command]
 async fn login(
+    app: AppHandle,
     desktop: State<'_, Desktop>,
     server: String,
     email: String,
@@ -39,18 +40,19 @@ async fn login(
     let (session, _) = Remote::login(&server, &email, &password)
         .await
         .map_err(|error| error.to_string())?;
-    settle(&desktop, server, session).await
+    settle(&app, &desktop, server, session).await
 }
 
 #[tauri::command]
 async fn login_with_provider(
+    app: AppHandle,
     desktop: State<'_, Desktop>,
     server: String,
 ) -> Result<Option<String>, String> {
     let (session, _) = Remote::login_in_browser(&server, |_| {})
         .await
         .map_err(|error| error.to_string())?;
-    settle(&desktop, server, session).await
+    settle(&app, &desktop, server, session).await
 }
 
 #[tauri::command]
@@ -61,6 +63,7 @@ async fn sign_in_methods(server: String) -> Result<Methods, String> {
 }
 
 async fn settle(
+    app: &AppHandle,
     desktop: &Desktop,
     server: String,
     session: Remote,
@@ -77,7 +80,7 @@ async fn settle(
         email,
         secret: minted.secret,
     };
-    connect(desktop, credentials.clone()).await?;
+    connect(app, desktop, credentials.clone()).await?;
     Ok(keychain::keep(credentials)
         .await
         .err()
@@ -85,18 +88,23 @@ async fn settle(
 }
 
 #[tauri::command]
-async fn resume(desktop: State<'_, Desktop>) -> Result<bool, String> {
+async fn resume(app: AppHandle, desktop: State<'_, Desktop>) -> Result<bool, String> {
     let Some(credentials) = keychain::kept().await? else {
         return Ok(false);
     };
-    connect(&desktop, credentials).await?;
+    connect(&app, &desktop, credentials).await?;
     Ok(true)
 }
 
-async fn connect(desktop: &Desktop, credentials: Credentials) -> Result<(), String> {
+async fn connect(
+    app: &AppHandle,
+    desktop: &Desktop,
+    credentials: Credentials,
+) -> Result<(), String> {
     let remote = remote_for(&credentials).map_err(|error| error.to_string())?;
     *desktop.remote.lock().await = Some(remote);
     *desktop.credentials.lock().await = Some(credentials);
+    sync::resume_saved(app, desktop).await;
     Ok(())
 }
 
@@ -167,10 +175,7 @@ async fn install_update(desktop: State<'_, Desktop>, app: AppHandle) -> Result<(
 
 #[tauri::command]
 async fn sign_out(desktop: State<'_, Desktop>) -> Result<(), String> {
-    desktop.tracked.lock().await.forget();
-    if let Some(session) = desktop.sync.lock().await.take() {
-        session.stop().await;
-    }
+    sync::stop_all(&desktop).await;
     desktop.credentials.lock().await.take();
     let revoked = match desktop.remote.lock().await.take() {
         Some(remote) => match remote.revoke_own_app_password().await {
@@ -473,6 +478,20 @@ async fn upload_file(
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| Ok(tray::install(app)?))
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let syncing = window
+                    .state::<Desktop>()
+                    .folders
+                    .try_lock()
+                    .map_or(true, |folders| !folders.is_empty());
+                if syncing {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(Desktop::default())
