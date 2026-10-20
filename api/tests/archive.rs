@@ -63,7 +63,7 @@ fn entries(answer: &Answer) -> Vec<(String, Vec<u8>)> {
         let mut entry = archive.by_index(index).expect("an entry");
         let mut bytes = Vec::new();
         entry.read_to_end(&mut bytes).expect("its bytes");
-        found.push((entry.name().to_owned(), bytes));
+        found.push((entry.name().expect("a utf-8 name").into_owned(), bytes));
     }
     found.sort();
     found
