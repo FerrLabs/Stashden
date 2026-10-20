@@ -36,6 +36,13 @@ pub fn spawn(state: AppState, every: Duration, grace: Duration) {
                 Ok(_) => {}
                 Err(error) => error!(%error, "removing expired sessions failed"),
             }
+            match crate::password_resets::purge_expired(&state.db).await {
+                Ok(expired) if expired > 0 => {
+                    info!(resets = expired, "removed expired reset links");
+                }
+                Ok(_) => {}
+                Err(error) => error!(%error, "removing expired reset links failed"),
+            }
             match crate::oidc::purge_expired(&state.db).await {
                 Ok(expired) if expired > 0 => info!(flows = expired, "removed expired sign-ins"),
                 Ok(_) => {}

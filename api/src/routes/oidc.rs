@@ -30,7 +30,18 @@ pub struct Returned {
 #[derive(Serialize)]
 pub struct Methods {
     password: bool,
+    password_reset: bool,
     oidc: bool,
+}
+
+impl Methods {
+    fn of(state: &AppState, password: bool) -> Self {
+        Self {
+            password,
+            password_reset: password && state.mail.is_some(),
+            oidc: state.oidc.is_some(),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -41,10 +52,10 @@ pub struct NewMethods {
 /// What a sign-in screen needs to know before it draws itself, and the one route here that answers
 /// without a session, because nobody has one yet.
 pub async fn methods(State(state): State<AppState>) -> Result<Json<Methods>, ApiError> {
-    Ok(Json(Methods {
-        password: settings::password_login_allowed(&state.db).await?,
-        oidc: state.oidc.is_some(),
-    }))
+    Ok(Json(Methods::of(
+        &state,
+        settings::password_login_allowed(&state.db).await?,
+    )))
 }
 
 pub async fn begin(State(state): State<AppState>) -> Result<Response, ApiError> {
@@ -151,10 +162,7 @@ pub async fn set_methods(
     }
 
     settings::allow_password_login(&state.db, request.password).await?;
-    Ok(Json(Methods {
-        password: request.password,
-        oidc: state.oidc.is_some(),
-    }))
+    Ok(Json(Methods::of(&state, request.password)))
 }
 
 fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {

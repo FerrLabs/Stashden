@@ -183,6 +183,11 @@ pub async fn set_email(pool: &PgPool, id: Uuid, email: &Email) -> Result<User, A
 
     crate::grants::reassign(&mut tx, &previous, email).await?;
 
+    sqlx::query("DELETE FROM password_resets WHERE user_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
     tx.commit().await?;
     Ok(user)
 }
@@ -207,12 +212,14 @@ pub async fn set_password(
     password::check_strength(plaintext, password::MIN_ACCOUNT_PASSWORD_LEN)?;
     let hash = password::hash(plaintext)?;
 
-    let changed =
-        sqlx::query("UPDATE users SET password_hash = $2, has_password = true WHERE id = $1")
-            .bind(id)
-            .bind(hash)
-            .execute(executor)
-            .await?;
+    let changed = sqlx::query(
+        "WITH forgotten AS (DELETE FROM password_resets WHERE user_id = $1)
+         UPDATE users SET password_hash = $2, has_password = true WHERE id = $1",
+    )
+    .bind(id)
+    .bind(hash)
+    .execute(executor)
+    .await?;
 
     if changed.rows_affected() == 0 {
         return Err(ApiError::NotFound);

@@ -184,6 +184,9 @@ Migrations run on boot. Configuration is environment only:
 | `TRASH_RETENTION_DAYS` | `0` | Days something stays in the trash before the sweep deletes it for good; `0` keeps it until it is purged |
 | `BLOB_GRACE_PERIOD_SECONDS` | 24 h | How long an unreferenced blob is kept before collection |
 | `METRICS_TOKEN` | unset | Enables `GET /metrics`, which then needs `Authorization: Bearer <token>`; without it the route answers 404 |
+| `SMTP_URL` | unset | Mail server for password reset links, `smtps://user:pass@host` or `smtp://host:25`; without it there is no self-service reset |
+| `MAIL_FROM` | | Sender address, required alongside `SMTP_URL` |
+| `PUBLIC_URL` | | Address of the web app the links point at (`https://stashden.example.com`), required alongside `SMTP_URL` |
 | `BOOTSTRAP_ADMIN_EMAIL` | unset | Creates the first administrator on an empty database |
 | `BOOTSTRAP_ADMIN_PASSWORD` | unset | Required alongside the email, minimum 12 characters |
 
@@ -275,6 +278,8 @@ POST   /v1/app-passwords      mint one, shown once
 DELETE /v1/app-passwords/{id} revoke one, taking effect immediately
 DELETE /v1/app-passwords/current the one this request presents, to sign out
 PUT    /v1/auth/password      change your own, giving the current one
+POST   /v1/auth/password/forgot  mail a reset link to an address, always 202 whether it has an account or not (no session needed, only with SMTP_URL)
+POST   /v1/auth/password/reset   set a new password with the token from that link, once, within the hour; signs out every session (no session needed)
 GET    /v1/users              every account, with what each is using   (admin)
 POST   /v1/users              create one                               (admin)
 DELETE /v1/users/{id}         delete it, `?hand_over_to=` gives its files away (admin)
@@ -678,6 +683,11 @@ A person changes their own display name from the account menu. The address is th
 change, because it is what an identity provider's sign-in is matched against, and an address a
 person could set for themselves without proving they own it would send somebody else's sign-in into
 their account. Changing it moves the shares made to the old address along with it.
+
+With `SMTP_URL` set, the sign-in screen offers "Forgot your password?", which mails a link to choose a
+new one. The link works once, within the hour, and stops working when a newer one is asked for, the
+password is changed another way, or the address changes. An account a provider created has no
+password to reset and recovers through its provider.
 
 An administrator who has lost their password, with nobody else to reset it, runs the server binary
 where its environment is set, which is how the container's own `DATABASE_URL` is picked up. With

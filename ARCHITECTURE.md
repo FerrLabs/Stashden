@@ -70,6 +70,17 @@ App passwords are separate credentials with their own revocation, never the acco
 client stores its credential in plain text on disk more often than not, so it must not hold anything
 that can change the account.
 
+A forgotten password is reset through a link mailed to the account's address, which is the only
+proof of identity an installation without a provider has. The request answers 202 whatever the
+address, and the mail goes out in the background, so the wait does not include a round trip to the
+mail server that only a real account would cost. The token is 256 random bits kept as a hash, so the table is no list of working
+links. Each account holds at most one, valid for an hour, deleted when it is used, when the password
+changes by any route and when the address changes, since a link sent to a previous address must not
+outlive the move. Using it signs out every session and clears a sign-in lockout. Requests count
+against the address in `attempts` under their own scope, which bounds how much mail somebody can send
+a stranger without touching that person's sign-in allowance. The link carries the token in the URL
+fragment, which browsers do not send, so it never reaches a server log or a `Referer`.
+
 The FerrLabs hosted deployment is the same binary with OIDC pointed at the FerrLabs identity
 provider. It gets no special code path, which keeps the self-hosted build and the one we operate on
 the same tested surface.
