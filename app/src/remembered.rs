@@ -83,7 +83,7 @@ mod tests {
 
         assert_eq!(remembered.of("a@x"), [PathBuf::from("/two")]);
         assert_eq!(remembered.of("b@x"), [PathBuf::from("/one")]);
-        assert!(remembered.of("nobody").is_empty());
+        assert_eq!(remembered.of("nobody"), []);
     }
 
     #[test]
@@ -103,11 +103,11 @@ mod tests {
     #[test]
     fn a_missing_or_corrupt_file_loads_as_empty() {
         let directory = scratch("corrupt");
-        assert!(Remembered::load(&directory).of("a@x").is_empty());
+        assert_eq!(Remembered::load(&directory).of("a@x"), []);
 
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join(FILE), b"{not json").unwrap();
-        assert!(Remembered::load(&directory).of("a@x").is_empty());
+        assert_eq!(Remembered::load(&directory).of("a@x"), []);
         let _ = fs::remove_dir_all(&directory);
     }
 }
