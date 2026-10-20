@@ -1,0 +1,6 @@
+.forgot {
+  display: block;
+  margin-top: 1rem;
+  color: var(--accent-ink);
+  font-size: 0.9rem;
+}
