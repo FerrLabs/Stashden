@@ -232,3 +232,79 @@ database_test!(a_session_has_no_current_app_password_to_revoke, harness, {
         StatusCode::BAD_REQUEST
     );
 });
+
+const NEW_PASSWORD: &str = "a-password-after-the-reset";
+
+async fn reaches_files(harness: &Harness, minted: &Minted) -> bool {
+    status(harness, "GET", "/v1/folders", &minted.basic, "").await == StatusCode::OK
+}
+
+database_test!(a_cli_recovery_revokes_app_passwords, harness, {
+    let minted = app_password(&harness, "cli@example.com", Role::Member).await;
+    assert!(reaches_files(&harness, &minted).await);
+
+    let email = "cli@example.com".parse().expect("an email");
+    stashden_api::recovery::reset_password(&harness.state.db, &email, NEW_PASSWORD)
+        .await
+        .expect("recovering");
+
+    assert!(!reaches_files(&harness, &minted).await);
+});
+
+database_test!(a_mailed_reset_revokes_app_passwords, harness, {
+    let minted = app_password(&harness, "mailed@example.com", Role::Member).await;
+    assert!(reaches_files(&harness, &minted).await);
+
+    let secret = stashden_api::password_resets::issue(&harness.state.db, minted.owner)
+        .await
+        .expect("issuing");
+    stashden_api::password_resets::redeem(&harness.state.db, &secret, NEW_PASSWORD)
+        .await
+        .expect("redeeming");
+
+    assert!(!reaches_files(&harness, &minted).await);
+});
+
+database_test!(an_admin_reset_revokes_app_passwords, harness, {
+    let admin = harness.account("root@example.com", Role::Admin).await;
+    let bearer = format!("Bearer {}", harness.session(admin.id).await);
+    let minted = app_password(&harness, "forgot@example.com", Role::Member).await;
+    assert!(reaches_files(&harness, &minted).await);
+
+    assert_eq!(
+        status(
+            &harness,
+            "PUT",
+            &format!("/v1/users/{}/password", minted.owner),
+            &bearer,
+            &format!(r#"{{"password":"{NEW_PASSWORD}"}}"#),
+        )
+        .await,
+        StatusCode::NO_CONTENT
+    );
+
+    assert!(!reaches_files(&harness, &minted).await);
+});
+
+database_test!(changing_your_own_password_revokes_app_passwords, harness, {
+    let minted = app_password(&harness, "self@example.com", Role::Member).await;
+    let bearer = format!("Bearer {}", harness.session(minted.owner).await);
+    assert!(reaches_files(&harness, &minted).await);
+
+    assert_eq!(
+        status(
+            &harness,
+            "PUT",
+            "/v1/auth/password",
+            &bearer,
+            &format!(
+                r#"{{"current":"{}","password":"{NEW_PASSWORD}"}}"#,
+                common::PASSWORD
+            ),
+        )
+        .await,
+        StatusCode::NO_CONTENT
+    );
+
+    assert!(!reaches_files(&harness, &minted).await);
+});

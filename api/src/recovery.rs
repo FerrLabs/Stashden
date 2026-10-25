@@ -3,7 +3,7 @@ use stashden_core::user::{Email, User};
 
 use crate::attempts::{self, Scope};
 use crate::error::ApiError;
-use crate::{sessions, users};
+use crate::{app_passwords, sessions, users};
 
 pub async fn reset_password(
     pool: &PgPool,
@@ -17,6 +17,7 @@ pub async fn reset_password(
     let mut tx = pool.begin().await?;
     users::set_password(&mut *tx, user.id, plaintext).await?;
     sessions::revoke_all(&mut *tx, user.id, None).await?;
+    app_passwords::revoke_all(&mut *tx, user.id).await?;
     tx.commit().await?;
 
     attempts::forget(pool, Scope::Login, email.as_str()).await?;
