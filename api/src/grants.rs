@@ -252,7 +252,7 @@ pub async fn received(pool: &PgPool, grantee: &str) -> Result<Vec<Received>, Api
                 grants.created_at
          FROM grants
          JOIN nodes ON nodes.id = grants.node_id AND nodes.deleted_at IS NULL
-         JOIN users owners ON owners.id = nodes.owner_id
+         JOIN users owners ON owners.id = nodes.owner_id AND owners.disabled_at IS NULL
          WHERE grants.grantee_email = $1
          ORDER BY lower(grants.mount_name)",
     )
@@ -282,6 +282,7 @@ pub async fn mounts(
                 nodes.deleted_at
          FROM grants
          JOIN nodes ON nodes.id = grants.node_id AND nodes.deleted_at IS NULL
+         JOIN users owners ON owners.id = nodes.owner_id AND owners.disabled_at IS NULL
          WHERE grants.grantee_email = $1
          ORDER BY lower(grants.mount_name)",
     )
@@ -311,9 +312,11 @@ pub async fn mount(
     name: &NodeName,
 ) -> Result<(Mount, Node), ApiError> {
     let mount = sqlx::query_as::<_, Mount>(
-        "SELECT id, node_id, access, mount_name
+        "SELECT grants.id, grants.node_id, grants.access, grants.mount_name
          FROM grants
-         WHERE grantee_email = $1 AND mount_name = $2",
+         JOIN nodes ON nodes.id = grants.node_id
+         JOIN users owners ON owners.id = nodes.owner_id AND owners.disabled_at IS NULL
+         WHERE grants.grantee_email = $1 AND grants.mount_name = $2",
     )
     .bind(grantee)
     .bind(name.as_str())

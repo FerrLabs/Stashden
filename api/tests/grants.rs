@@ -873,6 +873,76 @@ database_test!(
 );
 
 database_test!(
+    a_shared_folder_of_a_disabled_owner_is_gone_for_the_grantee,
+    harness,
+    {
+        let (owner, owner_bearer) = session(&harness, "owner@example.com", Role::Member).await;
+        let (_, guest) = session(&harness, "guest@example.com", Role::Member).await;
+        harness
+            .write(owner, "family/photos/beach.jpg", b"sand")
+            .await;
+        granted(
+            &harness,
+            &owner_bearer,
+            "family/photos",
+            "guest@example.com",
+            "write",
+        )
+        .await;
+        assert_eq!(
+            get(
+                &harness,
+                "/v1/files/Shared with me/photos/beach.jpg",
+                &guest
+            )
+            .await
+            .status,
+            StatusCode::OK
+        );
+
+        sqlx::query("UPDATE users SET disabled_at = now() WHERE id = $1")
+            .bind(owner)
+            .execute(&harness.state.db)
+            .await
+            .expect("disabling the owner");
+
+        assert_eq!(
+            get(
+                &harness,
+                "/v1/files/Shared with me/photos/beach.jpg",
+                &guest
+            )
+            .await
+            .status,
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            put(
+                &harness,
+                "/v1/files/Shared with me/photos/new.txt",
+                &guest,
+                b"x"
+            )
+            .await
+            .status,
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            get(&harness, "/v1/folders/Shared with me", &guest)
+                .await
+                .status,
+            StatusCode::NOT_FOUND
+        );
+        let found = get(&harness, "/v1/search?q=beach", &guest).await;
+        assert!(
+            found.json().as_array().expect("hits").is_empty(),
+            "{}",
+            found.body
+        );
+    }
+);
+
+database_test!(
     a_shared_folder_the_owner_trashed_is_gone_for_the_grantee,
     harness,
     {
