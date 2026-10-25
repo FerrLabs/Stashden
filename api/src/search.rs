@@ -32,6 +32,7 @@ pub async fn by_name(
                SELECT grants.node_id, grants.mount_name
                FROM grants
                JOIN nodes ON nodes.id = grants.node_id AND nodes.deleted_at IS NULL
+               JOIN users owners ON owners.id = nodes.owner_id AND owners.disabled_at IS NULL
                WHERE grants.grantee_email = $2
            ),
            shared AS (
