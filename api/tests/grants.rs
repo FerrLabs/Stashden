@@ -927,11 +927,11 @@ database_test!(
             .status,
             StatusCode::NOT_FOUND
         );
-        assert!(
+        assert_eq!(
             get(&harness, "/v1/folders/Shared with me", &guest)
                 .await
-                .names()
-                .is_empty()
+                .names(),
+            Vec::<String>::new()
         );
         let found = get(&harness, "/v1/search?q=beach", &guest).await;
         assert!(
