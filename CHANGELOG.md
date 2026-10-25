@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.53.2] - 2026-10-25
+
+### Bug Fixes
+
+- fix(grants): stop serving folders granted by a disabled account (#386)
+
 ## [0.53.1] - 2026-10-25
 
 ### Bug Fixes
