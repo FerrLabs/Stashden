@@ -422,10 +422,10 @@ A session token names an account and a row in `sessions`; it does not stand in f
 authenticated request checks that the session still exists and loads the account behind it, refusing
 a disabled one, which is what makes signing out, a password change, an admin reset or disabling
 somebody take effect on the next request instead of when the token expires. Revoking deletes the
-row, and the sweeper drops the expired ones. A password change or reset also revokes every
-app password of the account in the same transaction. The cost is two indexed lookups on requests that already
+row, and the sweeper drops the expired ones. The cost is two indexed lookups on requests that already
 run several queries, and the alternative was a rule that says "revoked" and means "in up to twelve
-hours".
+hours". A password change or reset also revokes every app password of the account, in the same
+transaction.
 
 Every path enters through the same authorization layer in the API. There is no code path that
 reaches the blob store without first resolving a node the caller is allowed to read, share links
