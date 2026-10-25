@@ -1,4 +1,4 @@
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{PgExecutor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::error::ApiError;
@@ -63,6 +63,16 @@ pub async fn revoke(pool: &PgPool, user_id: Uuid, id: Uuid) -> Result<(), ApiErr
         return Err(ApiError::NotFound);
     }
     Ok(())
+}
+
+pub async fn revoke_all(executor: impl PgExecutor<'_>, user_id: Uuid) -> Result<u64, ApiError> {
+    Ok(sqlx::query(
+        "UPDATE app_passwords SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
+    )
+    .bind(user_id)
+    .execute(executor)
+    .await?
+    .rows_affected())
 }
 
 /// Answers the account a `WebDAV` client is entitled to act as, or nothing at all. The presented

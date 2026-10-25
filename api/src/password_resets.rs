@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use stashden_core::user::{Email, User};
 use uuid::Uuid;
 
-use crate::app_passwords::{fingerprint, secret};
+use crate::app_passwords::{self, fingerprint, secret};
 use crate::attempts::{self, Scope};
 use crate::error::ApiError;
 use crate::mail::Letter;
@@ -51,6 +51,7 @@ pub async fn redeem(pool: &PgPool, secret: &str, plaintext: &str) -> Result<User
 
     users::set_password(&mut *tx, user.id, plaintext).await?;
     sessions::revoke_all(&mut *tx, user.id, None).await?;
+    app_passwords::revoke_all(&mut *tx, user.id).await?;
     tx.commit().await?;
 
     attempts::forget(pool, Scope::Login, user.email.as_str()).await?;
