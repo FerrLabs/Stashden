@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.53.1] - 2026-10-25
+
+### Bug Fixes
+
+- fix(auth): revoke app passwords on password change and reset (#385)
+
 ## [0.53.0] - 2026-10-20
 
 ### Features
