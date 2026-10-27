@@ -2,6 +2,9 @@ packages:
   - web
   - site
 
+minimumReleaseAgeExclude:
+  - '@ferrlabs/*'
+
 allowBuilds:
   '@parcel/watcher': false
   esbuild: false
