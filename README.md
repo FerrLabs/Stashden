@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="site/public/favicon.svg" alt="" width="88" height="88" />
-
-# Stashden
+<h1><img src=".github/logo.svg" alt="" width="48" height="48" align="absmiddle"> Stashden</h1>
 
 **Self-hosted file storage in Rust.**
 
@@ -11,8 +9,8 @@ Your files, on hardware you own, under the AGPL.
 
 [![Latest release](https://img.shields.io/github/v/release/FerrLabs/Stashden)](https://github.com/FerrLabs/Stashden/releases/latest)
 [![CI](https://github.com/FerrLabs/Stashden/actions/workflows/ci.yml/badge.svg)](https://github.com/FerrLabs/Stashden/actions/workflows/ci.yml)
-[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/en/v1.0.0/)
 [![License](https://img.shields.io/github/license/FerrLabs/Stashden)](LICENSE)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white)](https://www.conventionalcommits.org/en/v1.0.0/)
 
 [Architecture](ARCHITECTURE.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md) | [FerrLabs](https://github.com/FerrLabs)
 
@@ -820,3 +818,7 @@ The site is a separate Angular app under `site/`, prerendered to static files in
 config key or an endpoint updates `site/src/app/content/` in the same pull request.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+GNU Affero General Public License v3.0 only, see [LICENSE](LICENSE).
