@@ -807,6 +807,10 @@ anywhere. Point it at a database and they run:
 DATABASE_URL=postgres://stashden:stashden@localhost:5432/stashden cargo test --workspace
 ```
 
+The parsers that take untrusted input (paths, `Range`, `PROPFIND` bodies, lock headers) are fuzzed with
+`cargo +nightly fuzz run <target>` from `fuzz/`; `cargo +nightly fuzz list` shows the targets. CI runs them
+nightly.
+
 `pnpm run build` builds both browser surfaces. `web/dist` is embedded in the desktop build, so
 build the web app before touching `app/`. On Linux the Tauri crate needs `libwebkit2gtk-4.1-dev`,
 `libappindicator3-dev`, `librsvg2-dev` and `patchelf`.

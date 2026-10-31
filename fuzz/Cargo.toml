@@ -1,0 +1,52 @@
+[package]
+name = "stashden-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+axum = "0.8"
+stashden-core = { path = "../crates/core" }
+stashden-client = { path = "../crates/client" }
+stashden-api = { path = "../api" }
+
+[workspace]
+
+[[bin]]
+name = "node_path"
+path = "fuzz_targets/node_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rel_path"
+path = "fuzz_targets/rel_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "range_plan"
+path = "fuzz_targets/range_plan.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "propfind"
+path = "fuzz_targets/propfind.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lock_headers"
+path = "fuzz_targets/lock_headers.rs"
+test = false
+doc = false
+bench = false
