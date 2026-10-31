@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.53.3] - 2026-10-31
+
+### Bug Fixes
+
+- fix(deps): drop legacy rustls 0.21 stack and bump flagged crates (#403)
+
 ## [0.53.2] - 2026-10-25
 
 ### Bug Fixes

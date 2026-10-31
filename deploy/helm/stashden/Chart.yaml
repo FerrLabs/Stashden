@@ -2,8 +2,8 @@ apiVersion: v2
 name: stashden
 description: Stashden API, the server behind the web app, the desktop shell and folder sync
 type: application
-version: 0.53.2
-appVersion: "0.53.2"
+version: 0.53.3
+appVersion: "0.53.3"
 home: https://github.com/FerrLabs/Stashden
 sources:
   - https://github.com/FerrLabs/Stashden
