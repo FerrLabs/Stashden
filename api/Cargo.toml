@@ -53,8 +53,8 @@ lettre = { version = "0.11", default-features = false, features = ["builder", "s
 # image library, and the default features here pull none.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 
-aws-config = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "rustls"] }
-aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "rustls"] }
+aws-config = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }
 aws-smithy-types = { version = "1", features = ["rt-tokio"] }
 aws-credential-types = "1"
 
