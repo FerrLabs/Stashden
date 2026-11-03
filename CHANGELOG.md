@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.53.4] - 2026-11-03
+
+### Bug Fixes
+
+- fix(deps): bump source-map-js to 1.2.2 (#415)
+
 ## [0.53.3] - 2026-10-31
 
 ### Bug Fixes
