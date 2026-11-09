@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-rust-version.workspace = true
+rust-version = "1.92"
 
 [dependencies]
 stashden-client = { workspace = true }
