@@ -53,7 +53,6 @@
         <rx-upload-target
           [pending]="pending()"
           (chosen)="upload($event)"
-          (failed)="failure.set('choosing files failed: ' + $event)"
         />
       }
     </span>

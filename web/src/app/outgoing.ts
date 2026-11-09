@@ -5,8 +5,6 @@ export type Outgoing = {
   send(destination: string, progress?: Progress): Promise<void>;
 };
 
-export type Dropping = { kind: 'over' } | { kind: 'leave' } | { kind: 'drop'; items: Outgoing[] };
-
 export type Chosen = { file: File; path: string };
 
 type Upload = (path: string, file: File, progress?: Progress) => Promise<void>;
