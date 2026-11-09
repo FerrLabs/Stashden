@@ -47,12 +47,7 @@ pub fn access(access: Access) -> &'static str {
 }
 
 pub fn origin(received: &Received) -> String {
-    let owner = if received.owner_name.is_empty() {
-        &received.owner_email
-    } else {
-        &received.owner_name
-    };
-    format!("From {owner}, {}", access(received.access))
+    format!("From {}, {}", owner(received), access(received.access))
 }
 
 pub fn owner(received: &Received) -> &str {
