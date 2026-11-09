@@ -2,9 +2,9 @@ export type PreviewKind = 'image' | 'text' | 'pdf' | 'none';
 
 export const PREVIEW_LIMIT = 16 * 1000 * 1000;
 
-const IMAGES = ['apng', 'avif', 'bmp', 'gif', 'ico', 'jpeg', 'jpg', 'png', 'svg', 'webp'];
+const IMAGES = new Set(['apng', 'avif', 'bmp', 'gif', 'ico', 'jpeg', 'jpg', 'png', 'svg', 'webp']);
 
-const TEXT = [
+const TEXT = new Set([
   'css',
   'csv',
   'html',
@@ -22,7 +22,7 @@ const TEXT = [
   'xml',
   'yaml',
   'yml',
-];
+]);
 
 const TYPES: Record<string, string> = {
   apng: 'image/apng',
@@ -48,13 +48,13 @@ export function previewKind(name: string, size: number): PreviewKind {
     return 'none';
   }
   const extension = extensionOf(name);
-  if (IMAGES.includes(extension)) {
+  if (IMAGES.has(extension)) {
     return 'image';
   }
   if (extension === 'pdf') {
     return 'pdf';
   }
-  return TEXT.includes(extension) ? 'text' : 'none';
+  return TEXT.has(extension) ? 'text' : 'none';
 }
 
 export function mimeOf(name: string): string {
