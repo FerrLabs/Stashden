@@ -74,8 +74,8 @@ desktops, the app says so and stays signed in until it closes.
 api/        Rust: the server, the domain, the migrations
 crates/     core (domain types) and client (API client and sync engine)
 cli/        the stashden command-line client
-app/        the desktop app, a Tauri shell around web/
-web/        Angular app, shared by the browser and the desktop shell
+app/        the desktop app, a native GPUI client over crates/client
+web/        Angular app for the browser
 site/       Angular marketing and documentation site, prerendered
 deploy/     Dockerfile, compose file, Helm chart
 docs/       backup, upgrade and reverse proxy guides
@@ -84,7 +84,7 @@ docs/       backup, upgrade and reverse proxy guides
 ## Installing the desktop app
 
 Every release carries an installer: `Stashden_<version>_x64-setup.exe` for Windows and
-`Stashden_<version>_amd64.AppImage` for Linux, on the
+`Stashden_<version>_x86_64.AppImage` for Linux, on the
 [releases page](https://github.com/FerrLabs/Stashden/releases/latest). The app asks for the address
 of the instance on first launch, so it works against any server, not only a particular one.
 
@@ -99,12 +99,17 @@ sha256sum -c Stashden_0.33.0_x64-setup.exe.sha256
 ```
 
 The AppImage needs the executable bit and a system with FUSE. It is built on Ubuntu 22.04, so it
-wants glibc 2.35 or later, which covers Debian 12 and everything more recent:
+wants glibc 2.35 or later, which covers Debian 12 and everything more recent. The window draws with
+Vulkan, so it also needs a Vulkan driver, which every current Mesa and vendor driver provides; a
+machine or virtual machine without one opens no window. The tray icon uses the StatusNotifierItem
+protocol, which KDE, most other desktops and GNOME with the AppIndicator extension show:
 
 ```bash
-chmod +x Stashden_*_amd64.AppImage
-./Stashden_*_amd64.AppImage
+chmod +x Stashden_*_x86_64.AppImage
+./Stashden_*_x86_64.AppImage
 ```
+
+On Windows the window draws with DirectX 11, which every supported Windows has.
 
 macOS has no build yet: a `.dmg` anyone can open needs an Apple developer account and notarisation.
 
@@ -117,9 +122,11 @@ version, which stops a sync running in that window. Nothing is downloaded or ins
 update is accepted.
 
 A release only reaches installed copies if it carries the `.sig` files and `latest.json`, which the
-Desktop workflow produces from `TAURI_SIGNING_PRIVATE_KEY`. Losing that key means no installed copy
-accepts any later version, so it belongs in the repository secrets and in a backup, not only on one
-machine.
+Desktop workflow produces from `TAURI_SIGNING_PRIVATE_KEY`. The secret keeps its name from when the
+app was built with Tauri: it is the same minisign key, so copies installed before the move to GPUI
+accept the new builds as updates and switch over on their own. Losing that key means no installed
+copy accepts any later version, so it belongs in the repository secrets and in a backup, not only
+on one machine.
 
 Authenticode signing reads three secrets, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and
 `AZURE_CLIENT_SECRET`, and three variables, `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT` and
@@ -130,19 +137,26 @@ signature Windows does not report as valid. A fourth variable, `AZURE_SIGNING_PU
 signed it: set it to the certificate subject the first signed build prints, and any other signer
 fails the build. Left empty, every trusted signer passes and the run says so.
 
-The job that builds the installers restores no cache, pnpm's or Cargo's, so a poisoned cache cannot
+The job that builds the installers restores no Cargo cache, so a poisoned cache cannot
 end up in a signed installer that every copy would accept as an update. A release build takes a few
 minutes longer for it.
 
-To build it yourself, from a checkout:
+To run it from a checkout, `cargo run -p stashden-app`. To build an installer the way the Desktop
+workflow does, with [cargo-packager](https://github.com/crabnebula-dev/cargo-packager) and its
+configuration in `app/Cargo.toml`:
 
 ```bash
-pnpm install
-cd app && pnpm exec tauri build
+cargo install cargo-packager --version 0.11.8 --locked
+cargo build --release -p stashden-app
+cp target/release/stashden-app target/release/Stashden
+cargo packager -p stashden-app --release --formats appimage
 ```
 
-The bundle lands in `target/release/bundle/`, since every crate in the workspace shares one output
-directory.
+The binary is copied to `Stashden` first so the installer lays out the same `Stashden.exe`,
+shortcuts and registry keys as the Tauri build it replaces. On Windows copy `stashden-app.exe` to
+`Stashden.exe` and pass `--formats nsis`. The bundle lands in `target/release/bundle/`, since every
+crate in the workspace shares one output directory. Without `CARGO_PACKAGER_SIGN_PRIVATE_KEY` the
+installer carries no update signature.
 
 ## Running the API
 
@@ -809,9 +823,9 @@ The parsers that take untrusted input (paths, `Range`, `PROPFIND` bodies, lock h
 `cargo +nightly fuzz run <target>` from `fuzz/`; `cargo +nightly fuzz list` shows the targets. CI runs them
 nightly.
 
-`pnpm run build` builds both browser surfaces. `web/dist` is embedded in the desktop build, so
-build the web app before touching `app/`. On Linux the Tauri crate needs `libwebkit2gtk-4.1-dev`,
-`libappindicator3-dev`, `librsvg2-dev` and `patchelf`.
+`pnpm run build` builds both browser surfaces. The desktop app shares no code with them. On Linux
+it needs `libxkbcommon-dev`, `libxkbcommon-x11-dev`, `libwayland-dev`, `libxcb1-dev`,
+`libfontconfig-dev` and `libfreetype-dev` to build.
 
 The site is a separate Angular app under `site/`, prerendered to static files in `site/dist`, with
 `pnpm run dev:site` for the dev server. It carries the install and API pages, so a change to a
