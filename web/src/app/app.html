@@ -13,7 +13,6 @@
           (deletingAccount)="deleting.set(true)"
           (editingProfile)="naming.set(true)"
           (openingAppPasswords)="listingAppPasswords.set(true)"
-          (checkingForUpdates)="updating.set(true)"
           (signedOut)="signOut()"
         />
       }
@@ -29,7 +28,7 @@
         <p class="failure" role="alert">{{ message }}</p>
       }
       <router-outlet />
-    } @else if (!resuming()) {
+    } @else {
       <section class="sign-in">
         <h1>Sign in</h1>
         @if (error(); as message) {
@@ -39,8 +38,7 @@
           [busy]="busy()"
           [methods]="methods()"
           (submitted)="signIn($event)"
-          (providerChosen)="signInWithProvider($event)"
-          (serverChanged)="loadMethods($event)"
+          (providerChosen)="signInWithProvider()"
         />
       </section>
     }
@@ -48,10 +46,6 @@
 
   @if (listingAppPasswords()) {
     <rx-app-passwords (dismissed)="listingAppPasswords.set(false)" />
-  }
-
-  @if (updating()) {
-    <rx-update (dismissed)="updating.set(false)" />
   }
 
   @if (naming()) {

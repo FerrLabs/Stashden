@@ -27,15 +27,12 @@ export class AccountMenu {
   readonly changingPassword = output<void>();
   readonly deletingAccount = output<void>();
   readonly editingProfile = output<void>();
-  readonly checkingForUpdates = output<void>();
   readonly openingAppPasswords = output<void>();
   readonly signedOut = output<void>();
 
   protected readonly canChangePassword = this.platform.changePassword !== undefined;
   protected readonly canEditProfile = this.platform.updateProfile !== undefined;
   protected readonly canDeleteAccount = this.platform.deleteOwnAccount !== undefined;
-  protected readonly canUpdate = this.platform.checkUpdate !== undefined;
-  protected readonly canSync = this.platform.startSync !== undefined;
   protected readonly canMintAppPasswords = this.platform.mintAppPassword !== undefined;
   protected readonly canAdminister = computed(
     () => this.platform.listAccounts !== undefined && this.session.isAdmin(),
@@ -79,11 +76,6 @@ export class AccountMenu {
     this.editingProfile.emit();
   }
 
-  protected checkForUpdates(): void {
-    this.open.set(false);
-    this.checkingForUpdates.emit();
-  }
-
   protected openAppPasswords(): void {
     this.open.set(false);
     this.openingAppPasswords.emit();
@@ -92,11 +84,6 @@ export class AccountMenu {
   protected administer(): void {
     this.open.set(false);
     void this.router.navigate(['/accounts']);
-  }
-
-  protected openSync(): void {
-    this.open.set(false);
-    void this.router.navigate(['/sync']);
   }
 
   protected signOut(): void {

@@ -6,7 +6,6 @@ import { AccountMenu } from './account/account-menu';
 import { AppPasswords } from './account/app-passwords';
 import { ChangePassword } from './account/change-password';
 import { DeleteAccount } from './account/delete-account';
-import { Update } from './account/update';
 import { Session } from './account';
 import { linkTo } from './folder';
 import type { Credentials } from './login-form/credentials';
@@ -32,7 +31,6 @@ const standsAlone = (url: string): boolean =>
     LoginForm,
     Prompt,
     RouterOutlet,
-    Update,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -54,7 +52,6 @@ export class App {
 
   protected readonly sourceUrl = STASHDEN_SOURCE_URL;
   protected readonly connected = signal(this.platform.authenticated());
-  protected readonly resuming = signal(this.platform.resume !== undefined);
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected readonly changing = signal(false);
@@ -62,24 +59,19 @@ export class App {
   protected readonly naming = signal(false);
   protected readonly notice = signal<string | null>(null);
   protected readonly listingAppPasswords = signal(false);
-  protected readonly updating = signal(false);
 
   protected readonly methods = signal<Methods | null>(null);
 
   constructor() {
-    const arrival = this.platform.kind === 'browser' ? arrivalAt(window.location.search) : null;
+    const arrival = arrivalAt(window.location.search);
     if (arrival !== null) {
       history.replaceState(null, '', window.location.pathname + window.location.hash);
       void this.arrive(arrival);
       return;
     }
-    if (this.platform.server === undefined) {
-      void this.loadMethods();
-    }
+    void this.loadMethods();
     if (this.connected()) {
       void this.start();
-    } else {
-      void this.resume();
     }
   }
 
@@ -104,19 +96,19 @@ export class App {
     }
   }
 
-  protected async loadMethods(server?: string): Promise<void> {
+  protected async loadMethods(): Promise<void> {
     try {
-      this.methods.set(await this.platform.methods(server));
+      this.methods.set(await this.platform.methods());
     } catch {
       this.methods.set(null);
     }
   }
 
-  protected async signInWithProvider(server: string | undefined): Promise<void> {
+  protected async signInWithProvider(): Promise<void> {
     this.error.set(null);
     this.busy.set(true);
     try {
-      const outcome = await this.platform.loginWithProvider(server);
+      const outcome = await this.platform.loginWithProvider();
       if (outcome.kind === 'signedIn') {
         this.notice.set(outcome.warning);
         this.connected.set(true);
@@ -126,20 +118,6 @@ export class App {
       this.error.set(String(cause));
     } finally {
       this.busy.set(false);
-    }
-  }
-
-  private async resume(): Promise<void> {
-    try {
-      if (await this.platform.resume?.()) {
-        this.connected.set(true);
-        await this.start();
-      }
-    } catch (cause: unknown) {
-      const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(`Sign in again, the saved session did not open: ${message}`);
-    } finally {
-      this.resuming.set(false);
     }
   }
 
@@ -208,11 +186,7 @@ export class App {
     this.error.set(null);
     this.busy.set(true);
     try {
-      const warning = await this.platform.login(
-        credentials.email,
-        credentials.password,
-        credentials.server,
-      );
+      const warning = await this.platform.login(credentials.email, credentials.password);
       this.notice.set(warning);
       this.connected.set(true);
       await this.session.load();
