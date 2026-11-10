@@ -82,7 +82,7 @@ impl SignIn {
 
     fn address(&self, cx: &App) -> Option<String> {
         let typed = self.server.read(cx).value();
-        (!typed.trim().is_empty()).then(|| server_address(&typed))
+        server_address(&typed)
     }
 
     fn load_methods(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -103,7 +103,9 @@ impl SignIn {
     fn missing_server(&mut self, cx: &mut Context<Self>) -> Option<String> {
         let server = self.address(cx);
         if server.is_none() {
-            self.error = Some("Type the address of your Stashden server first.".to_owned());
+            self.error = Some(
+                "Type the address of your Stashden server, such as files.example.com.".to_owned(),
+            );
             cx.notify();
         }
         server

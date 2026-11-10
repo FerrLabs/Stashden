@@ -10,11 +10,11 @@ const UNITS: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
 pub fn size(bytes: i64) -> String {
     let mut value = bytes.max(0) as f64;
     let mut unit = 0;
-    while value >= 1000.0 && unit < UNITS.len() - 1 {
+    while value.round() >= 1000.0 && unit < UNITS.len() - 1 {
         value /= 1000.0;
         unit += 1;
     }
-    if unit == 0 || value >= 10.0 {
+    if unit == 0 || (value * 10.0).round() >= 100.0 {
         format!("{value:.0} {}", UNITS[unit])
     } else {
         format!("{value:.1} {}", UNITS[unit])
@@ -94,13 +94,20 @@ pub fn end_of_day(typed: &str) -> Result<Option<DateTime<Utc>>, String> {
         .ok_or_else(|| format!("{typed} has no end of day in this time zone"))
 }
 
-pub fn server_address(typed: &str) -> String {
-    let trimmed = typed.trim().trim_end_matches('/');
-    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
-        trimmed.to_owned()
-    } else {
-        format!("https://{trimmed}")
-    }
+pub fn server_address(typed: &str) -> Option<String> {
+    let typed = typed.trim();
+    let (scheme, rest) = ["http", "https"]
+        .into_iter()
+        .find_map(|scheme| {
+            typed
+                .strip_prefix(scheme)
+                .and_then(|rest| rest.strip_prefix("://"))
+                .map(|rest| (scheme, rest))
+        })
+        .unwrap_or(("https", typed));
+    let rest = rest.trim_end_matches('/');
+    let host = rest.split(['/', ':']).next().unwrap_or_default();
+    (!host.is_empty()).then(|| format!("{scheme}://{rest}"))
 }
 
 pub fn status(status: &Status) -> String {
@@ -189,6 +196,16 @@ mod tests {
     }
 
     #[test]
+    fn a_size_that_rounds_up_to_a_thousand_moves_to_the_next_unit() {
+        assert_eq!(size(999_499), "999 kB");
+        assert_eq!(size(999_500), "1.0 MB");
+        assert_eq!(size(999_999), "1.0 MB");
+        assert_eq!(size(9_949), "9.9 kB");
+        assert_eq!(size(9_950), "10 kB");
+        assert_eq!(size(999_999_999), "1.0 GB");
+    }
+
+    #[test]
     fn a_link_reads_as_expired_once_its_date_passed() {
         let now = Utc::now();
         assert!(link(&share(None, false), now).starts_with("No expiry, Never opened"));
@@ -220,12 +237,33 @@ mod tests {
 
     #[test]
     fn a_bare_host_is_reached_over_https_and_a_trailing_slash_is_dropped() {
-        assert_eq!(server_address(" files.example/ "), "https://files.example");
         assert_eq!(
-            server_address("http://localhost:3001"),
-            "http://localhost:3001"
+            server_address(" files.example/ ").as_deref(),
+            Some("https://files.example")
         );
-        assert_eq!(server_address("https://a.example//"), "https://a.example");
+        assert_eq!(
+            server_address("http://localhost:3001").as_deref(),
+            Some("http://localhost:3001")
+        );
+        assert_eq!(
+            server_address("https://a.example//").as_deref(),
+            Some("https://a.example")
+        );
+    }
+
+    #[test]
+    fn an_address_without_a_host_is_refused() {
+        for typed in [
+            "",
+            "  ",
+            "/",
+            "https://",
+            "http:///",
+            "https:///path",
+            ":3001",
+        ] {
+            assert_eq!(server_address(typed), None, "{typed:?}");
+        }
     }
 
     #[test]
