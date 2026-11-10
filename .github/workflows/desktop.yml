@@ -145,17 +145,18 @@ jobs:
           }
           Add-Content -Path $env:GITHUB_PATH -Value $dir
 
-      # The packager reads both names itself. A missing key fails the bundle
-      # rather than quietly shipping a release that no installed copy would
-      # accept as an update.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
       - name: Bundle
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$CARGO_PACKAGER_SIGN_PRIVATE_KEY" ]; then
-            echo "the update signing key is missing" >&2
-            exit 1
-          fi
+          key="$RUNNER_TEMP/update-signing.key"
+          trap 'rm -f "$key"' EXIT
+          python .github/scripts/decrypt_update_key.py "$key"
+          export CARGO_PACKAGER_SIGN_PRIVATE_KEY="$key"
           cargo build --release --locked -p stashden-app
           cp "target/release/stashden-app$EXE" "target/release/Stashden$EXE"
           if [ -n "$SIGN_COMMAND" ]; then
@@ -164,8 +165,9 @@ jobs:
           fi
           cargo packager -p stashden-app --release --formats "$FORMAT"
         env:
-          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ''
           APPIMAGE_EXTRACT_AND_RUN: '1'
           AZURE_TENANT_ID: ${{ steps.signing.outputs.enabled == 'true' && secrets.AZURE_TENANT_ID || '' }}
           AZURE_CLIENT_ID: ${{ steps.signing.outputs.enabled == 'true' && secrets.AZURE_CLIENT_ID || '' }}

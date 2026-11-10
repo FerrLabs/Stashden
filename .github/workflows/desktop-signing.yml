@@ -1,0 +1,69 @@
+name: Desktop signing
+
+on:
+  pull_request:
+    paths:
+      - app/**
+      - .github/workflows/desktop.yml
+      - .github/workflows/desktop-signing.yml
+      - .github/scripts/decrypt_update_key.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sign:
+    name: Sign with a throwaway tauri key (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+
+      - name: Install cargo-packager at the version desktop.yml pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/.*cargo install cargo-packager --version \([0-9.]*\).*/\1/p' .github/workflows/desktop.yml)
+          test -n "$version"
+          cargo install cargo-packager --version "$version" --locked
+
+      - name: Sign through the release path with keys made the way the release key was
+        shell: bash
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ''
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          script="$GITHUB_WORKSPACE/.github/scripts/decrypt_update_key.py"
+          echo payload > payload
+          for password in '' throwaway-password; do
+            echo "::group::password '${password}'"
+            rm -f tauri.key tauri.key.pub update-signing.key payload.sig
+            npx --yes @tauri-apps/cli@2.12.4 signer generate --ci --password "$password" --write-keys tauri.key
+
+            export TAURI_SIGNING_PRIVATE_KEY="$(cat tauri.key)"
+            if TAURI_SIGNING_PRIVATE_KEY_PASSWORD="not-$password" python "$script" wrong.key; then
+              echo "a wrong password was accepted" >&2
+              exit 1
+            fi
+
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$password" python "$script" update-signing.key
+            CARGO_PACKAGER_SIGN_PRIVATE_KEY="$RUNNER_TEMP/update-signing.key" cargo packager signer sign payload
+            test -s payload.sig
+            echo "::endgroup::"
+          done
