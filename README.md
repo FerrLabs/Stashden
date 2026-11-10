@@ -212,7 +212,7 @@ also the API it talks to:
 pnpm --filter @stashden/web build   --define STASHDEN_API_URL="'https://api.example.com'"   --define STASHDEN_SOURCE_URL="'https://git.example.com/stashden'"
 ```
 
-`STASHDEN_TELEMETRY_URL` is the collector the web app reports JavaScript errors and page timings
+`STASHDEN_TELEMETRY_URL` is the collector the web app and the marketing site report JavaScript errors and page timings
 to (Grafana Faro). It is empty by default, which keeps telemetry off: nothing is sent unless you
 build with a URL, for example `--define STASHDEN_TELEMETRY_URL="'https://rum.example.com/collect'"`.
 The container image takes it as the `STASHDEN_TELEMETRY_URL` build argument and the published image
