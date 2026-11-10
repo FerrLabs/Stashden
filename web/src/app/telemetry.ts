@@ -13,6 +13,9 @@ export function environmentFor(hostname: string): TelemetryEnvironment {
 }
 
 const capabilityPaths: readonly (readonly [RegExp, string])[] = [
+  [/(\/v1\/public\/)[^/?#\s"'<>]+(\/(?:entries|content|archive)\/)[^?#\s"'<>]+/g, '$1:token$2:path'],
+  [/(\/v1\/(?:files|folders|archive|versions|thumbnails)\/)[^?#\s"'<>]+/g, '$1:path'],
+  [/(\/v1\/version\/)[^/?#\s"'<>]+(?:\/[^?#\s"'<>]*)?/g, '$1:id/:path'],
   [/(\/s\/)[^/?#\s"'<>]+/g, '$1:token'],
   [/(\/reset-password\/)[^/?#\s"'<>]+/g, '$1:token'],
   [/(\/v1\/public\/)[^/?#\s"'<>]+/g, '$1:token'],
