@@ -21,6 +21,7 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [workspace.dependencies]
+proptest = "1"
 stashden-core = { path = "crates/core" }
 stashden-client = { path = "crates/client" }
 
