@@ -1,7 +1,7 @@
 import { ErrorHandler } from '@angular/core';
 import { type TransportItem, faro, getWebInstrumentations, initializeFaro } from '@grafana/faro-web-sdk';
 
-const appName = 'roxycloud-web';
+const appName = 'stashden-web';
 
 export type TelemetryEnvironment = 'dev' | 'interne' | 'home' | 'prod';
 
