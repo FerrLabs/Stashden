@@ -166,7 +166,7 @@ this chart is capable of deleting the blob store.
 | `ingress.annotations` | `{}` | Ingress annotations, such as the proxy body size and timeouts |
 | `ingress.tls.enabled` | `false` | Serve the host over TLS |
 | `ingress.tls.secretName` | none | Required when TLS is on |
-| `resources` | none | Container requests and limits |
+| `resources` | 100m CPU and 256Mi memory requested; 1Gi memory limited | Container requests and limits |
 | `nameOverride` | chart name | Name used for the resources and the `app.kubernetes.io/name` label |
 | `fullnameOverride` | none | Full resource name, overriding the release and chart names |
 

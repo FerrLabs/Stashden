@@ -78,7 +78,12 @@ ingress:
     enabled: false
     secretName: ""
 
-resources: {}
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
 
 podAnnotations: {}
 nodeSelector: {}

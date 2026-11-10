@@ -33,7 +33,7 @@ export function chosenFromDrop(transfer: DataTransfer): Promise<Chosen[]> {
   const entries = Array.from(transfer.items ?? [])
     .filter((item) => item.kind === 'file')
     .map((item) => item.webkitGetAsEntry());
-  if (entries.length === 0 || entries.some((entry) => entry === null)) {
+  if (entries.length === 0 || entries.includes(null)) {
     return Promise.resolve(chosenFromFiles(Array.from(transfer.files)));
   }
   return collect(entries as FileSystemEntry[]);
