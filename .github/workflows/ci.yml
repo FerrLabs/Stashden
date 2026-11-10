@@ -72,6 +72,12 @@ jobs:
           DATABASE_URL: postgres://stashden:stashden@localhost:5432/stashden
           S3_TEST_ENDPOINT: http://localhost:9000
 
+  kani:
+    name: Kani
+    uses: FerrLabs/.github/.github/workflows/reusable-kani.yml@ca4906e7dbab75e0ea8129a3f9a3a68cb722c2a0 # main
+    permissions:
+      contents: read
+
   desktop-csp:
     runs-on: ubuntu-latest
     steps:
