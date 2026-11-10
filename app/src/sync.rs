@@ -165,11 +165,14 @@ impl Desktop {
             return self.remember(folder, false);
         }
 
-        let folders = self.folders.lock().await;
-        let session = folders
+        let commands = self
+            .folders
+            .lock()
+            .await
             .session(&folder)
+            .map(Session::commands)
             .ok_or("that folder is not syncing")?;
-        session.send(command).await;
+        commands.send(command).await.ok();
         Ok(())
     }
 
