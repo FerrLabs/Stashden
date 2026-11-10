@@ -11,7 +11,8 @@ use super::run;
 use crate::desktop::Desktop;
 use crate::failure::Failure;
 
-const LIMIT: i64 = 16 * 1000 * 1000;
+const IMAGE_LIMIT: i64 = 16 * 1000 * 1000;
+const TEXT_LIMIT: i64 = 256 * 1000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -26,15 +27,12 @@ const TEXT: [&str; 17] = [
 ];
 
 pub fn kind(name: &str, size: i64) -> Kind {
-    if size > LIMIT {
-        return Kind::None;
-    }
     let extension = name
         .rsplit_once('.')
         .filter(|(stem, _)| !stem.is_empty())
         .map(|(_, extension)| extension.to_lowercase())
         .unwrap_or_default();
-    match extension.as_str() {
+    let kind = match extension.as_str() {
         "png" | "apng" => Kind::Image(ImageFormat::Png),
         "jpg" | "jpeg" => Kind::Image(ImageFormat::Jpeg),
         "webp" => Kind::Image(ImageFormat::Webp),
@@ -43,7 +41,13 @@ pub fn kind(name: &str, size: i64) -> Kind {
         "bmp" => Kind::Image(ImageFormat::Bmp),
         text if TEXT.contains(&text) => Kind::Text,
         _ => Kind::None,
-    }
+    };
+    let limit = match kind {
+        Kind::Image(_) => IMAGE_LIMIT,
+        Kind::Text => TEXT_LIMIT,
+        Kind::None => return Kind::None,
+    };
+    if size > limit { Kind::None } else { kind }
 }
 
 enum Shown {
@@ -158,7 +162,7 @@ impl Render for Preview {
 mod tests {
     use gpui_kit::ImageFormat;
 
-    use super::{Kind, LIMIT, kind};
+    use super::{IMAGE_LIMIT, Kind, TEXT_LIMIT, kind};
 
     #[test]
     fn images_and_text_are_previewed_by_extension_whatever_the_case() {
@@ -171,7 +175,13 @@ mod tests {
     #[test]
     fn a_dotfile_or_an_oversized_file_gets_no_preview() {
         assert_eq!(kind(".txt", 10), Kind::None);
-        assert_eq!(kind("huge.txt", LIMIT + 1), Kind::None);
-        assert_eq!(kind("edge.txt", LIMIT), Kind::Text);
+        assert_eq!(kind("huge.txt", TEXT_LIMIT + 1), Kind::None);
+        assert_eq!(kind("edge.txt", TEXT_LIMIT), Kind::Text);
+        assert_eq!(
+            kind("big.png", TEXT_LIMIT + 1),
+            Kind::Image(ImageFormat::Png)
+        );
+        assert_eq!(kind("huge.png", IMAGE_LIMIT + 1), Kind::None);
+        assert_eq!(kind("edge.png", IMAGE_LIMIT), Kind::Image(ImageFormat::Png));
     }
 }
