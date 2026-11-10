@@ -1,7 +1,6 @@
 import { ErrorHandler } from '@angular/core';
 import { type TransportItem, faro, getWebInstrumentations, initializeFaro } from '@grafana/faro-web-sdk';
 
-const collectorUrl = 'https://rum.ferrlabs.com/collect';
 const appName = 'roxycloud-web';
 
 export type TelemetryEnvironment = 'dev' | 'interne' | 'home' | 'prod';
@@ -134,10 +133,11 @@ export function isLocalHost(hostname: string): boolean {
 }
 
 export function initTelemetry(): void {
+  if (STASHDEN_TELEMETRY_URL.length === 0) return;
   if (typeof window === 'undefined' || isLocalHost(window.location.hostname) || isOptedOut()) return;
   try {
     initializeFaro({
-      url: collectorUrl,
+      url: STASHDEN_TELEMETRY_URL,
       app: { name: appName, environment: environmentFor(window.location.hostname) },
       instrumentations: getWebInstrumentations({ captureConsole: false }),
       beforeSend: sanitizeItem,

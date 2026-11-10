@@ -7,7 +7,8 @@ COPY site/package.json site/
 RUN pnpm install --frozen-lockfile --filter @stashden/web...
 COPY web web
 # Same origin as the API that serves it, so the image carries no deployment's URL.
-RUN pnpm --filter @stashden/web build --define STASHDEN_API_URL="''"
+ARG STASHDEN_TELEMETRY_URL=""
+RUN pnpm --filter @stashden/web build --define STASHDEN_API_URL="''" --define STASHDEN_TELEMETRY_URL="'${STASHDEN_TELEMETRY_URL}'"
 
 FROM rust:1.99-slim-bookworm AS builder
 WORKDIR /build
