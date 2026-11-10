@@ -11,7 +11,7 @@ use crate::failure::Failure;
 use crate::keychain::{self, Credentials};
 use crate::sync::{Folders, Syncing};
 
-const IDENTIFIER: &str = "com.ferrlabs.roxycloud";
+pub const IDENTIFIER: &str = "com.ferrlabs.roxycloud";
 const LAST_SERVER: &str = "server";
 const CHANGES_BUFFER: usize = 64;
 

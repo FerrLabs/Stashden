@@ -40,7 +40,7 @@ fn options(cx: &App) -> WindowOptions {
             cx,
         ))),
         window_min_size: Some(size(px(720.), px(480.))),
-        app_id: Some("com.ferrlabs.roxycloud".to_owned()),
+        app_id: Some(desktop::IDENTIFIER.to_owned()),
         ..WindowOptions::default()
     }
 }
