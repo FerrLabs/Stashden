@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.53.5] - 2026-11-10
+
+### Bug Fixes
+
+- fix: sonar security findings and quick wins (#430)
+
 ## [0.53.4] - 2026-11-03
 
 ### Bug Fixes
