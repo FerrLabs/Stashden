@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.55.0] - 2026-11-10
+
+### Features
+
+- feat(web): report frontend errors and performance to Grafana Faro (#436)
+
 ## [0.54.0] - 2026-11-10
 
 ### Features
