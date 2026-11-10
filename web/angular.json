@@ -29,7 +29,8 @@
             "styles": ["src/styles.css"],
             "define": {
               "STASHDEN_API_URL": "'http://localhost:3001'",
-              "STASHDEN_SOURCE_URL": "'https://github.com/FerrLabs/Stashden'"
+              "STASHDEN_SOURCE_URL": "'https://github.com/FerrLabs/Stashden'",
+              "STASHDEN_TELEMETRY_URL": "''"
             }
           },
           "configurations": {

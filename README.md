@@ -202,14 +202,22 @@ Migrations run on boot. Configuration is environment only:
 | `BOOTSTRAP_ADMIN_EMAIL` | unset | Creates the first administrator on an empty database |
 | `BOOTSTRAP_ADMIN_PASSWORD` | unset | Required alongside the email, minimum 12 characters |
 
-The web app compiles two values in, `STASHDEN_API_URL` and `STASHDEN_SOURCE_URL`. They default to
-a local API and to this repository, and both are overridden at build time. An empty API URL means
+The web app compiles three values in, `STASHDEN_API_URL`, `STASHDEN_SOURCE_URL` and
+`STASHDEN_TELEMETRY_URL`. The first two default to a local API and to this repository, and all are
+overridden at build time. An empty API URL means
 the same origin as the page, which is what the image builds with, since the API serving the app is
 also the API it talks to:
 
 ```bash
 pnpm --filter @stashden/web build   --define STASHDEN_API_URL="'https://api.example.com'"   --define STASHDEN_SOURCE_URL="'https://git.example.com/stashden'"
 ```
+
+`STASHDEN_TELEMETRY_URL` is the collector the web app reports JavaScript errors and page timings
+to (Grafana Faro). It is empty by default, which keeps telemetry off: nothing is sent unless you
+build with a URL, for example `--define STASHDEN_TELEMETRY_URL="'https://rum.example.com/collect'"`.
+The container image takes it as the `STASHDEN_TELEMETRY_URL` build argument and the published image
+sets none. URLs, query strings and anything that looks like a credential are redacted before
+sending, and browsers that send Global Privacy Control or Do Not Track never report.
 
 If you deploy a modified Stashden, point the source URL at your fork: the AGPL requires you to
 offer your users the source of the version they are actually using.
