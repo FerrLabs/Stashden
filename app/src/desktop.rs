@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use stashden_client::{Methods, Remote, RemoteError, free_path};
@@ -23,15 +24,18 @@ struct Connection {
 pub struct Desktop {
     connection: Mutex<Option<Connection>>,
     pub(crate) folders: tokio::sync::Mutex<Folders>,
+    pub(crate) active: Arc<AtomicBool>,
     pub(crate) changes: broadcast::Sender<Syncing>,
     pub(crate) config: PathBuf,
 }
 
 impl Desktop {
     pub fn new(config: PathBuf) -> Arc<Self> {
+        let folders = Folders::default();
         Arc::new(Self {
             connection: Mutex::new(None),
-            folders: tokio::sync::Mutex::default(),
+            active: folders.active(),
+            folders: tokio::sync::Mutex::new(folders),
             changes: broadcast::channel(CHANGES_BUFFER).0,
             config,
         })

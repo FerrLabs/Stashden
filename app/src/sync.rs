@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use stashden_client::sync::watch::{Command, DEFAULT_POLL, Session, Status, watch};
 use stashden_client::{Debounce, Engine, Report};
@@ -25,6 +26,7 @@ struct Running<S> {
 pub struct Folders<S = Session> {
     generation: u64,
     running: HashMap<PathBuf, Running<S>>,
+    active: Arc<AtomicBool>,
 }
 
 impl<S> Default for Folders<S> {
@@ -32,13 +34,19 @@ impl<S> Default for Folders<S> {
         Self {
             generation: 0,
             running: HashMap::new(),
+            active: Arc::default(),
         }
     }
 }
 
 impl<S> Folders<S> {
-    pub fn is_empty(&self) -> bool {
-        self.running.is_empty()
+    pub fn active(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.active)
+    }
+
+    fn publish(&self) {
+        self.active
+            .store(!self.running.is_empty(), Ordering::Relaxed);
     }
 
     fn contains(&self, folder: &Path) -> bool {
@@ -65,6 +73,7 @@ impl<S> Folders<S> {
                 latest,
             },
         );
+        self.publish();
         (generation, replaced.map(|replaced| replaced.session))
     }
 
@@ -85,19 +94,25 @@ impl<S> Folders<S> {
         let syncing = running.latest.clone();
         if matches!(syncing.status, Status::Stopped) {
             self.running.remove(folder);
+            self.publish();
         }
         Some(syncing)
     }
 
     fn take(&mut self, folder: &Path) -> Option<S> {
-        self.running.remove(folder).map(|running| running.session)
+        let taken = self.running.remove(folder).map(|running| running.session);
+        self.publish();
+        taken
     }
 
     fn drain(&mut self) -> Vec<S> {
-        self.running
+        let drained = self
+            .running
             .drain()
             .map(|(_, running)| running.session)
-            .collect()
+            .collect();
+        self.publish();
+        drained
     }
 
     pub fn snapshot(&self) -> Vec<Syncing> {
@@ -163,9 +178,7 @@ impl Desktop {
     }
 
     pub fn is_syncing(&self) -> bool {
-        self.folders
-            .try_lock()
-            .map_or(true, |folders| !folders.is_empty())
+        self.active.load(Ordering::Relaxed)
     }
 
     fn remember(&self, folder: PathBuf, keep: bool) -> Result<(), Failure> {
@@ -281,8 +294,28 @@ mod tests {
             .record(&folder, generation, Status::Stopped)
             .unwrap();
         assert_eq!(stopped.status, Status::Stopped);
-        assert!(folders.is_empty());
+        assert_eq!(folders.snapshot(), Vec::new());
         assert_eq!(folders.record(&folder, generation, Status::Idle), None);
+    }
+
+    #[test]
+    fn the_shared_flag_follows_whether_any_folder_is_syncing() {
+        let mut folders = Folders::<u8>::default();
+        let active = folders.active();
+        assert!(!active.load(Ordering::Relaxed));
+        let (generation, _) = folders.insert(PathBuf::from("/a"), 1);
+        folders.insert(PathBuf::from("/b"), 2);
+        assert!(active.load(Ordering::Relaxed));
+        folders.take(Path::new("/a"));
+        assert!(active.load(Ordering::Relaxed));
+        folders.take(Path::new("/b"));
+        assert!(!active.load(Ordering::Relaxed));
+        folders.insert(PathBuf::from("/a"), 1);
+        folders.record(Path::new("/a"), generation + 2, Status::Stopped);
+        assert!(!active.load(Ordering::Relaxed));
+        folders.insert(PathBuf::from("/a"), 1);
+        folders.drain();
+        assert!(!active.load(Ordering::Relaxed));
     }
 
     #[test]
@@ -294,7 +327,7 @@ mod tests {
         let mut drained = folders.drain();
         drained.sort_unstable();
         assert_eq!(drained, [1, 2]);
-        assert!(folders.is_empty());
+        assert_eq!(folders.snapshot(), Vec::new());
         assert_eq!(folders.take(Path::new("/a")), None);
     }
 }
