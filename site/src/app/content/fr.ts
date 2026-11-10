@@ -115,8 +115,8 @@ curl --fail http://localhost:3001/health`,
       blocks: [
         {
           caption: 'Lancer l’API sur un Postgres local',
-          code: `DATABASE_URL=postgres://localhost/stashden \\
-JWT_SECRET=dev-secret \\
+          code: String.raw`DATABASE_URL=postgres://localhost/stashden \
+JWT_SECRET=dev-secret \
 cargo run -p stashden-api`,
         },
       ],
@@ -176,9 +176,9 @@ cargo run -p stashden-api`,
       blocks: [
         {
           caption: "Construire l'interface navigateur pour votre propre hébergement",
-          code: `pnpm install
-pnpm --filter @stashden/web build \\
-  --define STASHDEN_API_URL="'https://fichiers.exemple.com'" \\
+          code: String.raw`pnpm install
+pnpm --filter @stashden/web build \
+  --define STASHDEN_API_URL="'https://fichiers.exemple.com'" \
   --define STASHDEN_SOURCE_URL="'https://git.exemple.com/stashden'"`,
         },
       ],
@@ -197,8 +197,8 @@ pnpm --filter @stashden/web build \\
       blocks: [
         {
           caption: 'Échanger un mot de passe contre une session',
-          code: `curl -X POST http://localhost:3001/v1/auth/login \\
-  -H 'Content-Type: application/json' \\
+          code: String.raw`curl -X POST http://localhost:3001/v1/auth/login \
+  -H 'Content-Type: application/json' \
   -d '{"email":"vous@exemple.com","password":"..."}'`,
         },
         {
@@ -279,28 +279,28 @@ pnpm --filter @stashden/web build \\
       blocks: [
         {
           caption: 'Envoyer un fichier',
-          code: `curl -X PUT http://localhost:3001/v1/files/notes/todo.md \\
-  -H "Authorization: Bearer $TOKEN" \\
+          code: String.raw`curl -X PUT http://localhost:3001/v1/files/notes/todo.md \
+  -H "Authorization: Bearer $TOKEN" \
   --data-binary @todo.md`,
         },
         {
           caption: 'Renommer un fichier, puis le déplacer dans un répertoire',
-          code: `curl -X POST http://localhost:3001/v1/move \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
+          code: String.raw`curl -X POST http://localhost:3001/v1/move \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{"from": "/brouillon.md", "to": "/a-faire.md"}'
 
-curl -X POST http://localhost:3001/v1/move \\
-  -H "Authorization: Bearer $TOKEN" \\
-  -H "Content-Type: application/json" \\
+curl -X POST http://localhost:3001/v1/move \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{"from": "/a-faire.md", "to": "/notes/a-faire.md"}'`,
         },
         {
           caption: 'Lister un répertoire, puis y télécharger',
-          code: `curl http://localhost:3001/v1/folders/notes \\
+          code: String.raw`curl http://localhost:3001/v1/folders/notes \
   -H "Authorization: Bearer $TOKEN"
 
-curl -O http://localhost:3001/v1/files/notes/todo.md \\
+curl -O http://localhost:3001/v1/files/notes/todo.md \
   -H "Authorization: Bearer $TOKEN"`,
         },
       ],
