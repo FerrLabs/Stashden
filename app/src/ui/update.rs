@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
 use gpui_kit::component::Disableable as _;
@@ -90,7 +90,7 @@ impl UpdateDialog {
 }
 
 #[cfg(target_os = "macos")]
-fn relaunch(path: &PathBuf) {
+fn relaunch(path: &Path) {
     let _ = std::process::Command::new("open")
         .arg("-n")
         .arg(path)
@@ -98,7 +98,7 @@ fn relaunch(path: &PathBuf) {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn relaunch(path: &PathBuf) {
+fn relaunch(path: &Path) {
     let _ = std::process::Command::new(path).spawn();
 }
 
