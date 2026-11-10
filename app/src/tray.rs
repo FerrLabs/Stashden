@@ -1,45 +1,88 @@
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{App, AppHandle, Manager};
+use futures::channel::mpsc::{UnboundedReceiver, unbounded};
+use tray_icon::menu::{Menu, MenuEvent, MenuItem};
+use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 const OPEN: &str = "open";
 const QUIT: &str = "quit";
+const ICON: &[u8] = include_bytes!("../icons/32x32.png");
 
-pub fn install(app: &App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, OPEN, "Open Stashden", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, QUIT, "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quit])?;
-
-    let mut tray = TrayIconBuilder::new()
-        .tooltip("Stashden")
-        .menu(&menu)
-        .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            OPEN => reveal(app),
-            QUIT => app.exit(0),
-            _ => {}
-        })
-        .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
-                reveal(tray.app_handle());
-            }
-        });
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
-    tray.build(app)?;
-    Ok(())
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Asked {
+    Open,
+    Quit,
 }
 
-fn reveal(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
+pub struct Tray {
+    pub icon: TrayIcon,
+    pub asked: UnboundedReceiver<Asked>,
+}
+
+pub fn install() -> Result<Tray, String> {
+    let menu = Menu::new();
+    menu.append_items(&[
+        &MenuItem::with_id(OPEN, "Open Stashden", true, None),
+        &MenuItem::with_id(QUIT, "Quit", true, None),
+    ])
+    .map_err(|error| error.to_string())?;
+
+    let icon = TrayIconBuilder::new()
+        .with_tooltip("Stashden")
+        .with_menu(Box::new(menu))
+        .with_menu_on_left_click(false)
+        .with_icon(icon()?)
+        .build()
+        .map_err(|error| error.to_string())?;
+
+    let (sender, asked) = unbounded();
+    let from_menu = sender.clone();
+    MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
+        if let Some(asked) = menu_choice(event.id.as_ref()) {
+            let _ = from_menu.unbounded_send(asked);
+        }
+    }));
+    TrayIconEvent::set_event_handler(Some(move |event: TrayIconEvent| {
+        if let TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
+            ..
+        } = event
+        {
+            let _ = sender.unbounded_send(Asked::Open);
+        }
+    }));
+
+    Ok(Tray { icon, asked })
+}
+
+fn menu_choice(id: &str) -> Option<Asked> {
+    match id {
+        OPEN => Some(Asked::Open),
+        QUIT => Some(Asked::Quit),
+        _ => None,
+    }
+}
+
+fn icon() -> Result<Icon, String> {
+    let image = image::load_from_memory(ICON)
+        .map_err(|error| error.to_string())?
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    Icon::from_rgba(image.into_raw(), width, height).map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_two_menu_entries_ask_for_anything() {
+        assert_eq!(menu_choice(OPEN), Some(Asked::Open));
+        assert_eq!(menu_choice(QUIT), Some(Asked::Quit));
+        assert_eq!(menu_choice("separator"), None);
+    }
+
+    #[test]
+    fn the_bundled_icon_decodes() {
+        assert!(icon().is_ok());
     }
 }

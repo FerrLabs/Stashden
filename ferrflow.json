@@ -12,7 +12,6 @@
       "changelog": "CHANGELOG.md",
       "versionedFiles": [
         { "path": "Cargo.toml", "format": "toml" },
-        { "path": "app/tauri.conf.json", "format": "json" },
         { "path": "web/package.json", "format": "json" },
         { "path": "site/package.json", "format": "json" },
         { "path": "deploy/helm/stashden/Chart.yaml", "format": "helm" }

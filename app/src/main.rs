@@ -1,546 +1,114 @@
+#![allow(clippy::wildcard_imports)]
+
+mod describe;
+mod desktop;
 mod failure;
 mod keychain;
+mod location;
 mod remembered;
+mod runtime;
 mod sync;
 mod tray;
+mod ui;
+mod update;
 
-use std::path::PathBuf;
+use std::sync::Arc;
 
-use stashden_client::{Methods, Remote, RemoteError, free_path};
-use stashden_core::grant::{Given, NewGrant, Received};
-use stashden_core::node::{Hit, Node, Trashed};
-use stashden_core::share::{Minted, NewShare, Share};
-use stashden_core::user::User;
-use stashden_core::version::Version;
-use tauri::{AppHandle, Manager, State};
-use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_updater::UpdaterExt;
-use tokio::sync::Mutex;
+use futures::StreamExt as _;
+use gpui_kit::*;
 
-use failure::Failure;
-use keychain::Credentials;
-use uuid::Uuid;
+use desktop::Desktop;
+use ui::Workspace;
 
-#[derive(Default)]
-struct Desktop {
-    remote: Mutex<Option<Remote>>,
-    credentials: Mutex<Option<Credentials>>,
-    folders: Mutex<sync::Folders>,
-    offered: Mutex<Option<tauri_plugin_updater::Update>>,
+struct MainWindow {
+    desktop: Arc<Desktop>,
+    open: Option<AnyWindowHandle>,
+    tray: bool,
 }
 
-#[tauri::command]
-async fn login(
-    app: AppHandle,
-    desktop: State<'_, Desktop>,
-    server: String,
-    email: String,
-    password: String,
-) -> Result<Option<String>, String> {
-    let (session, _) = Remote::login(&server, &email, &password)
-        .await
-        .map_err(|error| error.to_string())?;
-    settle(&app, &desktop, server, session).await
-}
+impl Global for MainWindow {}
 
-#[tauri::command]
-async fn login_with_provider(
-    app: AppHandle,
-    desktop: State<'_, Desktop>,
-    server: String,
-) -> Result<Option<String>, String> {
-    let (session, _) = Remote::login_in_browser(&server, |_| {})
-        .await
-        .map_err(|error| error.to_string())?;
-    settle(&app, &desktop, server, session).await
-}
-
-#[tauri::command]
-async fn sign_in_methods(server: String) -> Result<Methods, String> {
-    Remote::methods(&server)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn forgot_password(server: &str) -> Result<(), String> {
-    Remote::reset_password_in_browser(server).map_err(|error| error.to_string())
-}
-
-async fn settle(
-    app: &AppHandle,
-    desktop: &Desktop,
-    server: String,
-    session: Remote,
-) -> Result<Option<String>, String> {
-    let email = session.me().await.map_err(|error| error.to_string())?.email;
-    let minted = session
-        .mint_app_password(&format!("Stashden desktop on {}", this_computer()))
-        .await
-        .map_err(|error| error.to_string())?;
-    let _ = session.logout().await;
-
-    let credentials = Credentials {
-        server,
-        email,
-        secret: minted.secret,
-    };
-    connect(app, desktop, credentials.clone()).await?;
-    Ok(keychain::keep(credentials)
-        .await
-        .err()
-        .map(|reason| format!("Signed in until the app closes, then it will ask again: {reason}")))
-}
-
-#[tauri::command]
-async fn resume(app: AppHandle, desktop: State<'_, Desktop>) -> Result<bool, String> {
-    let Some(credentials) = keychain::kept().await? else {
-        return Ok(false);
-    };
-    connect(&app, &desktop, credentials).await?;
-    Ok(true)
-}
-
-async fn connect(
-    app: &AppHandle,
-    desktop: &Desktop,
-    credentials: Credentials,
-) -> Result<(), String> {
-    let remote = remote_for(&credentials).map_err(|error| error.to_string())?;
-    *desktop.remote.lock().await = Some(remote);
-    *desktop.credentials.lock().await = Some(credentials);
-    sync::resume_saved(app, desktop).await;
-    Ok(())
-}
-
-fn remote_for(credentials: &Credentials) -> Result<Remote, RemoteError> {
-    Remote::with_app_password(
-        &credentials.server,
-        credentials.email.as_str(),
-        credentials.secret.as_str(),
-    )
-}
-
-fn this_computer() -> String {
-    let name = gethostname::gethostname().to_string_lossy().into_owned();
-    if name.is_empty() {
-        "this computer".to_owned()
-    } else {
-        name
+fn options(cx: &App) -> WindowOptions {
+    WindowOptions {
+        titlebar: Some(TitlebarOptions {
+            title: Some("Stashden".into()),
+            ..TitlebarOptions::default()
+        }),
+        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+            None,
+            size(px(1100.), px(720.)),
+            cx,
+        ))),
+        window_min_size: Some(size(px(720.), px(480.))),
+        app_id: Some(desktop::IDENTIFIER.to_owned()),
+        ..WindowOptions::default()
     }
 }
 
-#[derive(serde::Serialize)]
-struct Available {
-    version: String,
-    notes: Option<String>,
-}
-
-#[derive(serde::Serialize)]
-struct Update {
-    current: String,
-    available: Option<Available>,
-}
-
-#[tauri::command]
-async fn check_update(desktop: State<'_, Desktop>, app: AppHandle) -> Result<Update, String> {
-    let current = app.package_info().version.to_string();
-    let update = app
-        .updater()
-        .map_err(|error| error.to_string())?
-        .check()
-        .await
-        .map_err(|error| error.to_string())?;
-
-    let available = update.as_ref().map(|update| Available {
-        version: update.version.clone(),
-        notes: update.body.clone(),
+fn reveal(cx: &mut App) {
+    if let Some(handle) = cx.global::<MainWindow>().open {
+        let shown = handle.update(cx, |_, window, _| window.activate_window());
+        if shown.is_ok() {
+            return;
+        }
+    }
+    let desktop = Arc::clone(&cx.global::<MainWindow>().desktop);
+    let opened = gpui_kit::open_window(options(cx), cx, |window, cx| {
+        window.on_window_should_close(cx, |_, cx| {
+            let main = cx.global_mut::<MainWindow>();
+            if main.tray && main.desktop.is_syncing() {
+                main.open = None;
+                true
+            } else {
+                cx.quit();
+                false
+            }
+        });
+        cx.new(|cx| Workspace::new(desktop, window, cx))
     });
-    *desktop.offered.lock().await = update;
-
-    Ok(Update { current, available })
-}
-
-#[tauri::command]
-async fn install_update(desktop: State<'_, Desktop>, app: AppHandle) -> Result<(), String> {
-    let update = desktop
-        .offered
-        .lock()
-        .await
-        .take()
-        .ok_or("check for updates before installing one")?;
-
-    update
-        .download_and_install(|_, _| {}, || {})
-        .await
-        .map_err(|error| error.to_string())?;
-
-    app.restart();
-}
-
-#[tauri::command]
-async fn sign_out(desktop: State<'_, Desktop>) -> Result<(), String> {
-    sync::stop_all(&desktop).await;
-    desktop.credentials.lock().await.take();
-    let revoked = match desktop.remote.lock().await.take() {
-        Some(remote) => match remote.revoke_own_app_password().await {
-            Ok(()) | Err(RemoteError::Unauthenticated) => Ok(()),
-            Err(error) => Err(format!(
-                "the server did not revoke this computer's app password, revoke it from the web app: {error}"
-            )),
-        },
-        None => Ok(()),
-    };
-    keychain::forget().await?;
-    revoked
-}
-
-#[tauri::command]
-async fn list_folder(desktop: State<'_, Desktop>, path: String) -> Result<Vec<Node>, String> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    remote
-        .list(&path)
-        .await
-        .map_err(move |error| format!("{path}: {error}"))
-}
-
-#[tauri::command]
-async fn update_profile(
-    desktop: State<'_, Desktop>,
-    display_name: String,
-) -> Result<User, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.update_display_name(&display_name).await?)
-}
-
-#[tauri::command]
-async fn account(desktop: State<'_, Desktop>) -> Result<User, String> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    remote.me().await.map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-async fn read_file(
-    desktop: State<'_, Desktop>,
-    path: String,
-) -> Result<tauri::ipc::Response, String> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    let bytes = remote
-        .read(&path)
-        .await
-        .map_err(|error| format!("{path}: {error}"))?;
-    Ok(tauri::ipc::Response::new(bytes.to_vec()))
-}
-
-#[tauri::command]
-async fn download_file(
-    app: AppHandle,
-    desktop: State<'_, Desktop>,
-    path: String,
-) -> Result<String, String> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    let destination = into_downloads(&app, &path)?;
-
-    remote
-        .download(&path, &destination)
-        .await
-        .map_err(|error| format!("{path}: {error}"))?;
-    Ok(destination.to_string_lossy().into_owned())
-}
-
-#[tauri::command]
-async fn download_archive(
-    app: AppHandle,
-    desktop: State<'_, Desktop>,
-    path: String,
-) -> Result<String, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    let destination = into_downloads(&app, &format!("{path}.zip"))?;
-
-    remote.download_archive(&path, &destination).await?;
-    Ok(destination.to_string_lossy().into_owned())
-}
-
-fn into_downloads(app: &AppHandle, path: &str) -> Result<PathBuf, String> {
-    let directory = app
-        .path()
-        .download_dir()
-        .map_err(|error| error.to_string())?;
-    let name = path.rsplit_once('/').map_or(path, |(_, name)| name);
-    Ok(free_path(&directory, name))
-}
-
-#[tauri::command]
-async fn list_versions(desktop: State<'_, Desktop>, path: String) -> Result<Vec<Version>, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.list_versions(&path).await?)
-}
-
-#[tauri::command]
-async fn download_version(
-    app: AppHandle,
-    desktop: State<'_, Desktop>,
-    path: String,
-    id: Uuid,
-) -> Result<String, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    let destination = into_downloads(&app, &path)?;
-
-    remote.download_version(&path, id, &destination).await?;
-    Ok(destination.to_string_lossy().into_owned())
-}
-
-#[tauri::command]
-async fn restore_version(
-    desktop: State<'_, Desktop>,
-    path: String,
-    id: Uuid,
-) -> Result<Node, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.restore_version(&path, id).await?)
-}
-
-#[tauri::command]
-async fn move_node(desktop: State<'_, Desktop>, from: String, to: String) -> Result<Node, String> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    remote
-        .rename(&from, &to)
-        .await
-        .map_err(|error| format!("{from}: {error}"))
-}
-
-#[tauri::command]
-async fn create_folder(desktop: State<'_, Desktop>, path: String) -> Result<Node, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.create_folder(&path).await?)
-}
-
-#[tauri::command]
-async fn search_nodes(desktop: State<'_, Desktop>, query: String) -> Result<Vec<Hit>, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.search(&query).await?)
-}
-
-#[tauri::command]
-async fn delete_node(desktop: State<'_, Desktop>, path: String) -> Result<(), String> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    remote
-        .delete(&path)
-        .await
-        .map_err(|error| format!("{path}: {error}"))
-}
-
-#[tauri::command]
-async fn list_trash(desktop: State<'_, Desktop>) -> Result<Vec<Trashed>, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.trash().await?)
-}
-
-#[tauri::command]
-async fn restore_from_trash(desktop: State<'_, Desktop>, id: Uuid) -> Result<Node, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.restore(id).await?)
-}
-
-#[tauri::command]
-async fn purge_from_trash(desktop: State<'_, Desktop>, id: Uuid) -> Result<(), Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.purge(id).await?)
-}
-
-#[tauri::command]
-async fn empty_trash(desktop: State<'_, Desktop>) -> Result<(), Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.empty_trash().await?)
-}
-
-#[tauri::command]
-async fn list_shares(desktop: State<'_, Desktop>) -> Result<Vec<Share>, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.list_shares().await?)
-}
-
-#[tauri::command]
-async fn share(desktop: State<'_, Desktop>, request: NewShare) -> Result<Minted, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.share(&request).await?)
-}
-
-#[tauri::command]
-async fn revoke_share(desktop: State<'_, Desktop>, id: Uuid) -> Result<(), Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.revoke_share(id).await?)
-}
-
-#[tauri::command]
-async fn list_grants(desktop: State<'_, Desktop>) -> Result<Vec<Given>, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.list_grants().await?)
-}
-
-#[tauri::command]
-async fn grant(desktop: State<'_, Desktop>, request: NewGrant) -> Result<Given, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.grant(&request).await?)
-}
-
-#[tauri::command]
-async fn received_grants(desktop: State<'_, Desktop>) -> Result<Vec<Received>, Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.received().await?)
-}
-
-#[tauri::command]
-async fn withdraw_grant(desktop: State<'_, Desktop>, id: Uuid) -> Result<(), Failure> {
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.withdraw_grant(id).await?)
-}
-
-#[derive(serde::Serialize)]
-struct Picked {
-    name: String,
-    source: PathBuf,
-}
-
-impl From<PathBuf> for Picked {
-    fn from(source: PathBuf) -> Self {
-        let name = source.file_name().map_or_else(
-            || source.to_string_lossy().into_owned(),
-            |name| name.to_string_lossy().into_owned(),
-        );
-        Self { name, source }
+    match opened {
+        Ok((handle, _)) => cx.global_mut::<MainWindow>().open = Some(handle),
+        Err(error) => {
+            eprintln!("the Stashden window did not open: {error}");
+            cx.quit();
+        }
     }
 }
 
-#[tauri::command]
-async fn pick_uploads(app: AppHandle) -> Result<Vec<Picked>, Failure> {
-    let (chosen, answer) = tokio::sync::oneshot::channel();
-    app.dialog().file().pick_files(move |files| {
-        let _ = chosen.send(files);
-    });
-
-    let files = answer
-        .await
-        .map_err(|_| "the file picker went away")?
-        .unwrap_or_default();
-    files
-        .into_iter()
-        .map(|file| {
-            file.into_path().map(Picked::from).map_err(|error| {
-                Failure::from(format!(
-                    "that file is not one this computer can open: {error}"
-                ))
-            })
-        })
-        .collect()
-}
-
-#[tauri::command]
-fn describe_drops(paths: Vec<PathBuf>) -> Vec<Picked> {
-    paths.into_iter().map(Picked::from).collect()
-}
-
-#[tauri::command]
-async fn upload_file(
-    desktop: State<'_, Desktop>,
-    path: String,
-    source: PathBuf,
-) -> Result<Node, Failure> {
-    if source.is_dir() {
-        return Err(Failure::from(format!(
-            "{} is a folder; upload the files inside it, or sync the folder",
-            source.display()
-        )));
-    }
-    let guard = desktop.remote.lock().await;
-    let remote = guard.as_ref().ok_or("not connected to a server")?;
-    Ok(remote.upload(&path, &source).await?)
+fn follow_tray(tray: tray::Tray, cx: &mut App) {
+    let tray::Tray { asked, icon } = tray;
+    cx.spawn(async move |cx| {
+        let _icon = icon;
+        let mut asked = asked;
+        while let Some(asked) = asked.next().await {
+            cx.update(|cx| match asked {
+                tray::Asked::Open => reveal(cx),
+                tray::Asked::Quit => cx.quit(),
+            });
+        }
+    })
+    .detach();
 }
 
 fn main() {
-    tauri::Builder::default()
-        .setup(|app| Ok(tray::install(app)?))
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let syncing = window
-                    .state::<Desktop>()
-                    .folders
-                    .try_lock()
-                    .map_or(true, |folders| !folders.is_empty());
-                if syncing {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
+    let desktop = Desktop::new(Desktop::config_directory());
+    gpui_kit::application()
+        .with_assets(gpui_kit::assets::Assets)
+        .with_quit_mode(QuitMode::Explicit)
+        .run(move |cx| {
+            gpui_kit::init(cx);
+            let installed = tray::install();
+            if let Err(reason) = &installed {
+                eprintln!("no tray icon, closing the window will quit: {reason}");
             }
-        })
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_dialog::init())
-        .manage(Desktop::default())
-        .invoke_handler(tauri::generate_handler![
-            login,
-            login_with_provider,
-            sign_in_methods,
-            forgot_password,
-            resume,
-            sign_out,
-            list_folder,
-            account,
-            update_profile,
-            read_file,
-            download_file,
-            download_archive,
-            move_node,
-            delete_node,
-            create_folder,
-            search_nodes,
-            list_trash,
-            restore_from_trash,
-            purge_from_trash,
-            empty_trash,
-            list_versions,
-            download_version,
-            restore_version,
-            list_shares,
-            share,
-            revoke_share,
-            list_grants,
-            grant,
-            received_grants,
-            withdraw_grant,
-            pick_uploads,
-            describe_drops,
-            upload_file,
-            sync::pick_folder,
-            sync::start_sync,
-            sync::sync_control,
-            sync::sync_status,
-            check_update,
-            install_update
-        ])
-        .run(tauri::generate_context!())
-        .expect("starting the Stashden window");
+            cx.set_global(MainWindow {
+                desktop,
+                open: None,
+                tray: installed.is_ok(),
+            });
+            if let Ok(tray) = installed {
+                follow_tray(tray, cx);
+            }
+            reveal(cx);
+        });
 }

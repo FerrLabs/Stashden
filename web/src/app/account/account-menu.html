@@ -27,9 +27,6 @@
         <p class="detail">{{ account.email }}</p>
         <p class="detail">{{ role() }}</p>
       </div>
-      @if (canSync) {
-        <button type="button" role="menuitem" (click)="openSync()">Sync a folder</button>
-      }
       @if (canEditProfile) {
         <button type="button" role="menuitem" (click)="editProfile()">Change display name</button>
       }
@@ -41,9 +38,6 @@
       }
       @if (canAdminister()) {
         <button type="button" role="menuitem" (click)="administer()">Accounts</button>
-      }
-      @if (canUpdate) {
-        <button type="button" role="menuitem" (click)="checkForUpdates()">Check for updates</button>
       }
       @if (canDeleteAccount) {
         <button type="button" role="menuitem" (click)="deleteAccount()">Delete account</button>

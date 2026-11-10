@@ -5,8 +5,6 @@ export type Outgoing = {
   send(destination: string, progress?: Progress): Promise<void>;
 };
 
-export type Dropping = { kind: 'over' } | { kind: 'leave' } | { kind: 'drop'; items: Outgoing[] };
-
 export type Chosen = { file: File; path: string };
 
 type Upload = (path: string, file: File, progress?: Progress) => Promise<void>;
@@ -33,7 +31,7 @@ export function chosenFromDrop(transfer: DataTransfer): Promise<Chosen[]> {
   const entries = Array.from(transfer.items ?? [])
     .filter((item) => item.kind === 'file')
     .map((item) => item.webkitGetAsEntry());
-  if (entries.length === 0 || entries.some((entry) => entry === null)) {
+  if (entries.length === 0 || entries.includes(null)) {
     return Promise.resolve(chosenFromFiles(Array.from(transfer.files)));
   }
   return collect(entries as FileSystemEntry[]);

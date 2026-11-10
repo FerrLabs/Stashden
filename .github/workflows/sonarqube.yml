@@ -43,14 +43,17 @@ jobs:
           --health-retries 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: GPUI needs its windowing and font headers at build time
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libxcb1-dev \
+            libfontconfig-dev libfreetype-dev
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-tarpaulin
-      # stashden-app is excluded: it has no tests, and building it would need
-      # both the webview toolchain and a built web/dist for generate_context!.
-      #
       # The llvm engine rather than the default ptrace one, which segfaults on a test binary that
       # spawns blocking threads. Thumbnail decoding runs off the async runtime on purpose, so the
       # coverage tool is what has to give.
@@ -60,7 +63,7 @@ jobs:
       # attempts takes 81s on the runner and dav 56s, each test creating a database, running the
       # migrations, and hashing with Argon2id where a login is involved. 600 leaves room for a
       # slower runner without letting a hung run sit there.
-      - run: cargo tarpaulin --workspace --exclude stashden-app --engine llvm --out xml --skip-clean --timeout 600
+      - run: cargo tarpaulin --workspace --engine llvm --out xml --skip-clean --timeout 600
         env:
           DATABASE_URL: postgres://stashden:stashden@localhost:5432/stashden
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

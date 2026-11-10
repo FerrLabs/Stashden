@@ -55,6 +55,11 @@ impl Session {
         self.status.subscribe()
     }
 
+    #[must_use]
+    pub fn commands(&self) -> mpsc::Sender<Command> {
+        self.commands.clone()
+    }
+
     pub async fn send(&self, command: Command) {
         let _ = self.commands.send(command).await;
     }

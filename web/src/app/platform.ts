@@ -4,7 +4,6 @@ import type { AppPassword, MintedPassword } from './account/app-password';
 import type { ManagedAccount, NewAccount } from './accounts/managed';
 import type { Given, NewGrant, Received } from './grant';
 import type { Hit, Node, Trashed } from './node';
-import type { Dropping, Outgoing } from './outgoing';
 import {
   encodePath,
   saveStreaming,
@@ -13,7 +12,6 @@ import {
   type Progress,
 } from './transfer';
 import type { Minted, NewShare, Share } from './share';
-import type { SyncCommand, Syncing } from './sync/syncing';
 import type { Version } from './version';
 import {
   loopbackAddress,
@@ -24,18 +22,6 @@ import {
   type Returned,
 } from './provider';
 
-export type PlatformKind = 'browser' | 'desktop';
-
-export type Available = {
-  version: string;
-  notes?: string;
-};
-
-export type Release = {
-  current: string;
-  available: Available | null;
-};
-
 export type Confirmation = { password: string } | { email: string };
 
 export type ProviderSignIn =
@@ -43,23 +29,12 @@ export type ProviderSignIn =
   | { kind: 'signedIn'; warning: string | null };
 
 export interface Platform {
-  readonly kind: PlatformKind;
   authenticated(): boolean;
-  resume?(): Promise<boolean>;
-  login(email: string, password: string, server?: string): Promise<string | null>;
-  methods(server?: string): Promise<Methods>;
-  loginWithProvider(server?: string): Promise<ProviderSignIn>;
-  forgotPassword?(server: string): Promise<void>;
+  login(email: string, password: string): Promise<string | null>;
+  methods(): Promise<Methods>;
+  loginWithProvider(): Promise<ProviderSignIn>;
   rememberHandoff?(handoff: Handoff): void;
   completeProviderLogin?(returned: Returned): Promise<boolean>;
-  server?(): string;
-  checkUpdate?(): Promise<Release>;
-  installUpdate?(): Promise<void>;
-  pickFolder?(): Promise<string | null>;
-  startSync?(folder: string): Promise<void>;
-  controlSync?(folder: string, command: SyncCommand): Promise<void>;
-  syncStatus?(): Promise<Syncing[]>;
-  watchSync?(listener: (syncing: Syncing) => void): Promise<() => void>;
   signOut(): void | Promise<void>;
   changePassword?(current: string | null, password: string): Promise<void>;
   deleteOwnAccount?(confirmation: Confirmation, handOverTo: string | null): Promise<void>;
@@ -85,8 +60,6 @@ export interface Platform {
   createFolder?(path: string): Promise<Node>;
   search?(query: string): Promise<Hit[]>;
   upload?(path: string, file: File, progress?: Progress): Promise<void>;
-  pickUploads?(): Promise<Outgoing[]>;
-  watchDrops?(listener: (dropping: Dropping) => void): Promise<() => void>;
   listShares?(): Promise<Share[]>;
   share?(request: NewShare): Promise<Minted>;
   revokeShare?(id: string): Promise<void>;
@@ -116,7 +89,6 @@ export class RequestFailed extends Error {
 
 const TOKEN_KEY = 'stashden.token';
 const HANDOFF_KEY = 'stashden.handoff';
-const SERVER_KEY = 'stashden.server';
 const KEY_PREFIX = 'stashden.';
 const LEGACY_KEY_PREFIX = 'roxycloud.';
 
@@ -137,8 +109,6 @@ function adoptLegacyKeys(): void {
     return;
   }
 }
-
-const isDesktop = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 function browserPlatform(baseUrl: string): Platform {
   const bearer = (): Record<string, string> => {
@@ -171,7 +141,6 @@ function browserPlatform(baseUrl: string): Platform {
   };
 
   return {
-    kind: 'browser',
     authenticated: () => localStorage.getItem(TOKEN_KEY) !== null,
     login: async (email, password) => {
       const session = await json<{ token: string }>('/v1/auth/login', {
@@ -410,190 +379,11 @@ async function explanationFrom(response: Response): Promise<string | null> {
   return typeof explanation === 'string' && explanation.length > 0 ? explanation : null;
 }
 
-function desktopPlatform(fallback: string): Platform {
-  const core = () => import('@tauri-apps/api/core');
-  let connected = false;
-
-  const remembered = (): string => {
-    try {
-      return localStorage.getItem(SERVER_KEY) ?? fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
-  return {
-    kind: 'desktop',
-    authenticated: () => connected,
-    resume: async () => {
-      const { invoke } = await core();
-      connected = await invoke<boolean>('resume');
-      return connected;
-    },
-    server: remembered,
-    methods: (server) => command<Methods>('sign_in_methods', { server: addressOf(server ?? remembered()) }),
-    forgotPassword: (server) => command<void>('forgot_password', { server: addressOf(server) }),
-    loginWithProvider: async (server) => {
-      const address = addressOf(server ?? remembered());
-      const warning = await command<string | null>('login_with_provider', { server: address });
-      try {
-        localStorage.setItem(SERVER_KEY, address);
-      } catch {
-        // A browser that refuses storage still signs in, it just forgets the address.
-      }
-      connected = true;
-      return { kind: 'signedIn', warning };
-    },
-    login: async (email, password, server) => {
-      const address = addressOf(server ?? remembered());
-      const { invoke } = await core();
-      const warning = await invoke<string | null>('login', { server: address, email, password });
-      try {
-        localStorage.setItem(SERVER_KEY, address);
-      } catch {
-        // A browser that refuses storage still signs in, it just forgets the address.
-      }
-      connected = true;
-      return warning;
-    },
-    signOut: async () => {
-      const { invoke } = await core();
-      await invoke<void>('sign_out');
-      connected = false;
-    },
-    checkUpdate: async () => {
-      const { invoke } = await core();
-      return invoke<Release>('check_update');
-    },
-    installUpdate: async () => {
-      const { invoke } = await core();
-      await invoke<void>('install_update');
-    },
-    pickFolder: async () => {
-      const { invoke } = await core();
-      return invoke<string | null>('pick_folder');
-    },
-    startSync: async (folder) => {
-      const { invoke } = await core();
-      await invoke<void>('start_sync', { folder });
-    },
-    controlSync: async (folder, command) => {
-      const { invoke } = await core();
-      await invoke<void>('sync_control', { folder, command });
-    },
-    syncStatus: async () => {
-      const { invoke } = await core();
-      return invoke<Syncing[]>('sync_status');
-    },
-    watchSync: async (listener) => {
-      const { listen } = await import('@tauri-apps/api/event');
-      return listen<Syncing>('sync:status', (event) => listener(event.payload));
-    },
-    account: async () => {
-      const { invoke } = await core();
-      return invoke<Account>('account');
-    },
-    listFolder: async (path) => {
-      const { invoke } = await core();
-      return invoke<Node[]>('list_folder', { path });
-    },
-    read: async (path) => {
-      const { invoke } = await core();
-      return new Blob([await invoke<ArrayBuffer>('read_file', { path })]);
-    },
-    download: async (path) => {
-      const { invoke } = await core();
-      return invoke<string>('download_file', { path });
-    },
-    downloadArchive: (path) => command<string>('download_archive', { path }),
-    remove: async (path) => {
-      const { invoke } = await core();
-      await invoke<void>('delete_node', { path });
-    },
-    rename: async (from, to) => {
-      const { invoke } = await core();
-      return invoke<Node>('move_node', { from, to });
-    },
-    updateProfile: (displayName) => command<Account>('update_profile', { displayName }),
-    createFolder: (path) => command<Node>('create_folder', { path }),
-    search: (query) => command<Hit[]>('search_nodes', { query }),
-    listTrash: () => command<Trashed[]>('list_trash'),
-    restoreFromTrash: (id) => command<Node>('restore_from_trash', { id }),
-    purgeFromTrash: (id) => command<void>('purge_from_trash', { id }),
-    emptyTrash: () => command<void>('empty_trash'),
-    listVersions: (path) => command<Version[]>('list_versions', { path }),
-    downloadVersion: (path, id) => command<string>('download_version', { path, id }),
-    restoreVersion: (path, id) => command<Node>('restore_version', { path, id }),
-    listShares: () => command<Share[]>('list_shares'),
-    share: (request) => command<Minted>('share', { request }),
-    revokeShare: (id) => command<void>('revoke_share', { id }),
-    listGrants: () => command<Given[]>('list_grants'),
-    grant: (request) => command<Given>('grant', { request }),
-    receivedGrants: () => command<Received[]>('received_grants'),
-    withdrawGrant: (id) => command<void>('withdraw_grant', { id }),
-    pickUploads: async () => fromPicked(await command<Picked[]>('pick_uploads')),
-    watchDrops: async (listener) => {
-      const { getCurrentWebview } = await import('@tauri-apps/api/webview');
-      return getCurrentWebview().onDragDropEvent(({ payload }) => {
-        switch (payload.type) {
-          case 'enter':
-          case 'over':
-            listener({ kind: 'over' });
-            break;
-          case 'leave':
-            listener({ kind: 'leave' });
-            break;
-          case 'drop':
-            void command<Picked[]>('describe_drops', { paths: payload.paths }).then((picked) =>
-              listener({ kind: 'drop', items: fromPicked(picked) }),
-            );
-            break;
-        }
-      });
-    },
-  };
-}
-
-async function command<T>(name: string, args?: Record<string, unknown>): Promise<T> {
-  const { invoke } = await import('@tauri-apps/api/core');
-  try {
-    return await invoke<T>(name, args);
-  } catch (cause: unknown) {
-    throw failureFrom(cause);
-  }
-}
-
-function failureFrom(cause: unknown): Error {
-  if (typeof cause !== 'object' || cause === null || !('message' in cause)) {
-    return new Error(String(cause));
-  }
-  const { status, message } = cause as { status?: unknown; message: unknown };
-  return typeof status === 'number'
-    ? new RequestFailed(status, String(message))
-    : new Error(String(message));
-}
-
-type Picked = { name: string; source: string };
-
-function fromPicked(picked: Picked[]): Outgoing[] {
-  return picked.map(({ name, source }) => ({
-    name,
-    send: async (destination) => {
-      await command<Node>('upload_file', { path: destination, source });
-    },
-  }));
-}
-
-function addressOf(server: string): string {
-  const trimmed = server.trim().replace(/\/+$/, '');
-  return /^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
-}
-
 export { encodePath };
 
 export function resolvePlatform(baseUrl: string): Platform {
   adoptLegacyKeys();
-  return isDesktop() ? desktopPlatform(baseUrl) : browserPlatform(baseUrl);
+  return browserPlatform(baseUrl);
 }
 
 export function providePlatform(): Provider {

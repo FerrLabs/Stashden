@@ -90,7 +90,7 @@ export class PublicLink {
   }
 
   protected async save(child: PublicEntry | null): Promise<void> {
-    const target = child === null ? this.entry() : child;
+    const target = child ?? this.entry();
     if (target === null) {
       return;
     }

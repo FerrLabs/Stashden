@@ -5,4 +5,8 @@ import { initTelemetry } from './app/telemetry';
 
 initTelemetry();
 
-bootstrapApplication(App, appConfig).catch((cause: unknown) => console.error(cause));
+try {
+  await bootstrapApplication(App, appConfig);
+} catch (cause: unknown) {
+  console.error(cause);
+}

@@ -39,7 +39,7 @@ shortlist and the reasons for Stashden. None of the hosts below is registered ye
 | API | `api.stashden.dev` | Rust, axum 0.8, sqlx, Postgres |
 | WebDAV | `api.stashden.dev/dav` | Same binary, separate router |
 | CLI | `stashden` | Rust, built from `cli/`; the server image carries only `stashden-api` |
-| Desktop | `app/` | Tauri 2 shell around the same Angular build |
+| Desktop | `app/` | Rust, GPUI with gpui-component, over `crates/client` |
 
 ## Identity
 
@@ -128,8 +128,8 @@ crates/core/     domain types: paths, hashes, nodes. No I/O, no framework
 crates/client/   API client and sync engine, shared by the CLI and the desktop app
 api/             the axum server and the migrations
 cli/             `stashden`, the command-line client
-app/             the desktop client: a Tauri shell around web/
-web/             Angular SPA, the only interface
+app/             the desktop client, native GPUI views over crates/client
+web/             Angular SPA, the browser interface
 site/            Angular marketing and documentation, prerendered
 deploy/          Dockerfile, compose file, Helm chart
 ```
@@ -179,36 +179,80 @@ the remembered snapshot only while the value is unchanged. A change that lands b
 fingerprint and the walk leaves the stored value stale, which costs one extra walk and never a missed
 change. A server without the route answers 404 and every pass walks, as before.
 
-The desktop app owns one session per synced folder and forwards each status to the window as a
-`sync:status` event carrying the folder, which is the only thing the interface needs to show
-progress, pauses and conflicts. Commands go the other way through one `sync_control` call that names
+The desktop app owns one session per synced folder and broadcasts each status, tagged with its
+folder, to whichever sync view is open, which is the only thing the interface needs to show
+progress, pauses and conflicts. Commands go the other way through one `control_sync` call that names
 the folder. The folders are remembered per account in `synced-folders.json` in the app config
 directory and started again once the app is signed in, whether by the saved session or by a new
-sign in. Closing the window while any folder syncs hides it instead, and the tray icon reopens it or
-quits; with nothing syncing, closing the window exits as before.
+sign in. Closing the window while any folder syncs closes only the window and leaves the app running
+behind its tray icon, which opens a new window or quits; with nothing syncing, or with no tray to
+come back through, closing the window exits.
 
 The layering is one-way: `core` knows nothing, `client` and `api` know `core`, the binaries know
 their library. Nothing below `api/src/routes` imports axum, which is what lets those tests
 run with no database, no network and no display.
 
-### One interface, two hosts
+### The desktop client
 
-The desktop app is a Tauri 2 shell that loads the same Angular build as the browser. There is one
-interface to design, one to style and one to keep accessible, which is the whole reason for choosing
-Tauri over a native Rust toolkit.
+The desktop app is a native Rust client drawn with GPUI and the gpui-component widgets. It used to
+be a Tauri shell around the Angular build, which bought one interface for two hosts at the price of
+a webview, an IPC layer of 38 commands and an Angular app that had to carry both a browser and a
+desktop implementation of every call. It now shares no interface code with `web/`; what it shares
+is `crates/client` and `crates/core`, which is where the behaviour that must agree between hosts
+already lived.
 
-What differs between the two hosts is not the interface but what it is allowed to reach, and that
-lives in one file, `web/src/app/platform.ts`:
+The window rebuilds the screens a desktop user reaches: sign in, the file browser with its search,
+sharing and trash panels, the share, versions and preview dialogs, the sync view, and the account
+menu with its display name and update dialog. Account administration, app passwords, password
+changes and account deletion stay in the web app, as before.
 
-| Capability | Browser | Desktop |
-|---|---|---|
-| Browse and transfer | `fetch` against the API | `invoke` into Rust, which uses `crates/client` |
-| Local folder sync | Absent | The sync engine, over IPC |
+```mermaid
+flowchart LR
+    subgraph Main[GPUI main thread]
+        W[Workspace] --> S[SignIn]
+        W --> Sh[Shell]
+        Sh --> F[FileBrowser and its panels and dialogs]
+        Sh --> V[SyncView]
+        T[Tray events]
+    end
+    subgraph IO[tokio runtime]
+        D[Desktop state: connection, folders]
+        R[Remote in crates/client]
+        E[Sync sessions in crates/client]
+        U[Updater, blocking pool]
+    end
+    F -- "ui::run spawns, result back on the main thread" --> R
+    S --> D
+    V -- control_sync --> D
+    D --> E
+    E -- "broadcast Syncing" --> V
+    D --> R
+    U -- "latest.json and installer, minisign checked" --> GH[GitHub release]
+    D --> K[(System keychain)]
+```
 
-Every component injects the `PLATFORM` token and never reaches for `fetch` or for `invoke`
-directly. A component that reaches around that seam will work in one host and break in the other,
-which is the failure mode this design exists to prevent. The Tauri API is behind a dynamic import,
-so the browser bundle does not carry it.
+GPUI runs its own executor on the main thread and `crates/client` needs tokio, so the app keeps one
+multi-threaded tokio runtime and every network call goes through `ui::run`, which spawns the work
+there and hands the result back to the view that asked. A view never blocks on I/O and never holds
+a lock across a request: the connection is an `Arc<Remote>` cloned out of `Desktop`, so a long
+download does not hold up a listing.
+
+The logic that decides what the window shows lives outside the views, in `location.rs` (paths, the
+shared shelf, which mount a folder sits in), `describe.rs` (every sentence about a size, a link, a
+sync status) and `desktop.rs` and `sync.rs` (session, sign in and out, the per-folder sessions), so
+it is tested without a display.
+
+Updates keep the feed and the key the Tauri builds used. The Desktop workflow packages with
+cargo-packager, signs every installer with the same minisign key, and writes `latest.json` with a
+`format` per platform, which the updater needs and the Tauri updater ignores, so a copy installed
+before the move upgrades itself onto the GPUI build. The installer keeps the Tauri layout, a
+`Stashden.exe` under the same registry keys, so that upgrade overwrites the old app rather than
+installing beside it.
+
+GPUI needs a GPU API on every platform: DirectX 11 on Windows, Metal on macOS, Vulkan on Linux. A
+Linux machine with no Vulkan driver, which is rare on hardware but common in virtual machines, opens
+no window, where the webview drew in software. The Linux tray speaks StatusNotifierItem over D-Bus
+rather than linking GTK, so GNOME shows it only with the AppIndicator extension.
 
 Conflict handling is the part that will hurt, and it is a product decision more than a technical
 one. When a file changed on both sides, Stashden keeps both and renames the loser, the way Dropbox
