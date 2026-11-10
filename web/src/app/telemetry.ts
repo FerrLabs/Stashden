@@ -20,12 +20,24 @@ const capabilityPaths: readonly (readonly [RegExp, string])[] = [
   [/(\/v1\/public\/)[^/?#\s"'<>]+/, '$1:token'],
 ];
 
-const urlWithSecrets =
+const URL_TAIL =
   /((?:[a-z][a-z0-9+.-]*:)?\/\/[^\s?#]*|\b[\w-]+(?:\.[\w-]+)+\/[^\s?#]*|(?<![\w/.])\/[^\s?#]*)[?#]\S*/gi;
+const PARAM_VALUE = /([?#&;][^\s=&#?;"'<>]+=)[^\s&#;"'<>]*/g;
+const SENSITIVE_PARAM =
+  /(\b(?:[\w-]*token|code|state|secret|password|passwd|pwd|key|api_key|apikey|sig|signature|session|auth)=)[^\s&#;"'<>]*/gi;
+const USERINFO = /(\/\/)[^\s/?#@]+@/g;
 
-export function redactUrl(text: string): string {
+export function redactText(value: string): string {
+  return value
+    .replace(USERINFO, '$1')
+    .replace(URL_TAIL, '$1')
+    .replace(PARAM_VALUE, '$1:redacted')
+    .replace(SENSITIVE_PARAM, '$1:redacted');
+}
+
+function redactUrl(text: string): string {
   const redacted = capabilityPaths.reduce((value, [pattern, replacement]) => value.replace(pattern, replacement), text);
-  return redacted.replace(urlWithSecrets, '$1');
+  return redactText(redacted);
 }
 
 function redactDeep(value: unknown, seen = new WeakMap<object, unknown>()): unknown {
