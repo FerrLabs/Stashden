@@ -25,6 +25,16 @@ where
     }
 }
 
+pub async fn blocking<T, E>(work: impl FnOnce() -> Result<T, E> + Send + 'static) -> Result<T, E>
+where
+    T: Send + 'static,
+    E: From<String> + Send + 'static,
+{
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|error| E::from(error.to_string()))?
+}
+
 #[cfg(test)]
 pub fn block_on<F: Future>(work: F) -> F::Output {
     RUNTIME.block_on(work)
@@ -41,6 +51,17 @@ mod tests {
             42
         }));
         assert_eq!(answer, 42);
+    }
+
+    #[test]
+    fn blocking_work_hands_back_its_result_and_turns_a_panic_into_an_error() {
+        assert_eq!(block_on(blocking(|| Ok::<_, String>(7))), Ok(7));
+        assert_eq!(
+            block_on(blocking(|| Err::<(), _>("refused".to_owned()))),
+            Err("refused".to_owned())
+        );
+        let panicked = block_on(blocking::<(), String>(|| panic!("boom")));
+        assert!(panicked.is_err_and(|error| error.contains("panicked")));
     }
 
     fn on_another_runtime<F>(work: F) -> F::Output

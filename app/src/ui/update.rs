@@ -9,7 +9,7 @@ use gpui_kit::*;
 
 use super::parts;
 use super::run;
-use crate::failure::Failure;
+use crate::runtime::blocking;
 use crate::update::{self, CURRENT, Offered};
 
 enum Looking {
@@ -30,14 +30,6 @@ pub fn open(window: &mut Window, cx: &mut App) {
     window.open_dialog(cx, move |shell, _, _| {
         shell.title("Updates").w(px(460.)).child(dialog.clone())
     });
-}
-
-async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> Result<T, Failure> + Send + 'static,
-) -> Result<T, Failure> {
-    tokio::task::spawn_blocking(work)
-        .await
-        .map_err(|error| Failure::from(error.to_string()))?
 }
 
 impl UpdateDialog {
