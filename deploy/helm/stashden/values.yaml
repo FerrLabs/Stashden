@@ -82,10 +82,8 @@ resources:
   requests:
     cpu: 100m
     memory: 256Mi
-    ephemeral-storage: 128Mi
   limits:
     memory: 1Gi
-    ephemeral-storage: 1Gi
 
 podAnnotations: {}
 nodeSelector: {}
