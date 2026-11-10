@@ -1,3 +1,4 @@
+use crate::runtime::blocking;
 use keyring::{Entry, Error};
 use serde::{Deserialize, Serialize};
 
@@ -45,12 +46,4 @@ pub async fn forget() -> Result<(), String> {
         )),
     })
     .await
-}
-
-async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> Result<T, String> + Send + 'static,
-) -> Result<T, String> {
-    tokio::task::spawn_blocking(work)
-        .await
-        .map_err(|error| error.to_string())?
 }

@@ -42,20 +42,12 @@ jobs:
           echo "The object store never came up" >&2
           exit 1
 
-      - name: Tauri needs a webview and a tray at build time
+      - name: GPUI needs its windowing and font headers at build time
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      - name: The desktop build embeds web/dist, so it comes first
-        run: pnpm run build
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libxcb1-dev \
+            libfontconfig-dev libfreetype-dev
 
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
@@ -78,7 +70,7 @@ jobs:
     permissions:
       contents: read
 
-  desktop-csp:
+  web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -88,10 +80,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @stashden/web build
-      - run: pnpm --filter @stashden/web exec playwright install --with-deps chromium
-      - name: The desktop window's CSP must let the app style itself and show its previews
-        run: pnpm --filter @stashden/web check:csp
+      - run: pnpm run build
 
   chart:
     runs-on: ubuntu-latest

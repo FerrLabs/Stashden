@@ -21,28 +21,13 @@ export class UploadTarget {
 
   readonly pending = input(0);
   readonly chosen = output<Outgoing[]>();
-  readonly failed = output<string>();
 
   private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('picker');
   private readonly folder = viewChild.required<ElementRef<HTMLInputElement>>('folderPicker');
 
-  protected async open(): Promise<void> {
-    const pickNatively = this.platform.pickUploads;
-    if (pickNatively === undefined) {
-      this.input().nativeElement.click();
-      return;
-    }
-    try {
-      const items = await pickNatively();
-      if (items.length > 0) {
-        this.chosen.emit(items);
-      }
-    } catch (cause: unknown) {
-      this.failed.emit(cause instanceof Error ? cause.message : String(cause));
-    }
+  protected open(): void {
+    this.input().nativeElement.click();
   }
-
-  protected readonly picksInBrowser = this.platform.pickUploads === undefined;
 
   protected openFolder(): void {
     this.folder().nativeElement.click();
