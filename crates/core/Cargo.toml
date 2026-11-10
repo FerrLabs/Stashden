@@ -29,3 +29,6 @@ sqlx = { version = "0.9", features = [
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
