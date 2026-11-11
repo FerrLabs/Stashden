@@ -722,3 +722,22 @@ describe('field names: primary and query keys, narrowed state words', () => {
     });
   });
 });
+
+describe('field names: group, object and lookup keys v6.46', () => {
+  const payloadOf = (payload: object): Record<string, unknown> => {
+    const out = sanitizeItem({ type: 'log', meta: {}, payload } as unknown as TransportItem);
+    return (out as unknown as { payload: Record<string, unknown> }).payload;
+  };
+
+  for (const name of ['wpaGroupKey', 'mlsGroupKey', 's3ObjectKey']) {
+    it(`masks the field ${name}`, () => {
+      assert.deepEqual(payloadOf({ [name]: 'SECRET99' }), { [name]: '*' });
+    });
+  }
+
+  for (const name of ['groupKey', 'group_key', 'db.groupKey', 'objectKey', 'foreignKey', 'uniqueKey', 'lookupKey', 'homeCacheKey', 'partitionKey', 'cosmosPartitionKey']) {
+    it(`keeps the field ${name}`, () => {
+      assert.deepEqual(payloadOf({ [name]: 'ok' }), { [name]: 'ok' });
+    });
+  }
+});
