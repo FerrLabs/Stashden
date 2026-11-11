@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.56.0] - 2026-11-11
+
+### Features
+
+- feat(telemetry): report site errors and keep the host when a query contains @ (#439)
+
 ## [0.55.2] - 2026-11-11
 
 ### Bug Fixes
