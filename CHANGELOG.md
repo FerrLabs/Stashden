@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.56.1] - 2026-11-11
+
+### Bug Fixes
+
+- fix(telemetry): bring redaction to v6.27 (#443)
+
 ## [0.56.0] - 2026-11-11
 
 ### Features
