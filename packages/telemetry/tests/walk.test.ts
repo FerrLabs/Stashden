@@ -667,3 +667,33 @@ describe('secret reachability does not depend on key order', () => {
     assert.deepEqual(out.session, { '*': '*' });
   });
 });
+
+describe('secret reachability across shared containers', () => {
+  const MARKER = 'hunter2SECRETzq';
+
+  function containsMarker(value: unknown, seen = new WeakSet<object>()): boolean {
+    if (typeof value === 'string') return value.includes(MARKER);
+    if (value === null || typeof value !== 'object') return false;
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return Object.entries(value).some(
+      ([key, entry]) => key.includes(MARKER) || containsMarker(entry, seen),
+    );
+  }
+
+  function sanitized(payload: object, meta: object = {}): unknown {
+    const out = sanitizeItem({ type: 'log', meta, payload } as unknown as TransportItem);
+    assert.ok(out);
+    return out;
+  }
+
+  for (const order of ['secret first', 'plain first']) {
+    it(`masks a cycle that reaches itself through a plain key and a secret subtree, ${order}`, () => {
+      const node: { note: string; password?: unknown } = { note: MARKER };
+      const hub: { b: unknown } = { b: node };
+      node.password = hub;
+      const payload = order === 'secret first' ? { token: hub, node } : { node, token: hub };
+      assert.equal(containsMarker(sanitized(payload)), false);
+    });
+  }
+});
