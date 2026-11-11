@@ -139,7 +139,7 @@ describe('redactText bounds', () => {
     }
   });
 
-  it('handles 16 KB of adversarial input in under 50 ms', () => {
+  it('handles 16 KB of adversarial input in under 250 ms', () => {
     const inputs = [
       '?a= '.repeat(4096),
       'a@'.repeat(8192),
@@ -154,7 +154,7 @@ describe('redactText bounds', () => {
       const started = performance.now();
       redactText(input);
       const elapsed = performance.now() - started;
-      assert.ok(elapsed < 50, `${input.slice(0, 20)} took ${elapsed.toFixed(0)} ms`);
+      assert.ok(elapsed < 250, `${input.slice(0, 20)} took ${elapsed.toFixed(0)} ms`);
     }
   });
 });

@@ -8,6 +8,10 @@ export interface SanitizeOptions {
   redactPageUrl?: StringRedactor;
 }
 
+function defineEntry(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 interface Copies {
   readonly plain: WeakMap<object, unknown>;
   readonly secret: WeakMap<object, unknown>;
@@ -25,15 +29,19 @@ export function redactDeep(value: unknown, redactString: StringRedactor = redact
   if (Array.isArray(value)) {
     const copy: unknown[] = [];
     scope.set(value, copy);
-    for (const entry of value) copy.push(isSecretField(field, entry) ? MASK : redactDeep(entry, redactString, seen, field));
+    for (const entry of value) copy.push(isSecretField(field, entry, true) ? MASK : redactDeep(entry, redactString, seen, field));
     return copy;
   }
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return redactString(String(value));
   const copy: Record<string, unknown> = {};
   scope.set(value, copy);
+  const taken = new Set<string>();
   for (const [key, entry] of Object.entries(value)) {
-    copy[key] = isSecretField(key, entry) ? MASK : redactDeep(entry, redactString, seen, key);
+    const target = redactText(key);
+    if (taken.has(target)) continue;
+    taken.add(target);
+    defineEntry(copy, target, isSecretField(key, entry) ? MASK : redactDeep(entry, redactString, seen, key));
   }
   return copy;
 }
