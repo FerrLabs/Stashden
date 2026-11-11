@@ -40,7 +40,7 @@ function redactWord(word: string): string {
 }
 
 function maskColon(match: string, key: string, offset: number, text: string): string {
-  const port = /:$/.test(key) && /^\d{1,5}(?:[/?#\s]|$)/.test(match.slice(key.length));
+  const port = /:$/.test(key) && /^\d{1,5}(?=[/?#\s"'<>),;\]}]|$)/.test(match.slice(key.length));
   return port && HOST_BEFORE.test(text.slice(Math.max(0, offset - 256), offset)) ? match : key + MASK;
 }
 

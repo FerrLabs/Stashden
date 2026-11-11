@@ -27,6 +27,10 @@ describe('redactText query and host handling', () => {
     assert.equal(redactText('http://u:+[)v~5-pc[g1A|@[::1]:39503/x'), 'http://[::1]:39503/x');
   });
 
+  it('keeps the port of a host with a sensitive name when a quote follows', () => {
+    assert.equal(redactText('https://authserver:11020"'), 'https://authserver:11020"');
+  });
+
   it('keeps a port only right after a colon', () => {
     assert.ok(!redactText('x //pwd: 1234abc').includes('1234'));
     assert.ok(!redactText('x //secret:\n12345abc').includes('12345'));
