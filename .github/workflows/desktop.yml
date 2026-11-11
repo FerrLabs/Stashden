@@ -52,6 +52,13 @@ jobs:
           ref: ${{ inputs.tag || github.event.release.tag_name }}
           persist-credentials: false
 
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .workflow
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
       - name: GPUI needs its windowing and font headers, and the AppImage tooling needs file
         if: runner.os == 'Linux'
         run: |
@@ -155,7 +162,7 @@ jobs:
           set -euo pipefail
           key="$RUNNER_TEMP/update-signing.key"
           trap 'rm -f "$key"' EXIT
-          python .github/scripts/decrypt_update_key.py "$key"
+          python .workflow/.github/scripts/decrypt_update_key.py "$key"
           export CARGO_PACKAGER_SIGN_PRIVATE_KEY="$key"
           cargo build --release --locked -p stashden-app
           cp "target/release/stashden-app$EXE" "target/release/Stashden$EXE"
