@@ -1,5 +1,5 @@
 import type { TransportItem } from '@grafana/faro-web-sdk';
-import { MASK, isSensitiveField, redactText } from './redact';
+import { MASK, isSecretField, isSecretName, redactText } from './redact';
 
 export type StringRedactor = (value: string) => string;
 
@@ -8,22 +8,40 @@ export interface SanitizeOptions {
   redactPageUrl?: StringRedactor;
 }
 
-export function redactDeep(value: unknown, redactString: StringRedactor = redactText, seen = new WeakMap<object, unknown>()): unknown {
+function defineEntry(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+interface Copies {
+  readonly plain: WeakMap<object, unknown>;
+  readonly secret: WeakMap<object, unknown>;
+}
+
+function newCopies(): Copies {
+  return { plain: new WeakMap(), secret: new WeakMap() };
+}
+
+export function redactDeep(value: unknown, redactString: StringRedactor = redactText, seen = newCopies(), field = ''): unknown {
   if (typeof value === 'string') return redactString(value);
   if (value === null || typeof value !== 'object') return value;
-  if (seen.has(value)) return seen.get(value);
+  const scope = isSecretName(field) ? seen.secret : seen.plain;
+  if (scope.has(value)) return scope.get(value);
   if (Array.isArray(value)) {
     const copy: unknown[] = [];
-    seen.set(value, copy);
-    for (const entry of value) copy.push(redactDeep(entry, redactString, seen));
+    scope.set(value, copy);
+    for (const entry of value) copy.push(isSecretField(field, entry, true) ? MASK : redactDeep(entry, redactString, seen, field));
     return copy;
   }
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return redactString(String(value));
   const copy: Record<string, unknown> = {};
-  seen.set(value, copy);
+  scope.set(value, copy);
+  const taken = new Set<string>();
   for (const [key, entry] of Object.entries(value)) {
-    copy[key] = typeof entry === 'string' && isSensitiveField(key) ? MASK : redactDeep(entry, redactString, seen);
+    const target = redactText(key);
+    if (taken.has(target)) continue;
+    taken.add(target);
+    defineEntry(copy, target, isSecretField(key, entry) ? MASK : redactDeep(entry, redactString, seen, key));
   }
   return copy;
 }

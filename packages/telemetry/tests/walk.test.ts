@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { redactText } from '../src/redact.ts';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { redactDeep, sanitizeItem } from '../src/walk.ts';
 
@@ -19,11 +21,37 @@ describe('redactDeep', () => {
     assert.deepEqual(redactDeep({ name: 'ok' }), { name: 'ok' });
   });
 
-  it('keeps walking non-string values under a sensitive key', () => {
+  it('keeps walking objects under a sensitive key and masks numbers', () => {
     assert.deepEqual(redactDeep({ token: { value: 'x', note: 'password=abc12345' } }), {
       token: { value: 'x', note: 'password=*' },
     });
-    assert.deepEqual(redactDeep({ key: 42 }), { key: 42 });
+    assert.deepEqual(redactDeep({ key: 42 }), { key: '*' });
+  });
+
+  it('masks numbers, bigints and array elements under a sensitive key', () => {
+    assert.deepEqual(redactDeep({ password: 123456 }), { password: '*' });
+    assert.deepEqual(redactDeep({ session_id: 987654321 }), { session_id: '*' });
+    assert.deepEqual(redactDeep({ sessionId: 123456789n }), { sessionId: '*' });
+    assert.deepEqual(redactDeep({ token: ['abc123def', 5, 7n, ['nested']] }), { token: ['*', '*', '*', ['*']] });
+    assert.deepEqual(redactDeep({ apiKey: ['k1', { note: 'x', url: 'https://a.test/x?code=abc' }] }), {
+      apiKey: ['*', { note: 'x', url: 'https://a.test/x' }],
+    });
+    assert.deepEqual(redactDeep({ list: ['plain'] }), { list: ['plain'] });
+  });
+
+  it('masks field names with dots, dollars and spaces and keeps benign names', () => {
+    assert.deepEqual(redactDeep({ 'user.password': 'hunter2', $password: 'h', 'api key': 'k', client$token: 'c', 'auth.token': 't' }), {
+      'user.password': '*',
+      $password: '*',
+      'api key': '*',
+      client$token: '*',
+      'auth.token': '*',
+    });
+    assert.deepEqual(redactDeep({ cacheKey: 'home', authMethod: 'sso', author: 'jane' }), {
+      cacheKey: 'home',
+      authMethod: 'sso',
+      author: 'jane',
+    });
   });
 
   it('scrubs string values with the given redactor', () => {
@@ -65,5 +93,153 @@ describe('sanitizeItem', () => {
       payload: {},
     };
     assert.equal(sanitizeItem(hostile as never), null);
+  });
+});
+
+describe('aliased containers and metric fields', () => {
+  const run = (meta: object, payload: object) => {
+    const out = sanitizeItem({ type: 'log', meta, payload } as never);
+    assert.ok(out);
+    return out as unknown as { meta: Record<string, unknown>; payload: Record<string, unknown> };
+  };
+
+  it('masks a container reached under a secret field after a benign field', () => {
+    const shared = ['hunter2'];
+    const { payload } = run({}, { list: shared, password: shared });
+    assert.deepEqual(payload['password'], ['*']);
+  });
+
+  it('masks a container reached under a secret field before a benign field', () => {
+    const shared = ['hunter2'];
+    const { payload } = run({}, { password: shared, list: shared });
+    assert.deepEqual(payload['password'], ['*']);
+  });
+
+  it('masks a container shared between meta and payload', () => {
+    const shared = ['hunter2'];
+    const { payload } = run({ list: shared }, { password: shared });
+    assert.deepEqual(payload['password'], ['*']);
+  });
+
+  it('masks a container shared between meta and payload with the secret field in meta', () => {
+    const shared = ['hunter2'];
+    const { meta } = run({ token: shared }, { list: shared });
+    assert.deepEqual(meta['token'], ['*']);
+  });
+
+  it('terminates on a self-referencing object under a secret field', () => {
+    const loop: Record<string, unknown> = { note: 'x', password: 'hunter2' };
+    loop['self'] = loop;
+    const { payload } = run({}, { token: loop });
+    assert.deepEqual((payload['token'] as Record<string, unknown>)['password'], '*');
+  });
+
+  it('terminates on a self-referencing array under a secret field', () => {
+    const loop: unknown[] = ['hunter2'];
+    loop.push(loop);
+    const { payload } = run({}, { token: loop });
+    assert.deepEqual((payload['token'] as unknown[])[0], '*');
+  });
+
+  it('keeps numbers and bigints under measurement-named secret fields', () => {
+    const fields = { authentication_duration: 120, authLatencyMs: 8, tokenTtl: 3600, authExpiresAt: 1700000000, authSessionAgeSecs: 5n };
+    const { payload } = run({}, { ...fields });
+    assert.deepEqual(payload, fields);
+  });
+
+  it('masks numbers under other secret fields', () => {
+    const { payload } = run({}, { password: 4829, pin_key: 1234, sessionId: 77n, authCode: 5 });
+    assert.deepEqual(payload, { password: '*', pin_key: '*', sessionId: '*', authCode: '*' });
+  });
+
+  it('masks strings under measurement-named secret fields', () => {
+    const { payload } = run({}, { authentication_duration: 'abc123', authLatencyMs: '8' });
+    assert.deepEqual(payload, { authentication_duration: '*', authLatencyMs: '*' });
+  });
+});
+
+describe('walk keys, non-plain values and metric names', () => {
+  const run = (meta: object, payload: object) => {
+    const out = sanitizeItem({ type: 'log', meta, payload } as never);
+    assert.ok(out);
+    return out as unknown as { meta: Record<string, unknown>; payload: Record<string, unknown> };
+  };
+  const payloadOf = (payload: object): Record<string, unknown> => run({}, payload).payload;
+
+  it('masks numbers in an array reached under a metric-named secret field, in either order', () => {
+    const pins = [4829];
+    assert.deepEqual(payloadOf({ authCount: pins, password: pins }), { authCount: ['*'], password: ['*'] });
+    const reversed = [4829];
+    assert.deepEqual(payloadOf({ password: reversed, authCount: reversed }), { password: ['*'], authCount: ['*'] });
+  });
+
+  it('masks an array shared between meta and payload under a secret name on either side', () => {
+    const pins = [4829];
+    const first = run({ authCount: pins }, { password: pins });
+    assert.deepEqual(first.meta['authCount'], ['*']);
+    assert.deepEqual(first.payload['password'], ['*']);
+    const others = [4829];
+    const second = run({ password: others }, { authCount: others });
+    assert.deepEqual(second.meta['password'], ['*']);
+    assert.deepEqual(second.payload['authCount'], ['*']);
+  });
+
+  it('keeps a number stored directly under a metric-named secret field', () => {
+    assert.deepEqual(payloadOf({ authCount: 3, authLatencyMs: 8, authentication_duration: 120, tokenTtl: 3600 }), { authCount: 3, authLatencyMs: 8, authentication_duration: 120, tokenTtl: 3600 });
+  });
+
+  it('masks a number under a name that only ends in a metric suffix by accident', () => {
+    assert.deepEqual(payloadOf({ authSms: 482913 }), { authSms: '*' });
+  });
+
+  it('masks values under secret names written with brackets, colons and slashes', () => {
+    const out = payloadOf({ 'user[password]': 'hunter2', 'db:password': 'hunter2', 'credentials[0].token': 'hunter2', 'a/b/secret': 'hunter2', name: 'ok' });
+    assert.deepEqual(out, { 'user[password]': '*', 'db:password': '*', 'credentials[0].token': '*', 'a/b/secret': '*', name: 'ok' });
+  });
+
+  const nonPlain: ReadonlyArray<readonly [string, () => unknown]> = [
+    ['a String object', () => new String('hunter2')],
+    ['a class instance', () => new (class Credentials { readonly value = 'hunter2'; })()],
+    ['a typed array', () => new Uint8Array([1, 2, 3])],
+    ['a Date', () => new Date(0)],
+    ['a Map', () => new Map([['k', 'hunter2']])],
+    ['a Set', () => new Set(['hunter2'])],
+  ];
+  for (const [label, make] of nonPlain) {
+    it(`masks ${label} under a secret name`, () => {
+      const out = payloadOf({ password: make(), authCount: make(), token: [make()] });
+      assert.deepEqual(out, { password: '*', authCount: '*', token: ['*'] });
+    });
+  }
+
+  it('keeps null, undefined and booleans under a secret name', () => {
+    assert.deepEqual(payloadOf({ password: null, token: undefined, secret: true, apiKey: false }), { password: null, token: undefined, secret: true, apiKey: false });
+  });
+
+  it('redacts object keys that carry a secret', () => {
+    const out = payloadOf({ context: { 'https://h.com/cb?token=ZqSECRET9': 'clicked', 'ZqSECRET9@example.com': 1 } });
+    assert.ok(!JSON.stringify(out).includes('ZqSECRET9'));
+  });
+
+  it('keeps the first value when two keys collide after redaction', () => {
+    const out = payloadOf({ context: { 'a?token=ZqSECRETa': 'first', 'a?token=ZqSECRETb': 'second' } });
+    const context = out['context'] as Record<string, unknown>;
+    assert.deepEqual(Object.values(context), ['first']);
+    assert.ok(!JSON.stringify(out).includes('ZqSECRET'));
+  });
+
+  it('keeps ordinary keys untouched', () => {
+    assert.deepEqual(payloadOf({ context: { userId: 'u1', 'x-request-id': 'r1' } }), { context: { userId: 'u1', 'x-request-id': 'r1' } });
+  });
+
+  it('keeps hotkey and error codes and masks apikey in text', () => {
+    assert.deepEqual(redactText('hotkey: Ctrl'), 'hotkey: Ctrl');
+    assert.deepEqual(redactText('errorCode=E42'), 'errorCode=E42');
+    assert.ok(!redactText('apikey=S3cret').includes('S3cret'));
+  });
+
+  it('has no regex lookbehind in the module source', () => {
+    const source = readFileSync(new URL('../src/redact.ts', import.meta.url), 'utf8');
+    assert.ok(!source.includes('(?<'));
   });
 });

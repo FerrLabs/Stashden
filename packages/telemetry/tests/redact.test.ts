@@ -24,6 +24,10 @@ describe('redactText query and host handling', () => {
     assert.equal(redactText('https://u:123?x@h.com/a'), 'https://u:123');
     assert.equal(redactText('http://db:5432?redirect=x@y'), 'http://db:5432');
     assert.equal(redactText('http://api-gw:3000#a@b'), 'http://api-gw:3000');
+    assert.equal(redactText('http://authelia:9091: 504 Gateway Timeout'), 'http://authelia:9091: 504 Gateway Timeout');
+    assert.equal(redactText('email=a@b.com'), '*');
+    assert.equal(redactText('code == 200'), 'code == 200');
+    assert.equal(redactText('{"a":{"password":"x"}}'), '{"a":{"password":*}}');
     assert.equal(redactText('http://u:+[)v~5-pc[g1A|@[::1]:39503/x'), 'http://[::1]:39503/x');
   });
 
@@ -135,7 +139,7 @@ describe('redactText bounds', () => {
     }
   });
 
-  it('handles 16 KB of adversarial input in under a second', () => {
+  it('handles 16 KB of adversarial input in under 250 ms', () => {
     const inputs = [
       '?a= '.repeat(4096),
       'a@'.repeat(8192),
@@ -150,7 +154,46 @@ describe('redactText bounds', () => {
       const started = performance.now();
       redactText(input);
       const elapsed = performance.now() - started;
-      assert.ok(elapsed < 1000, `${input.slice(0, 20)} took ${elapsed.toFixed(0)} ms`);
+      assert.ok(elapsed < 250, `${input.slice(0, 20)} took ${elapsed.toFixed(0)} ms`);
     }
   });
+});
+
+describe('redactText bracketed keys, multi-chunk quotes and whitespace runs', () => {
+  const leaks: ReadonlyArray<readonly [string, string]> = [
+    ['user[password]=hunter2abc', 'hunter2abc'],
+    ['{"user[password]":"hunter2abc"}', 'hunter2abc'],
+    ['user[password]: hunter2abc', 'hunter2abc'],
+    ['params[api_key]=x1abc', 'x1abc'],
+    ['password=\'it\'\'s\'\'my\'\'pass\'\'hunter2abc\'', 'hunter2abc'],
+  ];
+
+  for (const [input, marker] of leaks) {
+    it(`masks ${JSON.stringify(input)}`, () => {
+      assert.ok(!redactText(input).includes(marker));
+    });
+  }
+
+  it('is idempotent on auth=""\'\'""\'\'{', () => {
+    const once = redactText('auth=""\'\'""\'\'{');
+    assert.equal(redactText(once), once);
+  });
+
+  const runs: ReadonlyArray<readonly [string, string]> = [
+    ['spaces after a token word', 'token: a' + ' '.repeat(16000) + 'x'],
+    ['spaces after a bare colon', 'token:' + ' '.repeat(16000)],
+    ['spaces inside a password value', 'password=ab' + ' '.repeat(16000) + 'x'],
+    ['spaces after an auth scheme', 'Authorization: Token' + ' '.repeat(16000) + 'x'],
+    ['alternating tabs and spaces', 'token: a' + '\t \t'.repeat(5400) + 'x'],
+    ['a newline then spaces', 'token:\n' + ' '.repeat(16000) + 'x'],
+  ];
+
+  for (const [label, input] of runs) {
+    it(`stays under 250 ms on 16 KB of ${label}`, () => {
+      assert.ok(input.length >= 16000);
+      const started = performance.now();
+      redactText(input);
+      assert.ok(performance.now() - started < 250);
+    });
+  }
 });
