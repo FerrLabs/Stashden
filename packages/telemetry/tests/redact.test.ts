@@ -26,6 +26,8 @@ describe('redactText query and host handling', () => {
     assert.equal(redactText('http://api-gw:3000#a@b'), 'http://api-gw:3000');
     assert.equal(redactText('http://authelia:9091: 504 Gateway Timeout'), 'http://authelia:9091: 504 Gateway Timeout');
     assert.equal(redactText('email=a@b.com'), '*');
+    assert.equal(redactText('code == 200'), 'code == 200');
+    assert.equal(redactText('{"a":{"password":"x"}}'), '{"a":{"password":*}}');
     assert.equal(redactText('http://u:+[)v~5-pc[g1A|@[::1]:39503/x'), 'http://[::1]:39503/x');
   });
 
@@ -137,7 +139,7 @@ describe('redactText bounds', () => {
     }
   });
 
-  it('handles 16 KB of adversarial input in under a second', () => {
+  it('handles 16 KB of adversarial input in under 50 ms', () => {
     const inputs = [
       '?a= '.repeat(4096),
       'a@'.repeat(8192),
@@ -152,7 +154,7 @@ describe('redactText bounds', () => {
       const started = performance.now();
       redactText(input);
       const elapsed = performance.now() - started;
-      assert.ok(elapsed < 1000, `${input.slice(0, 20)} took ${elapsed.toFixed(0)} ms`);
+      assert.ok(elapsed < 50, `${input.slice(0, 20)} took ${elapsed.toFixed(0)} ms`);
     }
   });
 });
