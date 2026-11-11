@@ -38,8 +38,9 @@ export function redactDeep(value: unknown, redactString: StringRedactor = redact
   scope.set(value, copy);
   const taken = new Set<string>();
   for (const [key, entry] of Object.entries(value)) {
-    const target = redactText(key);
-    if (taken.has(target)) continue;
+    const base = redactText(key);
+    let target = base;
+    for (let n = 2; taken.has(target); n++) target = `${base}#${n}`;
     taken.add(target);
     defineEntry(copy, target, isSecretField(key, entry) ? MASK : redactDeep(entry, redactString, seen, key));
   }

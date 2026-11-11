@@ -54,6 +54,36 @@ describe('redactDeep', () => {
     });
   });
 
+  it('matches benign field exclusions on the key suffix only', () => {
+    assert.deepEqual(redactDeep({ homeCacheKey: 'a', x: { idempotencyKey: 'b' }, user: { authType: 'sso' } }), {
+      homeCacheKey: 'a',
+      x: { idempotencyKey: 'b' },
+      user: { authType: 'sso' },
+    });
+    assert.deepEqual(redactDeep({ daemonKey: 'a', commonKey: 'b', codeSig: 'c', escrowKey: 'd' }), {
+      daemonKey: '*',
+      commonKey: '*',
+      codeSig: '*',
+      escrowKey: '*',
+    });
+  });
+
+  it('masks plural and prefixed code and state field names', () => {
+    assert.deepEqual(
+      redactDeep({ storageKey: 'abc', tokens: ['x'], apiKeys: 'k', otp_code: 123456, mfaCode: 'm', session_state: 's' }),
+      { storageKey: '*', tokens: ['*'], apiKeys: '*', otp_code: '*', mfaCode: '*', session_state: '*' },
+    );
+  });
+
+  it('keeps bare and benign code and state field names', () => {
+    const input = { code: 'a', state: 'b', errorCode: 'c', httpStatusCode: 'd', readyState: 'e', homeCacheKeys: 'f' };
+    assert.deepEqual(redactDeep(input), input);
+  });
+
+  it('keeps every key that redacts to the same string', () => {
+    assert.deepEqual(redactDeep({ 'a@b.com': 1, 'c@d.com': 2 }), { '*': 1, '*#2': 2 });
+  });
+
   it('scrubs string values with the given redactor', () => {
     assert.deepEqual(redactDeep({ url: 'x' }, (value) => value.toUpperCase()), { url: 'X' });
   });
@@ -221,10 +251,10 @@ describe('walk keys, non-plain values and metric names', () => {
     assert.ok(!JSON.stringify(out).includes('ZqSECRET9'));
   });
 
-  it('keeps the first value when two keys collide after redaction', () => {
+  it('keeps both values when two keys collide after redaction', () => {
     const out = payloadOf({ context: { 'a?token=ZqSECRETa': 'first', 'a?token=ZqSECRETb': 'second' } });
     const context = out['context'] as Record<string, unknown>;
-    assert.deepEqual(Object.values(context), ['first']);
+    assert.deepEqual(Object.values(context), ['first', 'second']);
     assert.ok(!JSON.stringify(out).includes('ZqSECRET'));
   });
 

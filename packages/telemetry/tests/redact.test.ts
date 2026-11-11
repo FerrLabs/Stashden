@@ -197,3 +197,71 @@ describe('redactText bracketed keys, multi-chunk quotes and whitespace runs', ()
     });
   }
 });
+
+describe('redactText v6.34', () => {
+  const leaks: ReadonlyArray<readonly [string, string]> = [
+    ['email_verification_code=834201', '834201'],
+    ['user_mfa_code=834201', '834201'],
+    ['user_code=WDJB-MJHT', 'WDJB'],
+    ['sms_code=abc123', 'abc123'],
+    ['backup_code=abc123', 'abc123'],
+    ['params[user_code]=abc123', 'abc123'],
+    ['daemonKey=abc123', 'abc123'],
+    ['commonKey=abc123', 'abc123'],
+    ['codeSig=abc123', 'abc123'],
+    ['nodeSignature=abc123', 'abc123'],
+    ['passkey=abc123', 'abc123'],
+    ['see //password:aJ@+QvZ7 end', 'QvZ7'],
+  ];
+
+  for (const [input, marker] of leaks) {
+    it(`masks ${JSON.stringify(input)}`, () => {
+      assert.ok(!redactText(input).includes(marker), redactText(input));
+    });
+  }
+
+  it('keeps the host-less userinfo lookalike text around the masked value', () => {
+    assert.equal(redactText('see //password:aJ@+QvZ7 end'), 'see //password:*');
+  });
+
+  for (const input of ['error_code=500', 'status_code=200', 'errorCode=500', 'zip_code=59000', 'barcode=123', 'keyCode=13', 'readyState=complete']) {
+    it(`keeps ${JSON.stringify(input)}`, () => {
+      assert.equal(redactText(input), input);
+    });
+  }
+
+  const benignKeyWords = [
+    'dickey', 'donkey', 'doohickey', 'flukey', 'flunkey', 'hickey', 'hockey', 'hokey', 'hookey', 'hotkey',
+    'jockey', 'lackey', 'malarkey', 'mickey', 'monkey', 'pokey', 'rickey', 'smokey', 'turkey', 'turnkey', 'whiskey',
+  ];
+  for (const word of benignKeyWords) {
+    it(`keeps ${word}=3`, () => {
+      assert.equal(redactText(`${word}=3`), `${word}=3`);
+    });
+  }
+});
+
+describe('redactText v6.35', () => {
+  const leaks: ReadonlyArray<readonly [string, string]> = [
+    ['session_state=abc123', 'abc123'],
+    ['relay_state=abc123', 'abc123'],
+    ['token_code=abc123', 'abc123'],
+    ['storage_key=abc123', 'abc123'],
+  ];
+
+  for (const [input, marker] of leaks) {
+    it(`masks ${JSON.stringify(input)}`, () => {
+      assert.ok(!redactText(input).includes(marker), redactText(input));
+    });
+  }
+
+  for (const input of ['readyState=complete', 'game_state=lobby', 'httpStatusCode=200', '//auth:8080/x']) {
+    it(`keeps ${JSON.stringify(input)}`, () => {
+      assert.equal(redactText(input), input);
+    });
+  }
+
+  it('does not treat a bracketed host as userinfo', () => {
+    assert.equal(redactText('https://[::1]:8080/users/jane@corp.io'), 'https://[::1]:8080/users/*');
+  });
+});
