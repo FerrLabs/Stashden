@@ -20,6 +20,18 @@ describe('redactText query and host handling', () => {
     assert.equal(redactText('GET http://authelia:9091 -> 502'), 'GET http://authelia:9091 -> 502');
   });
 
+  it('parses userinfo like a URL parser', () => {
+    assert.equal(redactText('https://u:123?x@h.com/a'), 'https://u:123');
+    assert.equal(redactText('http://db:5432?redirect=x@y'), 'http://db:5432');
+    assert.equal(redactText('http://api-gw:3000#a@b'), 'http://api-gw:3000');
+    assert.equal(redactText('http://u:+[)v~5-pc[g1A|@[::1]:39503/x'), 'http://[::1]:39503/x');
+  });
+
+  it('keeps a port only right after a colon', () => {
+    assert.ok(!redactText('x //pwd: 1234abc').includes('1234'));
+    assert.ok(!redactText('x //secret:\n12345abc').includes('12345'));
+  });
+
   it('keeps the host when the fragment contains an @', () => {
     const out = redactText('open https://app.example.com/x#next=a@b.c now');
     assert.ok(out.includes('https://app.example.com/x'), out);
