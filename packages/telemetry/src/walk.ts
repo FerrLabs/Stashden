@@ -1,5 +1,5 @@
 import type { TransportItem } from '@grafana/faro-web-sdk';
-import { MASK, isSecretField, isSecretName, redactText } from './redact';
+import { MASK, isSecretField, isSecretName, isSecretValue, redactText } from './redact';
 
 export type StringRedactor = (value: string) => string;
 
@@ -12,70 +12,87 @@ function defineEntry(target: Record<string, unknown>, key: string, value: unknow
   Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
 }
 
-interface Copies {
-  readonly plain: WeakMap<object, unknown>;
-  readonly secret: WeakMap<object, unknown>;
-  readonly active: WeakSet<object>;
-  readonly cyclic: WeakSet<object>;
+const SESSION_FIELD = /^session$/i;
+
+interface Walk {
+  readonly secret: WeakSet<object>;
+  readonly copies: WeakMap<object, unknown>;
 }
 
-function newCopies(): Copies {
-  return { plain: new WeakMap(), secret: new WeakMap(), active: new WeakSet(), cyclic: new WeakSet() };
+function isPlainObject(value: object): boolean {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
-function opensSecretScope(field: string): boolean {
-  return isSecretName(field) && field.toLowerCase() !== 'session';
+function isTraversable(value: object): boolean {
+  return Array.isArray(value) || isPlainObject(value);
 }
 
-function maskedCopy(copy: unknown[] | Record<string, unknown>, masked: unknown): unknown {
-  if (Array.isArray(copy)) copy.splice(0, copy.length, ...(masked as unknown[]));
-  else {
-    for (const key of Object.keys(copy)) delete copy[key];
-    for (const [key, entry] of Object.entries(masked as Record<string, unknown>)) defineEntry(copy, key, entry);
-  }
-  return copy;
+function collectSecretContainers(meta: unknown, payload: unknown): WeakSet<object> {
+  const secret = new WeakSet<object>();
+  const seenPlain = new WeakSet<object>();
+  const visit = (value: unknown, inSecret: boolean, isMeta = false): void => {
+    if (value === null || typeof value !== 'object' || !isTraversable(value)) return;
+    const seen = inSecret ? secret : seenPlain;
+    if (seen.has(value)) return;
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const entry of value) visit(entry, inSecret);
+      return;
+    }
+    for (const [key, entry] of Object.entries(value)) {
+      const exempt = isMeta && SESSION_FIELD.test(key) && !Array.isArray(entry);
+      visit(entry, inSecret || (isSecretName(key) && !exempt));
+    }
+  };
+  visit(meta, false, true);
+  visit(payload, false);
+  return secret;
 }
 
-export function redactDeep(value: unknown, redactString: StringRedactor = redactText, seen = newCopies(), field = ''): unknown {
+function newWalk(meta: unknown, payload: unknown): Walk {
+  return { secret: collectSecretContainers(meta, payload), copies: new WeakMap() };
+}
+
+function redactWalk(value: unknown, redactString: StringRedactor, walk: Walk): unknown {
   if (typeof value === 'string') return redactString(value);
   if (value === null || typeof value !== 'object') return value;
-  const inSecret = opensSecretScope(field);
-  const scope = inSecret ? seen.secret : seen.plain;
-  if (scope.has(value)) return scope.get(value);
-  if (inSecret && seen.active.has(value)) seen.cyclic.add(value);
+  if (!isTraversable(value)) return redactString(String(value));
+  const known = walk.copies.get(value);
+  if (known !== undefined) return known;
+  const inSecret = walk.secret.has(value);
   if (Array.isArray(value)) {
     const copy: unknown[] = [];
-    scope.set(value, copy);
-    if (!inSecret) seen.active.add(value);
-    for (const entry of value) copy.push(isSecretField(field, entry, true) ? MASK : redactDeep(entry, redactString, seen, field));
-    seen.active.delete(value);
-    return seen.cyclic.has(value) && !inSecret ? maskedCopy(copy, seen.secret.get(value)) : copy;
+    walk.copies.set(value, copy);
+    for (const entry of value) copy.push(inSecret && isSecretValue(entry) ? MASK : redactWalk(entry, redactString, walk));
+    return copy;
   }
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) return redactString(String(value));
   const copy: Record<string, unknown> = {};
-  scope.set(value, copy);
-  if (!inSecret) seen.active.add(value);
+  walk.copies.set(value, copy);
   const taken = new Set<string>();
   for (const [key, entry] of Object.entries(value)) {
-    const entryKey = inSecret ? field : key;
     const base = inSecret ? MASK : redactText(key);
     let target = base;
     for (let n = 2; taken.has(target); n++) target = `${base}#${n}`;
     taken.add(target);
-    defineEntry(copy, target, isSecretField(entryKey, entry, inSecret) ? MASK : redactDeep(entry, redactString, seen, entryKey));
+    const masked = inSecret ? isSecretValue(entry) : isSecretField(key, entry);
+    defineEntry(copy, target, masked ? MASK : redactWalk(entry, redactString, walk));
   }
-  seen.active.delete(value);
-  return seen.cyclic.has(value) && !inSecret ? maskedCopy(copy, seen.secret.get(value)) : copy;
+  return copy;
+}
+
+export function redactDeep(value: unknown, redactString: StringRedactor = redactText): unknown {
+  return redactWalk(value, redactString, newWalk(undefined, value));
 }
 
 export function sanitizeItem(item: TransportItem, options: SanitizeOptions = {}): TransportItem | null {
   const { redactString = redactText, redactPageUrl } = options;
   try {
-    const meta = redactDeep(item.meta, redactString) as TransportItem['meta'];
+    const walk = newWalk(item.meta, item.payload);
+    const meta = redactWalk(item.meta, redactString, walk) as TransportItem['meta'];
     const pageUrl = item.meta.page?.url;
     if (pageUrl !== undefined && redactPageUrl) meta.page = { ...meta.page, url: redactPageUrl(pageUrl) };
-    return { ...item, meta, payload: redactDeep(item.payload, redactString) as TransportItem['payload'] };
+    return { ...item, meta, payload: redactWalk(item.payload, redactString, walk) as TransportItem['payload'] };
   } catch {
     return null;
   }
