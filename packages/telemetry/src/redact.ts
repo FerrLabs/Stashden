@@ -98,7 +98,7 @@ export function redactText(value: string): string {
 const SENSITIVE_FIELD = new RegExp(`^${BENIGN}(?!(?:[\\w.$ -]{0,64}[_.$ -])?(?:list|row|map)[-_]?keys?$|[\\w.$ -]{0,64}(?:cache|i18n|primary|sort|foreign|partition|translation|route|object|query|lookup|group|unique|react|track|idempotency)[-_]?keys?$|[\\w.$ -]{0,64}auth[-_]?(?:Method|Type|Provider|Mode|Status)$)[\\w.$ -]{0,64}${COLON_WORDS}s?$|^${BENIGN}[\\w.$ -]{1,64}(?:code|state)s?$`, 'i');
 
 const METRIC_FIELD =
-  /(?:(?:^|[_. -])(?:duration|latency|ms|millis|seconds|secs|count|time|timestamp|size|bytes|ttl|age|attempts?|retries|expires(?:_?(?:in|at))?)|(?:^|_)(?:DURATION|LATENCY|MS|MILLIS|SECONDS|SECS|COUNT|TIME|TIMESTAMP|SIZE|BYTES|TTL|AGE|ATTEMPTS?|RETRIES|EXPIRES(?:_?(?:IN|AT))?)|(?:Duration|Latency|Ms|Millis|Seconds|Secs|Count|Time|Timestamp|Size|Bytes|Ttl|TTL|Age|Attempts?|Retries|Expires(?:In|At)?))$/;
+  /(?:(?:^|[_. -])(?:duration|latency|ms|millis|seconds|secs|count|time|timestamp|size|bytes|ttl|age|attempts?|retries|expires(?:_?(?:in|at))?)|(?:^|_)(?:DURATION|LATENCY|MS|MILLIS|SECONDS|SECS|COUNT|TIME|TIMESTAMP|SIZE|BYTES|TTL|AGE|ATTEMPTS?|RETRIES|EXPIRES(?:_?(?:IN|AT))?)|(?:Duration|Latency|Ms|Millis|Seconds|Secs|Count|Time|Timestamp|Size|Bytes|Ttl|TTL|Age|Attempts?|Retries|Expires(?:In|At)?)|(?:^|[_. -])(?:input|output|total|max|prompt|completion|cached)[_-]?[Tt]okens?|(?:^|_)(?:INPUT|OUTPUT|TOTAL|MAX|PROMPT|COMPLETION|CACHED)[_-]?TOKENS?|(?:Input|Output|Total|Max|Prompt|Completion|Cached)Tokens?)$/;
 
 export function isSecretName(key: string): boolean {
   const normalized = key.replace(/[^\w.$-]+/g, '_').replace(/^_+|_+$/g, '');
