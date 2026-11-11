@@ -19,11 +19,37 @@ describe('redactDeep', () => {
     assert.deepEqual(redactDeep({ name: 'ok' }), { name: 'ok' });
   });
 
-  it('keeps walking non-string values under a sensitive key', () => {
+  it('keeps walking objects under a sensitive key and masks numbers', () => {
     assert.deepEqual(redactDeep({ token: { value: 'x', note: 'password=abc12345' } }), {
       token: { value: 'x', note: 'password=*' },
     });
-    assert.deepEqual(redactDeep({ key: 42 }), { key: 42 });
+    assert.deepEqual(redactDeep({ key: 42 }), { key: '*' });
+  });
+
+  it('masks numbers, bigints and array elements under a sensitive key', () => {
+    assert.deepEqual(redactDeep({ password: 123456 }), { password: '*' });
+    assert.deepEqual(redactDeep({ session_id: 987654321 }), { session_id: '*' });
+    assert.deepEqual(redactDeep({ sessionId: 123456789n }), { sessionId: '*' });
+    assert.deepEqual(redactDeep({ token: ['abc123def', 5, 7n, ['nested']] }), { token: ['*', '*', '*', ['*']] });
+    assert.deepEqual(redactDeep({ apiKey: ['k1', { note: 'x', url: 'https://a.test/x?code=abc' }] }), {
+      apiKey: ['*', { note: 'x', url: 'https://a.test/x' }],
+    });
+    assert.deepEqual(redactDeep({ list: ['plain'] }), { list: ['plain'] });
+  });
+
+  it('masks field names with dots, dollars and spaces and keeps benign names', () => {
+    assert.deepEqual(redactDeep({ 'user.password': 'hunter2', $password: 'h', 'api key': 'k', client$token: 'c', 'auth.token': 't' }), {
+      'user.password': '*',
+      $password: '*',
+      'api key': '*',
+      client$token: '*',
+      'auth.token': '*',
+    });
+    assert.deepEqual(redactDeep({ cacheKey: 'home', authMethod: 'sso', author: 'jane' }), {
+      cacheKey: 'home',
+      authMethod: 'sso',
+      author: 'jane',
+    });
   });
 
   it('scrubs string values with the given redactor', () => {

@@ -24,6 +24,8 @@ describe('redactText query and host handling', () => {
     assert.equal(redactText('https://u:123?x@h.com/a'), 'https://u:123');
     assert.equal(redactText('http://db:5432?redirect=x@y'), 'http://db:5432');
     assert.equal(redactText('http://api-gw:3000#a@b'), 'http://api-gw:3000');
+    assert.equal(redactText('http://authelia:9091: 504 Gateway Timeout'), 'http://authelia:9091: 504 Gateway Timeout');
+    assert.equal(redactText('email=a@b.com'), '*');
     assert.equal(redactText('http://u:+[)v~5-pc[g1A|@[::1]:39503/x'), 'http://[::1]:39503/x');
   });
 
