@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { redactText } from '../src/redact.ts';
+import { isSecretName, redactText } from '../src/redact.ts';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { redactDeep, sanitizeItem } from '../src/walk.ts';
@@ -21,9 +21,9 @@ describe('redactDeep', () => {
     assert.deepEqual(redactDeep({ name: 'ok' }), { name: 'ok' });
   });
 
-  it('keeps walking objects under a sensitive key and masks numbers', () => {
+  it('masks every leaf under a sensitive key including numbers', () => {
     assert.deepEqual(redactDeep({ token: { value: 'x', note: 'password=abc12345' } }), {
-      token: { value: 'x', note: 'password=*' },
+      token: { value: '*', note: '*' },
     });
     assert.deepEqual(redactDeep({ key: 42 }), { key: '*' });
   });
@@ -34,7 +34,7 @@ describe('redactDeep', () => {
     assert.deepEqual(redactDeep({ sessionId: 123456789n }), { sessionId: '*' });
     assert.deepEqual(redactDeep({ token: ['abc123def', 5, 7n, ['nested']] }), { token: ['*', '*', '*', ['*']] });
     assert.deepEqual(redactDeep({ apiKey: ['k1', { note: 'x', url: 'https://a.test/x?code=abc' }] }), {
-      apiKey: ['*', { note: 'x', url: 'https://a.test/x' }],
+      apiKey: ['*', { note: '*', url: '*' }],
     });
     assert.deepEqual(redactDeep({ list: ['plain'] }), { list: ['plain'] });
   });
@@ -271,5 +271,57 @@ describe('walk keys, non-plain values and metric names', () => {
   it('has no regex lookbehind in the module source', () => {
     const source = readFileSync(new URL('../src/redact.ts', import.meta.url), 'utf8');
     assert.ok(!source.includes('(?<'));
+  });
+});
+
+describe('secret subtrees, metric names and key normalization', () => {
+  const SECRET = 'hunter2abc';
+  const subtreeLeaks: ReadonlyArray<readonly [object, string]> = [
+    [{ password: { value: SECRET } }, SECRET],
+    [{ token: [{ value: SECRET }] }, SECRET],
+    [{ apiKey: { primary: SECRET } }, SECRET],
+    [{ client_secret: { current: { raw: SECRET } } }, SECRET],
+    [{ password: [[SECRET]] }, SECRET],
+    [{ secret: { n: 48291234 } }, '48291234'],
+    [{ token: { x: 3 } }, '3'],
+    [{ auth_count: { x: 3 } }, '3'],
+  ];
+
+  for (const [payload, marker] of subtreeLeaks) {
+    it(`masks every leaf of ${JSON.stringify(payload)}`, () => {
+      const out = JSON.stringify(redactDeep(structuredClone(payload)));
+      assert.ok(!out.includes(marker), out);
+    });
+  }
+
+  it('keeps shape, booleans and null under a secret field and leaves other fields alone', () => {
+    assert.deepEqual(redactDeep({ password: { enabled: true, value: null, deep: { ok: false, v: 'x' } } }), {
+      password: { enabled: true, value: null, deep: { ok: false, v: '*' } },
+    });
+    assert.deepEqual(redactDeep({ settings: { theme: 'dark' } }), { settings: { theme: 'dark' } });
+  });
+
+  it('keeps numbers under metric names in any case and masks other secret numbers', () => {
+    assert.deepEqual(redactDeep({ AUTH_COUNT: 3, auth_count: 3, authCount: 3, SESSION_DURATION_MS: 7, TOKEN_TTL: 9 }), {
+      AUTH_COUNT: 3,
+      auth_count: 3,
+      authCount: 3,
+      SESSION_DURATION_MS: 7,
+      TOKEN_TTL: 9,
+    });
+    assert.deepEqual(redactDeep({ AUTH_TOKEN: 3 }), { AUTH_TOKEN: '*' });
+  });
+
+  it('keeps colliding redacted keys under a secret field', () => {
+    assert.deepEqual(redactDeep({ password: { 'a@b.com': 'x', 'c@d.com': 'y' } }), { password: { '*': '*', '*#2': '*' } });
+  });
+
+  it('does not treat separator-joined benign key names as secret', () => {
+    for (const key of ['i18n:key', 'cache:key', 'cache/key']) assert.equal(isSecretName(key), false, key);
+  });
+
+  it('treats bracketed, slashed, colon-joined and dotted secret names as secret', () => {
+    for (const key of ['user[password]', 'headers/authorization', 'a:b:token', 'x.password'])
+      assert.equal(isSecretName(key), true, key);
   });
 });

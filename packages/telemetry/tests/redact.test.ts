@@ -265,3 +265,16 @@ describe('redactText v6.35', () => {
     assert.equal(redactText('https://[::1]:8080/users/jane@corp.io'), 'https://[::1]:8080/users/*');
   });
 });
+
+describe('redactText bare //host:port', () => {
+  it('masks a port that is not followed by a path', () => {
+    for (const input of ['//password:12345', 'see //password:12345', '//password:8080']) {
+      const out = redactText(input);
+      assert.ok(!out.includes('12345') && !out.includes('8080'), out);
+    }
+  });
+
+  it('keeps a port followed by a path', () => {
+    assert.equal(redactText('//auth:8080/x'), '//auth:8080/x');
+  });
+});

@@ -36,13 +36,15 @@ export function redactDeep(value: unknown, redactString: StringRedactor = redact
   if (prototype !== Object.prototype && prototype !== null) return redactString(String(value));
   const copy: Record<string, unknown> = {};
   scope.set(value, copy);
+  const inSecret = isSecretName(field);
   const taken = new Set<string>();
   for (const [key, entry] of Object.entries(value)) {
+    const entryKey = inSecret ? field : key;
     const base = redactText(key);
     let target = base;
     for (let n = 2; taken.has(target); n++) target = `${base}#${n}`;
     taken.add(target);
-    defineEntry(copy, target, isSecretField(key, entry) ? MASK : redactDeep(entry, redactString, seen, key));
+    defineEntry(copy, target, isSecretField(entryKey, entry, inSecret) ? MASK : redactDeep(entry, redactString, seen, entryKey));
   }
   return copy;
 }
