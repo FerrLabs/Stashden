@@ -6,6 +6,7 @@ COPY packages/telemetry/package.json packages/telemetry/
 COPY web/package.json web/
 COPY site/package.json site/
 RUN pnpm install --frozen-lockfile --filter @stashden/web...
+COPY tsconfig.base.json ./
 COPY packages/telemetry packages/telemetry
 COPY web web
 # Same origin as the API that serves it, so the image carries no deployment's URL.

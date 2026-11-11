@@ -1,11 +1,10 @@
 {
-  "extends": "../../web/tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"],
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
   "files": [],
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
-  "references": []
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
