@@ -158,3 +158,42 @@ describe('redactText bounds', () => {
     }
   });
 });
+
+describe('redactText bracketed keys, multi-chunk quotes and whitespace runs', () => {
+  const leaks: ReadonlyArray<readonly [string, string]> = [
+    ['user[password]=hunter2abc', 'hunter2abc'],
+    ['{"user[password]":"hunter2abc"}', 'hunter2abc'],
+    ['user[password]: hunter2abc', 'hunter2abc'],
+    ['params[api_key]=x1abc', 'x1abc'],
+    ['password=\'it\'\'s\'\'my\'\'pass\'\'hunter2abc\'', 'hunter2abc'],
+  ];
+
+  for (const [input, marker] of leaks) {
+    it(`masks ${JSON.stringify(input)}`, () => {
+      assert.ok(!redactText(input).includes(marker));
+    });
+  }
+
+  it('is idempotent on auth=""\'\'""\'\'{', () => {
+    const once = redactText('auth=""\'\'""\'\'{');
+    assert.equal(redactText(once), once);
+  });
+
+  const runs: ReadonlyArray<readonly [string, string]> = [
+    ['spaces after a token word', 'token: a' + ' '.repeat(16000) + 'x'],
+    ['spaces after a bare colon', 'token:' + ' '.repeat(16000)],
+    ['spaces inside a password value', 'password=ab' + ' '.repeat(16000) + 'x'],
+    ['spaces after an auth scheme', 'Authorization: Token' + ' '.repeat(16000) + 'x'],
+    ['alternating tabs and spaces', 'token: a' + '\t \t'.repeat(5400) + 'x'],
+    ['a newline then spaces', 'token:\n' + ' '.repeat(16000) + 'x'],
+  ];
+
+  for (const [label, input] of runs) {
+    it(`stays under 250 ms on 16 KB of ${label}`, () => {
+      assert.ok(input.length >= 16000);
+      const started = performance.now();
+      redactText(input);
+      assert.ok(performance.now() - started < 250);
+    });
+  }
+});
