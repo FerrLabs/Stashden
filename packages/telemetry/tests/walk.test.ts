@@ -93,3 +93,65 @@ describe('sanitizeItem', () => {
     assert.equal(sanitizeItem(hostile as never), null);
   });
 });
+
+describe('aliased containers and metric fields', () => {
+  const run = (meta: object, payload: object) => {
+    const out = sanitizeItem({ type: 'log', meta, payload } as never);
+    assert.ok(out);
+    return out as unknown as { meta: Record<string, unknown>; payload: Record<string, unknown> };
+  };
+
+  it('masks a container reached under a secret field after a benign field', () => {
+    const shared = ['hunter2'];
+    const { payload } = run({}, { list: shared, password: shared });
+    assert.deepEqual(payload['password'], ['*']);
+  });
+
+  it('masks a container reached under a secret field before a benign field', () => {
+    const shared = ['hunter2'];
+    const { payload } = run({}, { password: shared, list: shared });
+    assert.deepEqual(payload['password'], ['*']);
+  });
+
+  it('masks a container shared between meta and payload', () => {
+    const shared = ['hunter2'];
+    const { meta, payload } = run({ list: shared }, { password: shared });
+    assert.deepEqual(payload['password'], ['*']);
+  });
+
+  it('masks a container shared between meta and payload with the secret field in meta', () => {
+    const shared = ['hunter2'];
+    const { meta } = run({ token: shared }, { list: shared });
+    assert.deepEqual(meta['token'], ['*']);
+  });
+
+  it('terminates on a self-referencing object under a secret field', () => {
+    const loop: Record<string, unknown> = { note: 'x', password: 'hunter2' };
+    loop['self'] = loop;
+    const { payload } = run({}, { token: loop });
+    assert.deepEqual((payload['token'] as Record<string, unknown>)['password'], '*');
+  });
+
+  it('terminates on a self-referencing array under a secret field', () => {
+    const loop: unknown[] = ['hunter2'];
+    loop.push(loop);
+    const { payload } = run({}, { token: loop });
+    assert.deepEqual((payload['token'] as unknown[])[0], '*');
+  });
+
+  it('keeps numbers and bigints under measurement-named secret fields', () => {
+    const fields = { authentication_duration: 120, authLatencyMs: 8, tokenTtl: 3600, authExpiresAt: 1700000000, authSessionAgeSecs: 5n, authCount: [1, 2] };
+    const { payload } = run({}, { ...fields });
+    assert.deepEqual(payload, fields);
+  });
+
+  it('masks numbers under other secret fields', () => {
+    const { payload } = run({}, { password: 4829, pin_key: 1234, sessionId: 77n, authCode: 5 });
+    assert.deepEqual(payload, { password: '*', pin_key: '*', sessionId: '*', authCode: '*' });
+  });
+
+  it('masks strings under measurement-named secret fields', () => {
+    const { payload } = run({}, { authentication_duration: 'abc123', authLatencyMs: '8' });
+    assert.deepEqual(payload, { authentication_duration: '*', authLatencyMs: '*' });
+  });
+});

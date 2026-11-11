@@ -85,10 +85,17 @@ export function redactText(value: string): string {
 
 const SENSITIVE_FIELD = new RegExp(`^(?!(?:cache|i18n|primary|sort|foreign|partition|translation|route|list|row|map|object|storage|query|lookup|group|unique|react|track|idempotency)[-_]?key$|auth(?:Method|Type|Provider|Mode|Status)$)[\\w.$ -]{0,64}${COLON_WORDS}$`, 'i');
 
+const METRIC_FIELD =
+  /(?:duration|latency|ms|millis|seconds|secs|count|time|timestamp|size|bytes|ttl|age|attempts?|retries|expires(?:_?(?:in|at))?)$/i;
+
+export function isSecretName(key: string): boolean {
+  return SENSITIVE_FIELD.test(key);
+}
+
 export function isSecretField(key: string, value: unknown): boolean {
-  return (
-    (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint') &&
-    SENSITIVE_FIELD.test(key)
-  );
+  if (typeof value === 'string') return isSecretName(key);
+  if (typeof value === 'number' || typeof value === 'bigint')
+    return isSecretName(key) && !METRIC_FIELD.test(key);
+  return false;
 }
 

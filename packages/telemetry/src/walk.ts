@@ -1,5 +1,5 @@
 import type { TransportItem } from '@grafana/faro-web-sdk';
-import { MASK, isSecretField, redactText } from './redact';
+import { MASK, isSecretField, isSecretName, redactText } from './redact';
 
 export type StringRedactor = (value: string) => string;
 
@@ -8,20 +8,30 @@ export interface SanitizeOptions {
   redactPageUrl?: StringRedactor;
 }
 
-export function redactDeep(value: unknown, redactString: StringRedactor = redactText, seen = new WeakMap<object, unknown>(), field = ''): unknown {
+interface Copies {
+  readonly plain: WeakMap<object, unknown>;
+  readonly secret: WeakMap<object, unknown>;
+}
+
+function newCopies(): Copies {
+  return { plain: new WeakMap(), secret: new WeakMap() };
+}
+
+export function redactDeep(value: unknown, redactString: StringRedactor = redactText, seen = newCopies(), field = ''): unknown {
   if (typeof value === 'string') return redactString(value);
   if (value === null || typeof value !== 'object') return value;
-  if (seen.has(value)) return seen.get(value);
+  const scope = isSecretName(field) ? seen.secret : seen.plain;
+  if (scope.has(value)) return scope.get(value);
   if (Array.isArray(value)) {
     const copy: unknown[] = [];
-    seen.set(value, copy);
+    scope.set(value, copy);
     for (const entry of value) copy.push(isSecretField(field, entry) ? MASK : redactDeep(entry, redactString, seen, field));
     return copy;
   }
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return redactString(String(value));
   const copy: Record<string, unknown> = {};
-  seen.set(value, copy);
+  scope.set(value, copy);
   for (const [key, entry] of Object.entries(value)) {
     copy[key] = isSecretField(key, entry) ? MASK : redactDeep(entry, redactString, seen, key);
   }
