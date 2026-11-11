@@ -388,3 +388,23 @@ describe('spaced field names v6.37', () => {
     assert.deepEqual(redactDeep(payload), { 'cache key': 'ok', monkey: 'ok', hotkey: 'ok' });
   });
 });
+
+describe('field names with punctuation and long prefixes', () => {
+  const valueOf = (name: string): unknown => {
+    const out = sanitizeItem({ type: 'log', meta: {}, payload: { [name]: 'ZqVal1' } } as never);
+    assert.ok(out);
+    return Object.values((out as unknown as { payload: Record<string, unknown> }).payload)[0];
+  };
+
+  for (const name of ['login(form)/password', 'user@host/password', 'form#login/token', 'a+b/secret', '100%/token', 'a'.repeat(80) + '_password']) {
+    it(`masks ${JSON.stringify(name.length > 40 ? `${name.slice(0, 4)}...${name.slice(-9)}` : name)}`, () => {
+      assert.equal(valueOf(name), '*');
+    });
+  }
+
+  for (const name of ['cache key', 'i18n:key', 'homeCacheKey', 'a'.repeat(80) + '_monkey']) {
+    it(`keeps ${JSON.stringify(name.length > 40 ? `${name.slice(0, 4)}...${name.slice(-7)}` : name)}`, () => {
+      assert.equal(valueOf(name), 'ZqVal1');
+    });
+  }
+});

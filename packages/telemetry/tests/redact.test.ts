@@ -278,3 +278,52 @@ describe('redactText bare //host:port', () => {
     assert.equal(redactText('//auth:8080/x'), '//auth:8080/x');
   });
 });
+
+describe('redactText doubled equals and long or punctuated prefixes', () => {
+  const exact: ReadonlyArray<readonly [string, string]> = [
+    ['password==""\'\'""\'\'ZqSecret123', 'password==*'],
+    ["code==''\"\"''\"\";", 'code==*'],
+    ['pwd==abcRET1', 'pwd==*'],
+    ['https://admin:hunter2@bücher.example/x', 'https://bücher.example/x'],
+    ['see //password:aJ@+QvZ7 end', 'see //password:*'],
+  ];
+
+  for (const [input, expected] of exact) {
+    it(`turns ${JSON.stringify(input)} into ${JSON.stringify(expected)}`, () => {
+      assert.equal(redactText(input), expected);
+      assert.equal(redactText(expected), expected);
+    });
+  }
+
+  for (const input of ['a == b', 'x==y', 'password===x1', 'password== x1', 'readyState=complete', 'game_state=lobby', 'iceGatheringState=complete', 'dial_code=33']) {
+    it(`keeps ${JSON.stringify(input)}`, () => {
+      assert.equal(redactText(input), input);
+    });
+  }
+
+  for (const [input, marker] of [
+    ['device_state=ZqMark91', 'ZqMark91'],
+    ['authRequestState=ZqMark91', 'ZqMark91'],
+    ['phone_code=ZqMark91', 'ZqMark91'],
+    ['phoneCode=ZqMark91', 'ZqMark91'],
+    ['a'.repeat(300) + '_password=hunter2abc', 'hunter2abc'],
+    ['a'.repeat(300) + '_otp_code: 834201', '834201'],
+  ] as const) {
+    it(`masks ${JSON.stringify(input.length > 60 ? `${input.slice(0, 12)}...${input.slice(-24)}` : input)}`, () => {
+      assert.ok(!redactText(input).includes(marker), redactText(input));
+    });
+  }
+
+  it('keeps a long benign prefix before a non-secret key', () => {
+    const input = 'a'.repeat(300) + '_monkey=3';
+    assert.equal(redactText(input), input);
+  });
+
+  it('stays under 250 ms on 16 KB behind a long prefix and a run of equals', () => {
+    for (const input of ['a'.repeat(16000) + '_monkey=3', 'a'.repeat(16000) + '_password=hunter2abc', 'password' + '='.repeat(16000) + 'x']) {
+      const started = performance.now();
+      redactText(input);
+      assert.ok(performance.now() - started < 250);
+    }
+  });
+});
