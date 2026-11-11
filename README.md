@@ -216,7 +216,15 @@ pnpm --filter @stashden/web build   --define STASHDEN_API_URL="'https://api.exam
 to (Grafana Faro). It is empty by default, which keeps telemetry off: nothing is sent unless you
 build with a URL, for example `--define STASHDEN_TELEMETRY_URL="'https://rum.example.com/collect'"`.
 The container image takes it as the `STASHDEN_TELEMETRY_URL` build argument and the published image
-sets none. URLs, query strings and anything that looks like a credential are redacted before
+sets none. The marketing site is built the same way and no deploy path sets the URL for it, so it
+reports nothing unless you build it with one:
+
+```bash
+pnpm --filter @stashden/site build --define STASHDEN_TELEMETRY_URL="'https://rum.example.com/collect'"
+```
+
+The redaction and the error handler live in `packages/telemetry`, shared by both apps, and
+`pnpm test` runs its tests. URLs, query strings and anything that looks like a credential are redacted before
 sending, and browsers that send Global Privacy Control or Do Not Track never report.
 
 If you deploy a modified Stashden, point the source URL at your fork: the AGPL requires you to
