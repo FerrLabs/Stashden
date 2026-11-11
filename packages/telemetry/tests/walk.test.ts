@@ -697,3 +697,28 @@ describe('secret reachability across shared containers', () => {
     });
   }
 });
+
+describe('field names v6.43', () => {
+  const payloadOf = (payload: object): Record<string, unknown> => {
+    const out = sanitizeItem({ type: 'log', meta: {}, payload } as unknown as TransportItem);
+    return (out as unknown as { payload: Record<string, unknown> }).payload;
+  };
+
+  for (const name of ['auth_request_state', 'oauth_client_state', 'api_key_code', 'orderState', 'x_keycode', 'cosmosPrimaryKey', 'storageAccountPrimaryKey', 'searchAdminQueryKey', 'cosmos_primary_key']) {
+    it(`masks the field ${name}`, () => {
+      assert.deepEqual(payloadOf({ [name]: 'SECRET99' }), { [name]: '*' });
+    });
+  }
+
+  for (const name of ['primaryKey', 'primary_key', 'db.primaryKey', 'queryKey', 'keyCode', 'key_code', 'readyState', 'game_state']) {
+    it(`keeps the field ${name}`, () => {
+      assert.deepEqual(payloadOf({ [name]: 'ok' }), { [name]: 'ok' });
+    });
+  }
+
+  it('keeps a primaryKey nested under a plain parent', () => {
+    assert.deepEqual(payloadOf({ db: { primaryKey: 'ok', queryKey: 'ok' } }), {
+      db: { primaryKey: 'ok', queryKey: 'ok' },
+    });
+  });
+});

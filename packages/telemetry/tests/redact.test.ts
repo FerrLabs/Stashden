@@ -371,3 +371,49 @@ describe('redactText v6.41 chained values, slashed passwords and non-ASCII space
     }
   });
 });
+
+describe('redactText v6.43 primary and query keys, narrowed state words', () => {
+  const masked: ReadonlyArray<readonly [string, string]> = [
+  ['auth_request_state=SECRET99', 'auth_request_state=*'],
+  ['oauth_client_state=SECRET99', 'oauth_client_state=*'],
+  ['api_key_code=SECRET99', 'api_key_code=*'],
+  ['orderState=paid', 'orderState=*'],
+  ['x_keycode=1', 'x_keycode=*'],
+  ['cosmosPrimaryKey=SECRET99', 'cosmosPrimaryKey=*'],
+  ['storageAccountPrimaryKey: SECRET99', 'storageAccountPrimaryKey: *'],
+  ['searchAdminQueryKey=SECRET99', 'searchAdminQueryKey=*'],
+  ['cosmos_primary_key=SECRET99', 'cosmos_primary_key=*'],
+  ['email=a@b.com', '*'],
+  ];
+  const kept: readonly string[] = [
+  'keyCode=13',
+  'key_code=13',
+  'readyState=complete',
+  'game_state=lobby',
+  ];
+
+  for (const [input, expected] of masked) {
+    it(`masks ${JSON.stringify(input)} as ${JSON.stringify(expected)}`, () => {
+      assert.equal(redactText(input), expected);
+    });
+  }
+
+  for (const input of kept) {
+    it(`keeps ${JSON.stringify(input)}`, () => {
+      assert.equal(redactText(input), input);
+    });
+  }
+
+  it('drops the password of a host-relative userinfo with a query', () => {
+    assert.ok(!redactText('//host:abc/path?email=a@b.com').includes('abc'));
+  });
+
+  for (const unit of ['x_request_state=', 'cosmosPrimaryKey=', 'x_client_state=', 'x_keycode=']) {
+    it(`stays under 250 ms on 16 KB of ${unit}`, () => {
+      const input = unit.repeat(Math.ceil(16384 / unit.length));
+      const started = performance.now();
+      redactText(input);
+      assert.ok(performance.now() - started < 250);
+    });
+  }
+});
