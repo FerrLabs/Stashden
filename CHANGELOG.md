@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.55.2] - 2026-11-11
+
+### Bug Fixes
+
+- fix(desktop): load the key script from the workflow commit, not the tag (#440)
+
 ## [0.55.1] - 2026-11-10
 
 ### Bug Fixes
