@@ -327,3 +327,47 @@ describe('redactText doubled equals and long or punctuated prefixes', () => {
     }
   });
 });
+
+describe('redactText v6.41 chained values, slashed passwords and non-ASCII spaces', () => {
+  const exact: ReadonlyArray<readonly [string, string]> = [
+    ['client_secret: monkeySecret=\nfoo=1', 'client_secret: *'],
+    ['Error key: key: \n"Token X" end', 'Error key: * end'],
+    ['DATABASE_URL=postgres://app:pa/ss#1@db.internal:5432/app', 'DATABASE_URL=postgres://db.internal:5432/app'],
+    ['redis://default:ab/cd?ef@cache:6379/0', 'redis://cache:6379/0'],
+    ['https://u:123?x@h.com/a', 'https://u:123'],
+    ['password: correct horse', 'password: *'],
+    ['password=correct horse', 'password=*'],
+    ['password=a"b"c"d"e"f"g"h"hunter2abc', 'password=*'],
+    ['pwd=^""""\'\'\'\'k', 'pwd=*'],
+    ['auth=&""\'\'\'\'""\'', 'auth=*'],
+  ];
+
+  for (const [input, expected] of exact) {
+    it(`turns ${JSON.stringify(input)} into ${JSON.stringify(expected)}`, () => {
+      assert.equal(redactText(input), expected);
+    });
+  }
+
+  for (const input of ['password=a"b"c"d"e"f"g"h"hunter2abc', 'pwd=^""""\'\'\'\'k', 'auth=&""\'\'\'\'""\'']) {
+    it(`is idempotent on ${JSON.stringify(input)}`, () => {
+      assert.equal(redactText(redactText(input)), redactText(input));
+    });
+  }
+
+  for (let code = 0x2000; code <= 0x200a; code++) {
+    const space = String.fromCharCode(code);
+    it(`masks a value split by U+${code.toString(16).toUpperCase()}`, () => {
+      assert.equal(redactText(`password: correct${space}horse`), 'password: *');
+      assert.equal(redactText(`password=correct${space}horse`), 'password=*');
+    });
+  }
+
+  it('stays under 250 ms on unbalanced brackets', () => {
+    for (const input of ['x['.repeat(8000), 'a]'.repeat(8000)]) {
+      const started = performance.now();
+      redactText(input);
+      const elapsed = performance.now() - started;
+      assert.ok(elapsed < 250, `${input.slice(0, 6)} took ${elapsed.toFixed(0)} ms`);
+    }
+  });
+});

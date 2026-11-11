@@ -29,7 +29,10 @@ function opensSecretScope(field: string): boolean {
 
 function maskedCopy(copy: unknown[] | Record<string, unknown>, masked: unknown): unknown {
   if (Array.isArray(copy)) copy.splice(0, copy.length, ...(masked as unknown[]));
-  else for (const key of Object.keys(copy)) defineEntry(copy, key, (masked as Record<string, unknown>)[key]);
+  else {
+    for (const key of Object.keys(copy)) delete copy[key];
+    for (const [key, entry] of Object.entries(masked as Record<string, unknown>)) defineEntry(copy, key, entry);
+  }
   return copy;
 }
 
@@ -56,7 +59,7 @@ export function redactDeep(value: unknown, redactString: StringRedactor = redact
   const taken = new Set<string>();
   for (const [key, entry] of Object.entries(value)) {
     const entryKey = inSecret ? field : key;
-    const base = redactText(key);
+    const base = inSecret ? MASK : redactText(key);
     let target = base;
     for (let n = 2; taken.has(target); n++) target = `${base}#${n}`;
     taken.add(target);

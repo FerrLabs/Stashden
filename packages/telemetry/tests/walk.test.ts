@@ -23,7 +23,7 @@ describe('redactDeep', () => {
 
   it('masks every leaf under a sensitive key including numbers', () => {
     assert.deepEqual(redactDeep({ token: { value: 'x', note: 'password=abc12345' } }), {
-      token: { value: '*', note: '*' },
+      token: { '*': '*', '*#2': '*' },
     });
     assert.deepEqual(redactDeep({ key: 42 }), { key: '*' });
   });
@@ -34,7 +34,7 @@ describe('redactDeep', () => {
     assert.deepEqual(redactDeep({ sessionId: 123456789n }), { sessionId: '*' });
     assert.deepEqual(redactDeep({ token: ['abc123def', 5, 7n, ['nested']] }), { token: ['*', '*', '*', ['*']] });
     assert.deepEqual(redactDeep({ apiKey: ['k1', { note: 'x', url: 'https://a.test/x?code=abc' }] }), {
-      apiKey: ['*', { note: '*', url: '*' }],
+      apiKey: ['*', { '*': '*', '*#2': '*' }],
     });
     assert.deepEqual(redactDeep({ list: ['plain'] }), { list: ['plain'] });
   });
@@ -161,7 +161,8 @@ describe('aliased containers and metric fields', () => {
     const loop: Record<string, unknown> = { note: 'x', password: 'hunter2' };
     loop['self'] = loop;
     const { payload } = run({}, { token: loop });
-    assert.deepEqual((payload['token'] as Record<string, unknown>)['password'], '*');
+    assert.deepEqual(Object.values(payload['token'] as Record<string, unknown>).slice(0, 2), ['*', '*']);
+    assert.ok(!Object.keys(payload['token'] as object).includes('password'));
   });
 
   it('terminates on a self-referencing array under a secret field', () => {
@@ -296,7 +297,7 @@ describe('secret subtrees, metric names and key normalization', () => {
 
   it('keeps shape, booleans and null under a secret field and leaves other fields alone', () => {
     assert.deepEqual(redactDeep({ password: { enabled: true, value: null, deep: { ok: false, v: 'x' } } }), {
-      password: { enabled: true, value: null, deep: { ok: false, v: '*' } },
+      password: { '*': true, '*#2': null, '*#3': { '*': false, '*#2': '*' } },
     });
     assert.deepEqual(redactDeep({ settings: { theme: 'dark' } }), { settings: { theme: 'dark' } });
   });
@@ -460,10 +461,13 @@ describe('sanitizeItem copies and the Faro session meta', () => {
     loop['password'] = loop;
     loop['note'] = 'hunter2SECRETzq';
     const { payload } = run({}, { loop });
-    assert.equal(payload['loop']['note'], '*');
+    assert.ok(!Object.keys(payload['loop']).includes('note'));
+    assert.ok(!Object.values(payload['loop']).includes('hunter2SECRETzq'));
     const reversed: Record<string, unknown> = { note: 'hunter2SECRETzq' };
     reversed['password'] = reversed;
-    assert.equal(run({}, { reversed }).payload['reversed']['note'], '*');
+    const reversedOut = run({}, { reversed }).payload['reversed'];
+    assert.ok(!Object.keys(reversedOut).includes('note'));
+    assert.ok(!Object.values(reversedOut).includes('hunter2SECRETzq'));
   });
 
   it('keeps token counts and masks bare tokens', () => {
@@ -471,5 +475,58 @@ describe('sanitizeItem copies and the Faro session meta', () => {
     assert.deepEqual(payload['usage'], { inputTokens: 12, max_tokens: 100, total_tokens: 7, OUTPUT_TOKENS: 3, 'prompt-tokens': 5 });
     assert.deepEqual(payload['tokens'], ['*']);
     assert.equal(payload['token'], '*');
+  });
+});
+
+describe('keys under secret fields v6.41', () => {
+  const marker = 'ghp_Zq9realTokenValue';
+  const payloadOf = (payload: object): Record<string, any> => (sanitizeItem({ type: 'log', meta: {}, payload } as never) as unknown as { payload: Record<string, any> }).payload;
+
+  it('masks keys and leaves under a secret field', () => {
+    const out = payloadOf({ token: { [marker]: { a: 1 } } });
+    assert.deepEqual(out, { token: { '*': { '*': '*' } } });
+    assert.ok(!JSON.stringify(out).includes(marker));
+  });
+
+  it('keeps colliding masked keys apart', () => {
+    assert.deepEqual(payloadOf({ secret: { aaa: 'x', bbb: 'y' } }), { secret: { '*': '*', '*#2': '*' } });
+  });
+
+  it('keeps null and booleans under a secret subtree', () => {
+    assert.deepEqual(payloadOf({ password: { enabled: true, off: false, value: null } }), { password: { '*': true, '*#2': false, '*#3': null } });
+  });
+
+  it('leaves keys outside secret subtrees unchanged', () => {
+    assert.deepEqual(payloadOf({ settings: { theme: 'dark', nested: { size: 'big' } } }), { settings: { theme: 'dark', nested: { size: 'big' } } });
+  });
+
+  it('masks keys and leaves of a cyclic secret subtree and does not mutate it', () => {
+    const loop: Record<string, unknown> = {};
+    loop['password'] = loop;
+    loop[marker] = marker;
+    const keysBefore = Object.keys(loop);
+    const out = payloadOf({ loop });
+    const seen = new Set<unknown>();
+    const strings: string[] = [];
+    const collect = (value: unknown): void => {
+      if (typeof value === 'string') strings.push(value);
+      if (typeof value !== 'object' || value === null || seen.has(value)) return;
+      seen.add(value);
+      for (const [key, inner] of Object.entries(value)) {
+        strings.push(key);
+        collect(inner);
+      }
+    };
+    collect(out);
+    assert.ok(!strings.some((text) => text.includes(marker)));
+    assert.deepEqual(Object.keys(loop), keysBefore);
+    assert.equal(loop[marker], marker);
+  });
+
+  it('does not mutate the input', () => {
+    const payload = { token: { [marker]: { a: 1 } }, keep: { x: 'y' } };
+    const before = structuredClone(payload);
+    payloadOf(payload);
+    assert.deepEqual(payload, before);
   });
 });
