@@ -372,7 +372,7 @@ describe('redactText v6.41 chained values, slashed passwords and non-ASCII space
   });
 });
 
-describe('redactText v6.43 primary and query keys, narrowed state words', () => {
+describe('redactText primary and query keys, narrowed state words', () => {
   const masked: ReadonlyArray<readonly [string, string]> = [
   ['auth_request_state=SECRET99', 'auth_request_state=*'],
   ['oauth_client_state=SECRET99', 'oauth_client_state=*'],

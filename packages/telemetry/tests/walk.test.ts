@@ -698,7 +698,7 @@ describe('secret reachability across shared containers', () => {
   }
 });
 
-describe('field names v6.43', () => {
+describe('field names: primary and query keys, narrowed state words', () => {
   const payloadOf = (payload: object): Record<string, unknown> => {
     const out = sanitizeItem({ type: 'log', meta: {}, payload } as unknown as TransportItem);
     return (out as unknown as { payload: Record<string, unknown> }).payload;
