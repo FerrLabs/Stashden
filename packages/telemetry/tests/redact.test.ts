@@ -198,7 +198,7 @@ describe('redactText bracketed keys, multi-chunk quotes and whitespace runs', ()
   }
 });
 
-describe('redactText v6.34', () => {
+describe('redactText', () => {
   const leaks: ReadonlyArray<readonly [string, string]> = [
     ['email_verification_code=834201', '834201'],
     ['user_mfa_code=834201', '834201'],
@@ -241,7 +241,7 @@ describe('redactText v6.34', () => {
   }
 });
 
-describe('redactText v6.35', () => {
+describe('redactText', () => {
   const leaks: ReadonlyArray<readonly [string, string]> = [
     ['session_state=abc123', 'abc123'],
     ['relay_state=abc123', 'abc123'],
@@ -328,7 +328,7 @@ describe('redactText doubled equals and long or punctuated prefixes', () => {
   });
 });
 
-describe('redactText v6.41 chained values, slashed passwords and non-ASCII spaces', () => {
+describe('redactText chained values, slashed passwords and non-ASCII spaces', () => {
   const exact: ReadonlyArray<readonly [string, string]> = [
     ['client_secret: monkeySecret=\nfoo=1', 'client_secret: *'],
     ['Error key: key: \n"Token X" end', 'Error key: * end'],
@@ -418,7 +418,7 @@ describe('redactText primary and query keys, narrowed state words', () => {
   }
 });
 
-describe('bearer tail stops before a following secret key v6.44', () => {
+describe('bearer tail stops before a following secret key', () => {
   const rows: ReadonlyArray<readonly [string, string]> = [
     [
       'Authorization: Bearer abcdefgh&user=passwd: ZqSECRET9',
@@ -445,7 +445,7 @@ describe('bearer tail stops before a following secret key v6.44', () => {
   }
 });
 
-describe('secret words deep inside long keys v6.45', () => {
+describe('secret words deep inside long keys', () => {
   const rows: ReadonlyArray<readonly [string, string]> = [
     ['b'.repeat(100) + 'Password=hunter2', 'b'.repeat(100) + 'Password=*'],
     ['x_' + 'c'.repeat(100) + 'Token: abc', 'x_' + 'c'.repeat(100) + 'Token: *'],

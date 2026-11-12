@@ -327,7 +327,7 @@ describe('secret subtrees, metric names and key normalization', () => {
       assert.equal(isSecretName(key), true, key);
   });
 });
-describe('redactText v6.37 code and state keys', () => {
+describe('redactText code and state keys', () => {
   const masked: ReadonlyArray<readonly [string, string]> = [
     ['otp_code: 834201 sent', 'otp_code: *'],
     ['{"mfa_code": "834201"}', '{"mfa_code": *}'],
@@ -365,7 +365,7 @@ describe('redactText v6.37 code and state keys', () => {
   });
 });
 
-describe('spaced field names v6.37', () => {
+describe('spaced field names', () => {
   it('masks benign-looking prefixes before a secret word', () => {
     assert.deepEqual(
       redactDeep({
@@ -479,7 +479,7 @@ describe('sanitizeItem copies and the Faro session meta', () => {
   });
 });
 
-describe('keys under secret fields v6.41', () => {
+describe('keys under secret fields', () => {
   const marker = 'ghp_Zq9realTokenValue';
   const payloadOf = (payload: object): Record<string, any> => (sanitizeItem({ type: 'log', meta: {}, payload } as never) as unknown as { payload: Record<string, any> }).payload;
 
@@ -723,7 +723,7 @@ describe('field names: primary and query keys, narrowed state words', () => {
   });
 });
 
-describe('field names: group, object and lookup keys v6.46', () => {
+describe('field names: group, object and lookup keys', () => {
   const payloadOf = (payload: object): Record<string, unknown> => {
     const out = sanitizeItem({ type: 'log', meta: {}, payload } as unknown as TransportItem);
     return (out as unknown as { payload: Record<string, unknown> }).payload;
