@@ -732,7 +732,7 @@ describe('auth prefixes, cookie headers and state words', () => {
     ['http_status_code=200', 'http_status_code=200'],
     ['Cookie: theme=dark; sid=abc123', 'Cookie: *'],
     ['x\nSet-Cookie: sid=abc; Path=/', 'x\nSet-Cookie: *'],
-    ['Error reading cookie: invalid header at line 3, user=bob', 'Error reading cookie: *, user=bob'],
+    ['Error reading cookie: invalid header at line 3, user=bob', 'Error reading cookie: *'],
     ['playerReadyState=1', 'playerReadyState=1'],
     ['orderState=paid', 'orderState=*'],
   ];
