@@ -110,7 +110,7 @@ function newWalk(meta: unknown, payload: unknown): Walk {
 function redactWalk(value: unknown, redactString: StringRedactor, walk: Walk): unknown {
   if (typeof value === 'string') return redactString(value);
   if (value === null || typeof value !== 'object') return value;
-  if (!isTraversable(walk, value)) return redactString(String(value));
+  if (!isTraversable(walk, value)) return value instanceof Date ? value : redactString(String(value));
   const known = walk.copies.get(value);
   if (known !== undefined) return known;
   const inSecret = walk.secret.has(value);

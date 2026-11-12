@@ -881,3 +881,21 @@ describe('meta.session exemption', () => {
     assert.ok(!JSON.stringify(metaOf([SECRET])).includes(SECRET));
   });
 });
+
+describe('Date and Map values under plain and secret keys', () => {
+  it('keeps a Date under a plain key as its ISO string and masks a Map under a secret key', () => {
+    const out = sanitizeItem({
+      type: 'log',
+      meta: {},
+      payload: {
+        when: new Date('2026-01-02T03:04:05.000Z'),
+        password: new Map([['a', 'hunter2SECRETzq']]),
+      },
+    } as unknown as TransportItem);
+    assert.ok(out);
+    assert.equal(
+      JSON.stringify((out as unknown as { payload: unknown }).payload),
+      '{"when":"2026-01-02T03:04:05.000Z","password":"*"}',
+    );
+  });
+});
