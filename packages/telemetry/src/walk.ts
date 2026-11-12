@@ -14,9 +14,32 @@ function defineEntry(target: Record<string, unknown>, key: string, value: unknow
 
 const SESSION_FIELD = /^session$/i;
 
-interface Walk {
+type Entry = readonly [string, unknown];
+
+interface Snapshot {
+  readonly elements: WeakMap<readonly unknown[], readonly unknown[]>;
+  readonly entries: WeakMap<object, readonly Entry[]>;
+}
+
+interface Walk extends Snapshot {
   readonly secret: WeakSet<object>;
   readonly copies: WeakMap<object, unknown>;
+}
+
+function elementsOf(snapshot: Snapshot, array: readonly unknown[]): readonly unknown[] {
+  const known = snapshot.elements.get(array);
+  if (known !== undefined) return known;
+  const taken = Array.from(array);
+  snapshot.elements.set(array, taken);
+  return taken;
+}
+
+function entriesOf(snapshot: Snapshot, container: object): readonly Entry[] {
+  const known = snapshot.entries.get(container);
+  if (known !== undefined) return known;
+  const taken = Object.entries(container);
+  snapshot.entries.set(container, taken);
+  return taken;
 }
 
 function isPlainObject(value: object): boolean {
@@ -28,20 +51,25 @@ function isTraversable(value: object): boolean {
   return Array.isArray(value) || isPlainObject(value);
 }
 
-function collectSecretContainers(meta: unknown, payload: unknown): WeakSet<object> {
+function collectSecretContainers(
+  meta: unknown,
+  payload: unknown,
+  snapshot: Snapshot,
+): WeakSet<object> {
   const secret = new WeakSet<object>();
   const seenPlain = new WeakSet<object>();
-  const visit = (value: unknown, inSecret: boolean, isMeta = false): void => {
+  const seenMetaRoot = new WeakSet<object>();
+  const visit = (value: unknown, inSecret: boolean, isMetaRoot = false): void => {
     if (value === null || typeof value !== 'object' || !isTraversable(value)) return;
-    const seen = inSecret ? secret : seenPlain;
+    const seen = inSecret ? secret : isMetaRoot ? seenMetaRoot : seenPlain;
     if (seen.has(value)) return;
     seen.add(value);
     if (Array.isArray(value)) {
-      for (const entry of value) visit(entry, inSecret);
+      for (const entry of elementsOf(snapshot, value)) visit(entry, inSecret);
       return;
     }
-    for (const [key, entry] of Object.entries(value)) {
-      const exempt = isMeta && SESSION_FIELD.test(key) && !Array.isArray(entry);
+    for (const [key, entry] of entriesOf(snapshot, value)) {
+      const exempt = isMetaRoot && SESSION_FIELD.test(key) && !Array.isArray(entry);
       visit(entry, inSecret || (isSecretName(key) && !exempt));
     }
   };
@@ -51,7 +79,12 @@ function collectSecretContainers(meta: unknown, payload: unknown): WeakSet<objec
 }
 
 function newWalk(meta: unknown, payload: unknown): Walk {
-  return { secret: collectSecretContainers(meta, payload), copies: new WeakMap() };
+  const snapshot: Snapshot = { elements: new WeakMap(), entries: new WeakMap() };
+  return {
+    ...snapshot,
+    secret: collectSecretContainers(meta, payload, snapshot),
+    copies: new WeakMap(),
+  };
 }
 
 function redactWalk(value: unknown, redactString: StringRedactor, walk: Walk): unknown {
@@ -64,13 +97,13 @@ function redactWalk(value: unknown, redactString: StringRedactor, walk: Walk): u
   if (Array.isArray(value)) {
     const copy: unknown[] = [];
     walk.copies.set(value, copy);
-    for (const entry of value) copy.push(inSecret && isSecretValue(entry) ? MASK : redactWalk(entry, redactString, walk));
+    for (const entry of elementsOf(walk, value)) copy.push(inSecret && isSecretValue(entry) ? MASK : redactWalk(entry, redactString, walk));
     return copy;
   }
   const copy: Record<string, unknown> = {};
   walk.copies.set(value, copy);
   const taken = new Set<string>();
-  for (const [key, entry] of Object.entries(value)) {
+  for (const [key, entry] of entriesOf(walk, value)) {
     const base = inSecret ? MASK : redactText(key);
     let target = base;
     for (let n = 2; taken.has(target); n++) target = `${base}#${n}`;
@@ -88,11 +121,12 @@ export function redactDeep(value: unknown, redactString: StringRedactor = redact
 export function sanitizeItem(item: TransportItem, options: SanitizeOptions = {}): TransportItem | null {
   const { redactString = redactText, redactPageUrl } = options;
   try {
-    const walk = newWalk(item.meta, item.payload);
-    const meta = redactWalk(item.meta, redactString, walk) as TransportItem['meta'];
-    const pageUrl = item.meta.page?.url;
+    const { meta: itemMeta, payload: itemPayload } = item;
+    const walk = newWalk(itemMeta, itemPayload);
+    const meta = redactWalk(itemMeta, redactString, walk) as TransportItem['meta'];
+    const pageUrl = itemMeta.page?.url;
     if (pageUrl !== undefined && redactPageUrl) meta.page = { ...meta.page, url: redactPageUrl(pageUrl) };
-    return { ...item, meta, payload: redactWalk(item.payload, redactString, walk) as TransportItem['payload'] };
+    return { ...item, meta, payload: redactWalk(itemPayload, redactString, walk) as TransportItem['payload'] };
   } catch {
     return null;
   }
