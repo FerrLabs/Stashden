@@ -5,6 +5,28 @@ import { describe, it } from 'node:test';
 import type { TransportItem } from '@grafana/faro-web-sdk';
 import { redactDeep, sanitizeItem } from '../src/walk.ts';
 
+const MARKER = 'hunter2SECRETzq';
+
+function sanitized(payload: unknown, meta: object = {}): unknown {
+  const out = sanitizeItem({ type: 'log', meta, payload } as unknown as TransportItem);
+  assert.ok(out);
+  return out;
+}
+
+function payloadOf(payload: object): Record<string, unknown> {
+  return (sanitized(payload) as { payload: Record<string, unknown> }).payload;
+}
+
+function containsMarker(value: unknown, seen = new WeakSet<object>()): boolean {
+  if (typeof value === 'string') return value.includes(MARKER);
+  if (value === null || typeof value !== 'object') return false;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  return Object.entries(value).some(
+    ([key, entry]) => key.includes(MARKER) || containsMarker(entry, seen),
+  );
+}
+
 describe('redactDeep', () => {
   it('masks a string field named like a secret', () => {
     assert.deepEqual(redactDeep({ token: 'abc123def' }), { token: '*' });
@@ -196,7 +218,6 @@ describe('walk keys, non-plain values and metric names', () => {
     assert.ok(out);
     return out as unknown as { meta: Record<string, unknown>; payload: Record<string, unknown> };
   };
-  const payloadOf = (payload: object): Record<string, unknown> => run({}, payload).payload;
 
   it('masks numbers in an array reached under a metric-named secret field, in either order', () => {
     const pins = [4829];
@@ -481,7 +502,6 @@ describe('sanitizeItem copies and the Faro session meta', () => {
 
 describe('keys under secret fields', () => {
   const marker = 'ghp_Zq9realTokenValue';
-  const payloadOf = (payload: object): Record<string, any> => (sanitizeItem({ type: 'log', meta: {}, payload } as never) as unknown as { payload: Record<string, any> }).payload;
 
   it('masks keys and leaves under a secret field', () => {
     const out = payloadOf({ token: { [marker]: { a: 1 } } });
@@ -569,8 +589,6 @@ describe('credential hosts, cookies, bearer chains and code words', () => {
 });
 
 describe('secret reachability does not depend on key order', () => {
-  const MARKER = 'hunter2SECRETzq';
-
   interface Walked {
     meta: { session?: unknown };
     payload: {
@@ -586,16 +604,6 @@ describe('secret reachability does not depend on key order', () => {
     const out = sanitizeItem({ type: 'log', meta, payload } as unknown as TransportItem);
     assert.ok(out);
     return out as unknown as Walked;
-  }
-
-  function containsMarker(value: unknown, seen = new WeakSet<object>()): boolean {
-    if (typeof value === 'string') return value.includes(MARKER);
-    if (value === null || typeof value !== 'object') return false;
-    if (seen.has(value)) return false;
-    seen.add(value);
-    return Object.entries(value).some(
-      ([key, entry]) => key.includes(MARKER) || containsMarker(entry, seen),
-    );
   }
 
   for (const keys of [
@@ -669,24 +677,6 @@ describe('secret reachability does not depend on key order', () => {
 });
 
 describe('secret reachability across shared containers', () => {
-  const MARKER = 'hunter2SECRETzq';
-
-  function containsMarker(value: unknown, seen = new WeakSet<object>()): boolean {
-    if (typeof value === 'string') return value.includes(MARKER);
-    if (value === null || typeof value !== 'object') return false;
-    if (seen.has(value)) return false;
-    seen.add(value);
-    return Object.entries(value).some(
-      ([key, entry]) => key.includes(MARKER) || containsMarker(entry, seen),
-    );
-  }
-
-  function sanitized(payload: object, meta: object = {}): unknown {
-    const out = sanitizeItem({ type: 'log', meta, payload } as unknown as TransportItem);
-    assert.ok(out);
-    return out;
-  }
-
   for (const order of ['secret first', 'plain first']) {
     it(`masks a cycle that reaches itself through a plain key and a secret subtree, ${order}`, () => {
       const node: { note: string; password?: unknown } = { note: MARKER };
@@ -699,11 +689,6 @@ describe('secret reachability across shared containers', () => {
 });
 
 describe('field names: primary and query keys, narrowed state words', () => {
-  const payloadOf = (payload: object): Record<string, unknown> => {
-    const out = sanitizeItem({ type: 'log', meta: {}, payload } as unknown as TransportItem);
-    return (out as unknown as { payload: Record<string, unknown> }).payload;
-  };
-
   for (const name of ['auth_request_state', 'oauth_client_state', 'api_key_code', 'orderState', 'x_keycode', 'cosmosPrimaryKey', 'storageAccountPrimaryKey', 'searchAdminQueryKey', 'cosmos_primary_key']) {
     it(`masks the field ${name}`, () => {
       assert.deepEqual(payloadOf({ [name]: 'SECRET99' }), { [name]: '*' });
@@ -724,11 +709,6 @@ describe('field names: primary and query keys, narrowed state words', () => {
 });
 
 describe('field names: group, object and lookup keys', () => {
-  const payloadOf = (payload: object): Record<string, unknown> => {
-    const out = sanitizeItem({ type: 'log', meta: {}, payload } as unknown as TransportItem);
-    return (out as unknown as { payload: Record<string, unknown> }).payload;
-  };
-
   for (const name of ['wpaGroupKey', 'mlsGroupKey', 's3ObjectKey']) {
     it(`masks the field ${name}`, () => {
       assert.deepEqual(payloadOf({ [name]: 'SECRET99' }), { [name]: '*' });
@@ -771,31 +751,13 @@ describe('auth prefixes, cookie headers and state words', () => {
 });
 
 describe('each property is read once', () => {
-  const MARKER = 'hunter2SECRETzq';
-
-  function walked(payload: unknown, meta: object = {}): unknown {
-    const out = sanitizeItem({ type: 'log', meta, payload } as unknown as TransportItem);
-    assert.ok(out);
-    return out;
-  }
-
-  function containsMarker(value: unknown, seen = new WeakSet<object>()): boolean {
-    if (typeof value === 'string') return value.includes(MARKER);
-    if (value === null || typeof value !== 'object') return false;
-    if (seen.has(value)) return false;
-    seen.add(value);
-    return Object.entries(value).some(
-      ([key, entry]) => key.includes(MARKER) || containsMarker(entry, seen),
-    );
-  }
-
   it('masks an object returned by a getter under a secret key', () => {
     const payload = {
       get password() {
         return { value: MARKER };
       },
     };
-    assert.equal(containsMarker(walked(payload)), false);
+    assert.equal(containsMarker(sanitized(payload)), false);
   });
 
   it('masks an array returned by a getter under a secret key', () => {
@@ -803,7 +765,7 @@ describe('each property is read once', () => {
       enumerable: true,
       get: () => [{ v: MARKER }],
     });
-    assert.equal(containsMarker(walked(payload)), false);
+    assert.equal(containsMarker(sanitized(payload)), false);
   });
 
   it('masks fresh objects returned by a proxy under a secret key', () => {
@@ -812,34 +774,34 @@ describe('each property is read once', () => {
       { password: inner },
       { get: (target, key) => (key === 'password' ? { ...inner } : Reflect.get(target, key)) },
     );
-    assert.equal(containsMarker(walked(payload)), false);
+    assert.equal(containsMarker(sanitized(payload)), false);
   });
 
   it('masks a container reached through child.password back to itself', () => {
     const root: { child: { password?: unknown }; note: string } = { child: {}, note: MARKER };
     root.child.password = root;
-    assert.equal(containsMarker(walked(root)), false);
+    assert.equal(containsMarker(sanitized(root)), false);
   });
 
   const meta = (): { session: { id: string } } => ({ session: { id: MARKER } });
 
   it('masks meta.session when the payload is the meta object', () => {
     const shared = meta();
-    assert.equal(containsMarker(walked(shared, shared)), false);
+    assert.equal(containsMarker(sanitized(shared, shared)), false);
   });
 
   it('masks meta.session when the payload holds the meta object in a field', () => {
     const shared = meta();
-    assert.equal(containsMarker(walked({ ctx: shared }, shared)), false);
+    assert.equal(containsMarker(sanitized({ ctx: shared }, shared)), false);
   });
 
   it('masks meta.session when the payload holds the meta object in an array', () => {
     const shared = meta();
-    assert.equal(containsMarker(walked([shared], shared)), false);
+    assert.equal(containsMarker(sanitized([shared], shared)), false);
   });
 
   it('keeps meta.session when the payload does not reach it', () => {
-    const out = walked({}, { session: { id: 'sess-1' } }) as { meta: { session: unknown } };
+    const out = sanitized({}, { session: { id: 'sess-1' } }) as { meta: { session: unknown } };
     assert.deepEqual(out.meta.session, { id: 'sess-1' });
   });
 
@@ -873,4 +835,29 @@ describe('bearer tokens that start with a short chunk', () => {
       assert.equal(redactText(input), output);
     });
   }
+});
+
+describe('meta.session exemption', () => {
+  const SECRET = 'sess-secret-1';
+
+  function metaOf(session: unknown): { session: unknown } {
+    const out = sanitizeItem({ type: 'log', meta: { session }, payload: {} } as unknown as TransportItem);
+    return (out as unknown as { meta: { session: unknown } }).meta;
+  }
+
+  it('keeps a plain object under meta.session', () => {
+    assert.deepEqual(metaOf({ id: 'sess-1' }).session, { id: 'sess-1' });
+  });
+
+  it('masks a string under meta.session', () => {
+    assert.equal(metaOf(SECRET).session, '*');
+  });
+
+  it('masks a number under meta.session', () => {
+    assert.equal(metaOf(48291234).session, '*');
+  });
+
+  it('masks an array under meta.session', () => {
+    assert.ok(!JSON.stringify(metaOf([SECRET])).includes(SECRET));
+  });
 });

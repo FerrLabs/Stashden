@@ -47,6 +47,10 @@ function isPlainObject(value: object): boolean {
   return prototype === Object.prototype || prototype === null;
 }
 
+function isPlainRecord(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && isPlainObject(value);
+}
+
 function isTraversable(value: object): boolean {
   return Array.isArray(value) || isPlainObject(value);
 }
@@ -69,7 +73,7 @@ function collectSecretContainers(
       return;
     }
     for (const [key, entry] of entriesOf(snapshot, value)) {
-      const exempt = isMetaRoot && SESSION_FIELD.test(key) && !Array.isArray(entry);
+      const exempt = isMetaRoot && SESSION_FIELD.test(key) && isPlainRecord(entry);
       visit(entry, inSecret || (isSecretName(key) && !exempt));
     }
   };
