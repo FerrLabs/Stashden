@@ -13,7 +13,7 @@ const BENIGN_LONG = BENIGN.replaceAll('{0,63}', '{0,2047}').replaceAll('{0,64}',
 const CODE_WORDS = `[\\w.$[\\]-]{0,64}(?:code|state)[\\])}>]{0,4}`;
 const COLON_WORDS = `(?:${WORDS})`;
 const KEY_WORDS = `${BENIGN}(?:[\\w.$[\\]-]{0,64}(?:${WORDS})[\\])}>]{0,4}|${CODE_WORDS})`;
-const PARAM_KEYS = `\\b(?:(?=[\\w.]{65})${BENIGN_LONG}(?:[\\w.]{32}){2,64}?)?${BENIGN}(?:[\\w.[\\]-]{0,64}(?:${WORDS})[\\])}>]{0,4}|${CODE_WORDS})`;
+const PARAM_KEYS = `\\b(?:(?=[\\w.-]{65})${BENIGN_LONG}(?:[\\w.-]{32}){2,64}?)?${BENIGN}(?:[\\w.[\\]-]{0,64}(?:${WORDS})[\\])}>]{0,4}|${CODE_WORDS})`;
 const COLON_KEYS = `\\b(?:(?=\\w{65})${BENIGN_LONG}(?:\\w{32}){2,64}?)?${BENIGN}(?:[\\w[\\]-]{0,64}${COLON_WORDS}|[\\w[\\]-]{1,64}(?:code|state))[\\])}>]{0,4}`;
 const JWT = /\beyJ[\w-]*\.[\w-]+\.[\w-]*/g;
 const BASIC = /\b([Bb][Aa][Ss][Ii][Cc])\s+(?:(?:(?=[A-Za-z0-9+/]*[0-9A-Z+/])[A-Za-z0-9+/]{8,}|[A-Za-z0-9+/]{2,})={1,2}(?![\w+/=])|(?=[A-Za-z0-9+/]*[0-9+/])[A-Za-z0-9+/]{16,}(?![\w+/=])|(?=[A-Za-z0-9+/]*[0-9A-Z+/])[A-Za-z0-9+/]{8,}(?![\w+/:=]))(?:[,;](?![\w.$[\]-]+[ \t]*(?:=(?![=\s]|$)|:(?:[ \t]|$))|(?:[Bb][Aa][Ss][Ii][Cc]|[Bb][Ee][Aa][Rr][Ee][Rr]|[Tt][Oo][Kk][Ee][Nn]|[Dd][Ii][Gg][Ee][Ss][Tt])[ \t])[^\s,;"']+)*/g;
@@ -38,8 +38,9 @@ const BREAKS = `(?:\\r?\\n[ \\t]*(?![ \\t])){0,4}`;
 const TOKEN_CHARS = `(?:(?![&#|?{(\\[<]${KEY_AHEAD})[^\\s"',;:=\\\\])`;
 const BEARER_KEYED = `(?=${BENIGN}(?:[^\\s"',;:=\\\\]{0,64}(?:${WORDS})|${CODE_WORDS})\\\\{0,4}["']?[ \\t]*[:=])(?=(${TOKEN_CHARS}+))\\2\\\\{0,4}["']?[ \\t]*[:=]+[ \\t]*(?![ \\t])${BREAKS}(?:${SEGMENT})?`;
 const BEARER = new RegExp(`\\b(bearer)(?:\\s+bearer){0,3}\\s+(?:\\\\{0,4}["'][ \\t]*[\\w.$-]{0,64}\\\\{0,4}["']?[ \\t]*[:=][ \\t]*(?![ \\t])${BREAKS}(?:${SEGMENT})?|${QUOTED}|${BEARER_KEYED}|(?=(?:[^\\s"',;]|[,;](?![ \\t\\r\\n]|$|[\\w.$[\\]-]+[ \\t]*(?:=(?![=\\s]|$)|:(?:[ \\t]|$))|(?:basic|bearer|token|digest)[ \\t])){8})(?=((?:${TOKEN_CHARS}|[,;](?![ \\t\\r\\n]|$|[\\w.$[\\]-]+[ \\t]*(?:=(?![=\\s]|$)|:(?:[ \\t]|$))|(?:basic|bearer|token|digest)[ \\t])|\\\\(?!\\\\{0,3}["'])|[:=]+(?!${KEY_AHEAD}))+))\\3)`, 'gi');
-const YAML_BLOCK = new RegExp(`(^|[^ \\t\\r\\n])([ \\t]*)(${QUOTE}${COLON_KEYS}${QUOTE}[ \\t]*:[ \\t]*)[|>][-+1-9]{0,2}[ \\t]*(?:#[^\\r\\n]*)?((?:\\r?\\n(?:[ \\t]*(?=\\r?\\n|$)|\\2[ \\t]+[^\\r\\n]*))+)`, 'gim');
-const YAML_LIST_BLOCK = new RegExp(`(^|[^ \\t\\r\\n])([ \\t]*)(-[ \\t]+${QUOTE}${COLON_KEYS}${QUOTE}[ \\t]*:[ \\t]*)[|>][-+1-9]{0,2}[ \\t]*(?:#[^\\r\\n]*)?((?:\\r?\\n(?:[ \\t]*(?=\\r?\\n|$)|\\2[ \\t]{3,}[^\\r\\n]*))+)`, 'gim');
+const YAML_BLOCK = new RegExp(`(^)([ \\t]*)(${QUOTE}${COLON_KEYS}${QUOTE}[ \\t]*:[ \\t]*)[|>][-+1-9]{0,2}[ \\t]*(?:#[^\\r\\n]*)?((?:\\r?\\n(?:[ \\t]*(?=\\r?\\n|$)|\\2[ \\t]+[^\\r\\n]*))+)`, 'gim');
+const YAML_INLINE_BLOCK = new RegExp(`([^ \\t\\r\\n])([ \\t]+)((?:-[ \\t]+)?${QUOTE}${COLON_KEYS}${QUOTE}[ \\t]*:[ \\t]*)[|>][-+1-9]{0,2}[ \\t]*(?:#[^\\r\\n]*)?((?:\\r?\\n(?:[ \\t]*(?=\\r?\\n|$)|[ \\t]+[^\\r\\n]*))+)`, 'gi');
+const YAML_LIST_BLOCK = new RegExp(`(^)([ \\t]*)(-[ \\t]+${QUOTE}${COLON_KEYS}${QUOTE}[ \\t]*:[ \\t]*)[|>][-+1-9]{0,2}[ \\t]*(?:#[^\\r\\n]*)?((?:\\r?\\n(?:[ \\t]*(?=\\r?\\n|$)|\\2[ \\t]{3,}[^\\r\\n]*))+)`, 'gim');
 const SENSITIVE_COLON = new RegExp(`(${QUOTE}${COLON_KEYS}${QUOTE}[ \\t]*:[ \\t]*(?![ \\t])${BREAKS})(?!bearer(?:[ \\t]+\\*|$))(?!\\*[}\\]>)]*(?:[\\s,;"']|$))(?:(?:${KEY_AHEAD}[ \\t]*(?![ \\t])${BREAKS})+(?:${SEGMENT})?|${SEGMENT})`, 'gi');
 const SENSITIVE_QUERY_PARAM = new RegExp(`([?#](?:[^\\s?#]{0,512}?[&;])?${QUOTE}${PARAM_KEYS}${QUOTE}\\s*=(?!=(?:[\\s=]|$))=*\\s*(?!\\s))(?:(?:${KEY_AHEAD}=*[ \\t]*(?![ \\t]))+(?:${VALUE_WORD})?|${VALUE_WORD})`, 'gi');
 const SENSITIVE_PARAM = new RegExp(`((?:^|[^\\w.?#-])[-.]*${QUOTE}${PARAM_KEYS}${QUOTE}\\s*=(?!=(?:[\\s=]|$))=*\\s*(?!\\s))(?!=*\\*(?:[\\s,;&]|$))(?:(?:${KEY_AHEAD}=*[ \\t]*(?![ \\t]))+(?:${VALUE})?|${VALUE})`, 'gi');
@@ -80,6 +81,7 @@ function redactPass(text: string): string {
     .replace(BEARER, `$1 ${MASK}`)
     .replace(YAML_LIST_BLOCK, `$1$2$3${MASK}`)
     .replace(YAML_BLOCK, `$1$2$3${MASK}`)
+    .replace(YAML_INLINE_BLOCK, `$1$2$3${MASK}`)
     .replace(SENSITIVE_COLON, maskColon)
     .replace(SENSITIVE_QUERY_PARAM, `$1${MASK}`)
     .replace(SENSITIVE_PARAM, `$1${MASK}`)
@@ -110,7 +112,7 @@ export function redactText(value: string): string {
 
 const SENSITIVE_FIELD = new RegExp(`^${BENIGN}(?!(?:[\\w.$-]{0,64}[_.$-])?(?:list|row|map)[-_]?keys?$|(?:[\\w$-]{0,64}\\.)?(?:primary|query|object|foreign|lookup|group|unique)[-_]?keys?$|[\\w.$-]{0,64}(?:cache|i18n|sort|partition|translation|route|react|track|idempotency)[-_]?keys?$|[\\w.$-]{0,64}auth[-_]?(?:Method|Type|Provider|Mode|Status)$)[\\w.$-]{0,64}${COLON_WORDS}s?$|^${BENIGN}[\\w.$-]{1,64}(?:code|state)s?$`, 'i');
 
-const METRIC_FIELD =
+export const METRIC_FIELD =
   /(?:(?:^|[_. -])(?:duration|latency|ms|millis|seconds|secs|count|time|timestamp|size|bytes|ttl|age|attempts?|retries|expires(?:_?(?:in|at))?)|(?:^|_)(?:DURATION|LATENCY|MS|MILLIS|SECONDS|SECS|COUNT|TIME|TIMESTAMP|SIZE|BYTES|TTL|AGE|ATTEMPTS?|RETRIES|EXPIRES(?:_?(?:IN|AT))?)|(?:Duration|Latency|Ms|Millis|Seconds|Secs|Count|Time|Timestamp|Size|Bytes|Ttl|TTL|Age|Attempts?|Retries|Expires(?:In|At)?)|(?:^|[_. -])(?:input|output|total|max|prompt|completion|cached)[_-]?[Tt]okens?|(?:^|_)(?:INPUT|OUTPUT|TOTAL|MAX|PROMPT|COMPLETION|CACHED)[_-]?TOKENS?|(?:Input|Output|Total|Max|Prompt|Completion|Cached)Tokens?)$/;
 
 export function isSecretName(key: string): boolean {
@@ -119,18 +121,5 @@ export function isSecretName(key: string): boolean {
   if (normalized.length <= 64) return false;
   const tail = normalized.slice(-64);
   return SENSITIVE_FIELD.test(tail.replace(/^[^_.$-]*[_.$-]/, '')) || SENSITIVE_FIELD.test(tail);
-}
-
-export function isSecretValue(value: unknown, metricKey?: string): boolean {
-  if (value === null || value === undefined || typeof value === 'boolean') return false;
-  if (typeof value === 'number' || typeof value === 'bigint') return metricKey === undefined || !METRIC_FIELD.test(metricKey);
-  if (typeof value !== 'object') return true;
-  if (Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype !== Object.prototype && prototype !== null;
-}
-
-export function isSecretField(key: string, value: unknown): boolean {
-  return isSecretName(key) && isSecretValue(value, key);
 }
 

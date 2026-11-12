@@ -1,5 +1,5 @@
 import type { TransportItem } from '@grafana/faro-web-sdk';
-import { MASK, isSecretField, isSecretName, isSecretValue, redactText } from './redact';
+import { MASK, METRIC_FIELD, isSecretName, redactText } from './redact';
 
 export type StringRedactor = (value: string) => string;
 
@@ -17,6 +17,7 @@ const SESSION_FIELD = /^session$/i;
 type Entry = readonly [string, unknown];
 
 interface Snapshot {
+  readonly plain: WeakMap<object, boolean>;
   readonly elements: WeakMap<readonly unknown[], readonly unknown[]>;
   readonly entries: WeakMap<object, readonly Entry[]>;
 }
@@ -47,12 +48,27 @@ function isPlainObject(value: object): boolean {
   return prototype === Object.prototype || prototype === null;
 }
 
-function isPlainRecord(value: unknown): boolean {
-  return typeof value === 'object' && value !== null && isPlainObject(value);
+function isTraversable(snapshot: Snapshot, value: object): boolean {
+  const known = snapshot.plain.get(value);
+  if (known !== undefined) return known;
+  const verdict = Array.isArray(value) || isPlainObject(value);
+  snapshot.plain.set(value, verdict);
+  return verdict;
 }
 
-function isTraversable(value: object): boolean {
-  return Array.isArray(value) || isPlainObject(value);
+function isPlainRecord(snapshot: Snapshot, value: unknown): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && isTraversable(snapshot, value);
+}
+
+function isSecretValue(snapshot: Snapshot, value: unknown, metricKey?: string): boolean {
+  if (value === null || value === undefined || typeof value === 'boolean') return false;
+  if (typeof value === 'number' || typeof value === 'bigint') return metricKey === undefined || !METRIC_FIELD.test(metricKey);
+  if (typeof value !== 'object') return true;
+  return !isTraversable(snapshot, value);
+}
+
+function isSecretField(snapshot: Snapshot, key: string, value: unknown): boolean {
+  return isSecretName(key) && isSecretValue(snapshot, value, key);
 }
 
 function collectSecretContainers(
@@ -64,7 +80,7 @@ function collectSecretContainers(
   const seenPlain = new WeakSet<object>();
   const seenMetaRoot = new WeakSet<object>();
   const visit = (value: unknown, inSecret: boolean, isMetaRoot = false): void => {
-    if (value === null || typeof value !== 'object' || !isTraversable(value)) return;
+    if (value === null || typeof value !== 'object' || !isTraversable(snapshot, value)) return;
     const seen = inSecret ? secret : isMetaRoot ? seenMetaRoot : seenPlain;
     if (seen.has(value)) return;
     seen.add(value);
@@ -73,7 +89,7 @@ function collectSecretContainers(
       return;
     }
     for (const [key, entry] of entriesOf(snapshot, value)) {
-      const exempt = isMetaRoot && SESSION_FIELD.test(key) && isPlainRecord(entry);
+      const exempt = isMetaRoot && SESSION_FIELD.test(key) && isPlainRecord(snapshot, entry);
       visit(entry, inSecret || (isSecretName(key) && !exempt));
     }
   };
@@ -83,7 +99,7 @@ function collectSecretContainers(
 }
 
 function newWalk(meta: unknown, payload: unknown): Walk {
-  const snapshot: Snapshot = { elements: new WeakMap(), entries: new WeakMap() };
+  const snapshot: Snapshot = { plain: new WeakMap(), elements: new WeakMap(), entries: new WeakMap() };
   return {
     ...snapshot,
     secret: collectSecretContainers(meta, payload, snapshot),
@@ -94,14 +110,14 @@ function newWalk(meta: unknown, payload: unknown): Walk {
 function redactWalk(value: unknown, redactString: StringRedactor, walk: Walk): unknown {
   if (typeof value === 'string') return redactString(value);
   if (value === null || typeof value !== 'object') return value;
-  if (!isTraversable(value)) return redactString(String(value));
+  if (!isTraversable(walk, value)) return redactString(String(value));
   const known = walk.copies.get(value);
   if (known !== undefined) return known;
   const inSecret = walk.secret.has(value);
   if (Array.isArray(value)) {
     const copy: unknown[] = [];
     walk.copies.set(value, copy);
-    for (const entry of elementsOf(walk, value)) copy.push(inSecret && isSecretValue(entry) ? MASK : redactWalk(entry, redactString, walk));
+    for (const entry of elementsOf(walk, value)) copy.push(inSecret && isSecretValue(walk, entry) ? MASK : redactWalk(entry, redactString, walk));
     return copy;
   }
   const copy: Record<string, unknown> = {};
@@ -112,7 +128,7 @@ function redactWalk(value: unknown, redactString: StringRedactor, walk: Walk): u
     let target = base;
     for (let n = 2; taken.has(target); n++) target = `${base}#${n}`;
     taken.add(target);
-    const masked = inSecret ? isSecretValue(entry) : isSecretField(key, entry);
+    const masked = inSecret ? isSecretValue(walk, entry) : isSecretField(walk, key, entry);
     defineEntry(copy, target, masked ? MASK : redactWalk(entry, redactString, walk));
   }
   return copy;

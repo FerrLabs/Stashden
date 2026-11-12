@@ -777,6 +777,26 @@ describe('each property is read once', () => {
     assert.equal(containsMarker(sanitized(payload)), false);
   });
 
+  it('masks a proxy whose prototype alternates between Object.prototype and null under a secret key', () => {
+    let calls = 0;
+    const secret = new Proxy(
+      { value: MARKER, nested: { value: MARKER } },
+      { getPrototypeOf: () => (calls++ % 2 === 0 ? Object.prototype : null) },
+    );
+    const payload = { password: secret };
+    assert.equal(containsMarker(sanitized(payload)), false);
+  });
+
+  it('masks a proxy whose first prototype answer is not plain under a secret key', () => {
+    let calls = 0;
+    const secret = new Proxy(
+      { value: MARKER, nested: { value: MARKER } },
+      { getPrototypeOf: () => (calls++ === 0 ? Array.prototype : Object.prototype) },
+    );
+    const payload = { password: secret };
+    assert.equal(containsMarker(sanitized(payload)), false);
+  });
+
   it('masks a container reached through child.password back to itself', () => {
     const root: { child: { password?: unknown }; note: string } = { child: {}, note: MARKER };
     root.child.password = root;
