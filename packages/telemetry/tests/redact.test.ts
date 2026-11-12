@@ -778,6 +778,11 @@ describe('userinfo, yaml blocks, glued separators and query values', () => {
     ['password: correct horse', 'password: *'],
     ['GET https://h.com/a?' + 'x'.repeat(200) + '&token=abc failed now', 'GET https://h.com/a failed now'],
     ['  password: |\n  s3cret', '  password: *\n  s3cret'],
+    ['app-config-service-database-primary-connection-settings-credentials-api-key=hunter2', 'app-config-service-database-primary-connection-settings-credentials-api-key=*'],
+    ['x-'.repeat(40) + 'password=hunter2', 'x-'.repeat(40) + 'password=*'],
+    ['a-'.repeat(40) + 'api-key=hunter2', 'a-'.repeat(40) + 'api-key=*'],
+    ['a: b password: |\n one\n two', 'a: b password: *'],
+    ['a: b password: |\n one\nnext: ok', 'a: b password: *\nnext: ok'],
   ];
 
   for (const [input, output] of rows) {
@@ -793,6 +798,9 @@ describe('userinfo, yaml blocks, glued separators and query values', () => {
     ['8000 question marks before an ampersand', '?'.repeat(8000) + '&'],
     ['5000 query fragments of question mark, letter, ampersand', '?a&'.repeat(5000)],
     ['8000 dotted segments before an equals sign', 'a.'.repeat(8000) + '='],
+    ['8000 dashed segments before an equals sign', 'a-'.repeat(8000) + '='],
+    ['8000 dashed segments before a colon', 'a-'.repeat(8000) + ':'],
+    ['8000 spaced pairs before an inline yaml block key', 'x '.repeat(8000) + 'password: |\n x'],
   ];
 
   for (const [name, input] of timed) {
