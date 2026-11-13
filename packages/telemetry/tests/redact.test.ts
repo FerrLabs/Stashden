@@ -816,3 +816,17 @@ describe('userinfo, yaml blocks, glued separators and query values', () => {
     });
   }
 });
+
+const paddedBasicExact: ReadonlyArray<readonly [string, string]> = [
+  ['password=Basic dTcyOnZiaUtHTDd3NWtFZjgzbQ==', 'password=*'],
+  ['Authorization=Basic dTcyOnZiaUtHTDd3NWtFZjgzbQ==', 'Authorization=*'],
+  ['password=Basic dTcyOnZiaUtHTDd3NWtFZjgz', 'password=*'],
+];
+
+describe('padded basic credentials after an equals sign', () => {
+  for (const [input, expected] of paddedBasicExact) {
+    it(`gives ${JSON.stringify(expected)} for ${JSON.stringify(input)}`, () => {
+      assert.equal(redactText(input), expected);
+    });
+  }
+});
