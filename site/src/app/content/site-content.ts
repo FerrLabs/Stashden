@@ -24,7 +24,6 @@ export type Chrome = {
 export type HomeContent = {
   documentTitle: string;
   description: string;
-  eyebrow: string;
   heading: string;
   lead: string;
   install: string;
