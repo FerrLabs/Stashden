@@ -9,15 +9,6 @@ section {
   padding-bottom: 4rem;
 }
 
-.eyebrow {
-  margin: 0 0 1rem;
-  color: var(--accent-ink);
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 h1 {
   max-width: 18ch;
   margin: 0;
