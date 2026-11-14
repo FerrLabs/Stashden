@@ -166,27 +166,6 @@ importers:
 
   .: {}
 
-  packages/telemetry:
-    devDependencies:
-      '@angular/core':
-        specifier: ^22.0.0
-        version: 22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)
-      '@grafana/faro-web-sdk':
-        specifier: ~2.14.0
-        version: 2.14.0
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.19.2
-      rxjs:
-        specifier: ^7.8.0
-        version: 7.8.2
-      tslib:
-        specifier: ^2.8.0
-        version: 2.9.1
-      typescript:
-        specifier: ~6.0.0
-        version: 6.0.3
-
   site:
     dependencies:
       '@angular/common':
@@ -207,15 +186,12 @@ importers:
       '@angular/ssr':
         specifier: ^22.0.0
         version: 22.2.6(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-server@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/compiler@22.2.5)(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-browser@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/router@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-browser@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)))(rxjs@7.8.2))
+      '@ferrlabs/telemetry':
+        specifier: ^0.3.0
+        version: 0.3.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))
       '@fontsource-variable/fraunces':
         specifier: ^5.2.0
         version: 5.3.0
-      '@grafana/faro-web-sdk':
-        specifier: ~2.14.0
-        version: 2.14.0
-      '@stashden/telemetry':
-        specifier: workspace:*
-        version: link:../packages/telemetry
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
@@ -256,12 +232,9 @@ importers:
       '@angular/router':
         specifier: ^22.0.0
         version: 22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-browser@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)))(rxjs@7.8.2)
-      '@grafana/faro-web-sdk':
-        specifier: ~2.14.0
-        version: 2.14.0
-      '@stashden/telemetry':
-        specifier: workspace:*
-        version: link:../packages/telemetry
+      '@ferrlabs/telemetry':
+        specifier: ^0.3.0
+        version: 0.3.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
@@ -682,6 +655,14 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@ferrlabs/telemetry@0.3.0':
+    resolution: {integrity: sha512-iRhg6zURr/M5s2g5lmeRZmSUzb8y5l63lbNHYV0liQdwBwWpmnZzbrzxoIpEXI1rcpf32Q8FmSo/juKpCtSptQ==}
+    peerDependencies:
+      '@angular/core': ^22.0.0
+    peerDependenciesMeta:
+      '@angular/core':
+        optional: true
 
   '@fontsource-variable/fraunces@5.3.0':
     resolution: {integrity: sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA==}
@@ -2620,6 +2601,12 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
+  '@ferrlabs/telemetry@0.3.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))':
+    dependencies:
+      '@grafana/faro-web-sdk': 2.14.0
+    optionalDependencies:
+      '@angular/core': 22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)
+
   '@fontsource-variable/fraunces@5.3.0': {}
 
   '@grafana/faro-core@2.14.0':
@@ -3152,6 +3139,7 @@ snapshots:
   '@types/node@24.19.2':
     dependencies:
       undici-types: 7.24.6
+    optional: true
 
   '@vitejs/plugin-basic-ssl@2.3.0(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(sass-embedded@1.104.1)(sass@1.104.1))':
     dependencies:
@@ -3821,7 +3809,8 @@ snapshots:
 
   ua-parser-js@1.0.41: {}
 
-  undici-types@7.24.6: {}
+  undici-types@7.24.6:
+    optional: true
 
   update-browserslist-db@1.3.3(browserslist@4.29.0):
     dependencies:

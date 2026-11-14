@@ -6,7 +6,6 @@
     "build": "pnpm -r build",
     "dev": "pnpm --filter @stashden/web dev",
     "dev:site": "pnpm --filter @stashden/site dev",
-    "lint": "pnpm -r lint",
-    "test": "pnpm --filter @stashden/telemetry test"
+    "lint": "pnpm -r lint"
   }
 }
