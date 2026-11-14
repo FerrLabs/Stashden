@@ -1,7 +1,7 @@
-import { initTelemetry as startTelemetry, sanitizeItem } from '@stashden/telemetry';
+import { initTelemetry as startTelemetry } from '@ferrlabs/telemetry';
 
-export { TelemetryErrorHandler } from '@stashden/telemetry';
+export { TelemetryErrorHandler } from '@ferrlabs/telemetry/angular';
 
 export function initTelemetry(): void {
-  startTelemetry({ appName: 'stashden-site', url: STASHDEN_TELEMETRY_URL, beforeSend: sanitizeItem });
+  startTelemetry({ appName: 'stashden-site', collectorUrl: STASHDEN_TELEMETRY_URL, enabled: STASHDEN_TELEMETRY_URL.length > 0 });
 }
