@@ -187,8 +187,8 @@ importers:
         specifier: ^22.0.0
         version: 22.2.6(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-server@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/compiler@22.2.5)(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-browser@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/router@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-browser@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)))(rxjs@7.8.2))
       '@ferrlabs/telemetry':
-        specifier: ^0.3.0
-        version: 0.3.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))
+        specifier: ^0.5.0
+        version: 0.5.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))
       '@fontsource-variable/fraunces':
         specifier: ^5.2.0
         version: 5.3.0
@@ -233,8 +233,8 @@ importers:
         specifier: ^22.0.0
         version: 22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(@angular/platform-browser@22.2.5(@angular/common@22.2.5(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2)))(rxjs@7.8.2)
       '@ferrlabs/telemetry':
-        specifier: ^0.3.0
-        version: 0.3.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))
+        specifier: ^0.5.0
+        version: 0.5.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
@@ -656,8 +656,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ferrlabs/telemetry@0.3.0':
-    resolution: {integrity: sha512-iRhg6zURr/M5s2g5lmeRZmSUzb8y5l63lbNHYV0liQdwBwWpmnZzbrzxoIpEXI1rcpf32Q8FmSo/juKpCtSptQ==}
+  '@ferrlabs/telemetry@0.5.0':
+    resolution: {integrity: sha512-EBZmqyAM6GsORT6bImDgIV7aTsigAle/wqX6w40+fkRpNUe1Wh1+b6w91zbs9wHdSxnoHDFLIS5bO6h9yQCIhg==}
     peerDependencies:
       '@angular/core': ^22.0.0
     peerDependenciesMeta:
@@ -2601,7 +2601,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@ferrlabs/telemetry@0.3.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))':
+  '@ferrlabs/telemetry@0.5.0(@angular/core@22.2.5(@angular/compiler@22.2.5)(rxjs@7.8.2))':
     dependencies:
       '@grafana/faro-web-sdk': 2.14.0
     optionalDependencies:

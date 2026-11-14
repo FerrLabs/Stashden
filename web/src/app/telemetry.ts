@@ -12,6 +12,5 @@ const CAPABILITY_PATHS: readonly (readonly [RegExp, string])[] = [
 ];
 
 export function initTelemetry(): void {
-  if (STASHDEN_TELEMETRY_URL.length === 0) return;
-  startTelemetry({ appName: 'stashden-web', collectorUrl: STASHDEN_TELEMETRY_URL, capabilityPaths: CAPABILITY_PATHS });
+  startTelemetry({ appName: 'stashden-web', collectorUrl: STASHDEN_TELEMETRY_URL, enabled: STASHDEN_TELEMETRY_URL.length > 0, capabilityPaths: CAPABILITY_PATHS });
 }
