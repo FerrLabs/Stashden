@@ -18,7 +18,6 @@ export const fr: SiteContent = {
     documentTitle: 'Stashden, stockage de fichiers auto-hébergé en Rust',
     description:
       "Stashden est un serveur de fichiers auto-hébergé écrit en Rust : une application web, une API REST et WebDAV au-dessus d'un stockage adressé par contenu, sous licence AGPL.",
-    eyebrow: 'Stockage de fichiers auto-hébergé',
     heading: 'Vos fichiers, sur votre machine.',
     lead: "Stashden est un serveur de fichiers écrit en Rust. Il range ce que vous envoyez dans un stockage adressé par contenu, le sert via une API REST et une application web, et tourne sur une machine qui vous appartient.",
     install: "L'installer",
