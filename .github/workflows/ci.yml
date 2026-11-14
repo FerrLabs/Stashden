@@ -66,7 +66,7 @@ jobs:
 
   kani:
     name: Kani
-    uses: FerrLabs/.github/.github/workflows/reusable-kani.yml@d0c70730b0b7234aafc7cffd1cba606313d241ff # main
+    uses: FerrLabs/.github/.github/workflows/reusable-kani.yml@7c51d18aedc7e04f1a8360e68c0c0933fd773ac0 # main
     permissions:
       contents: read
 
