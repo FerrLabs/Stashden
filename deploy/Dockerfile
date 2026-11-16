@@ -11,7 +11,7 @@ COPY web web
 ARG STASHDEN_TELEMETRY_URL=""
 RUN pnpm --filter @stashden/web build --define STASHDEN_API_URL="''" --define STASHDEN_TELEMETRY_URL="'${STASHDEN_TELEMETRY_URL}'"
 
-FROM rust:1.99-slim-bookworm AS builder
+FROM rust:1.100-slim-bookworm AS builder
 WORKDIR /build
 RUN apt-get update \
  && apt-get install -y --no-install-recommends pkg-config \
