@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.56.7] - 2026-11-18
+
+### Bug Fixes
+
+- fix(deps): update rust crate jsonwebtoken to v12 (#458)
+
 ## [0.56.6] - 2026-11-17
 
 ### Bug Fixes
