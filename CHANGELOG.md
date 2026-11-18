@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.56.8] - 2026-11-18
+
+### Bug Fixes
+
+- fix(docker): pin corepack in the image build (#473)
+
 ## [0.56.7] - 2026-11-18
 
 ### Bug Fixes
