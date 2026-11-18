@@ -319,6 +319,11 @@ mod tests {
     }
 
     #[test]
+    fn an_empty_secret_is_refused() {
+        assert!(Sessions::new("", Duration::hours(1)).is_err());
+    }
+
+    #[test]
     fn an_expired_token_is_refused() {
         let sessions = sessions(Duration::hours(-1));
         let token = sessions
