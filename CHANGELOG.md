@@ -4,6 +4,24 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.56.6] - 2026-11-17
+
+### Bug Fixes
+
+- fix(deps): update rust crate gpui-kit to 0.10.0 (#469)
+
+## [0.56.5] - 2026-11-16
+
+### Bug Fixes
+
+- fix(deps): update dependency @ferrlabs/telemetry to ^0.5.1 (#465)
+
+## [0.56.4] - 2026-11-14
+
+### Refactoring
+
+- refactor(telemetry): use @ferrlabs/telemetry (#450)
+
 ## [0.56.3] - 2026-11-12
 
 ### Bug Fixes

@@ -18,7 +18,6 @@ export const en: SiteContent = {
     documentTitle: 'Stashden, self-hosted file storage in Rust',
     description:
       'Stashden is a self-hosted file server written in Rust: a web app, a REST API and WebDAV over a content-addressed blob store, under the AGPL.',
-    eyebrow: 'Self-hosted file storage',
     heading: 'Your files, on your hardware.',
     lead: 'Stashden is a file server written in Rust. It keeps what you upload in a content-addressed blob store, serves it over a REST API and a web app, and runs on a machine you control.',
     install: 'Install it',

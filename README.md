@@ -223,8 +223,7 @@ reports nothing unless you build it with one:
 pnpm --filter @stashden/site build --define STASHDEN_TELEMETRY_URL="'https://rum.example.com/collect'"
 ```
 
-The redaction and the error handler live in `packages/telemetry`, shared by both apps, and
-`pnpm test` runs its tests. URLs, query strings and anything that looks like a credential are redacted before
+The redaction and the error handler come from the shared `@ferrlabs/telemetry` package. URLs, query strings and anything that looks like a credential are redacted before
 sending, and browsers that send Global Privacy Control or Do Not Track never report.
 
 If you deploy a modified Stashden, point the source URL at your fork: the AGPL requires you to

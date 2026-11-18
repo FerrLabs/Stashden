@@ -2,9 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/app",
-    "rootDir": "..",
     "types": []
   },
   "files": ["src/main.ts"],
-  "include": ["src/**/*.ts", "../packages/telemetry/src/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

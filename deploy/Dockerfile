@@ -2,18 +2,16 @@ FROM node:24-slim AS web
 WORKDIR /build
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/telemetry/package.json packages/telemetry/
 COPY web/package.json web/
 COPY site/package.json site/
 RUN pnpm install --frozen-lockfile --filter @stashden/web...
 COPY tsconfig.base.json ./
-COPY packages/telemetry packages/telemetry
 COPY web web
 # Same origin as the API that serves it, so the image carries no deployment's URL.
 ARG STASHDEN_TELEMETRY_URL=""
 RUN pnpm --filter @stashden/web build --define STASHDEN_API_URL="''" --define STASHDEN_TELEMETRY_URL="'${STASHDEN_TELEMETRY_URL}'"
 
-FROM rust:1.99-slim-bookworm AS builder
+FROM rust:1.100-slim-bookworm AS builder
 WORKDIR /build
 RUN apt-get update \
  && apt-get install -y --no-install-recommends pkg-config \
