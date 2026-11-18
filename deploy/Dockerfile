@@ -1,6 +1,6 @@
 FROM node:26-slim AS web
 WORKDIR /build
-RUN npm install -g corepack && corepack enable
+RUN npm install -g corepack@0.36.0 && corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY web/package.json web/
 COPY site/package.json site/
