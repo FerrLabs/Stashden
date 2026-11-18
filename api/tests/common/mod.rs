@@ -73,7 +73,10 @@ impl Harness {
                         .await
                         .expect("opening the upload staging"),
                 ),
-                sessions: Arc::new(Sessions::new("test-secret", chrono::Duration::hours(1))),
+                sessions: Arc::new(
+                    Sessions::new("test-secret", chrono::Duration::hours(1))
+                        .expect("test secret is non-empty"),
+                ),
                 decoders: Arc::new(tokio::sync::Semaphore::new(2)),
                 oidc: None,
                 metrics: Arc::new(stashden_api::metrics::Metrics::default()),

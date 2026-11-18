@@ -106,10 +106,13 @@ impl AppState {
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
                 .context("building the HTTP client")?,
-            sessions: Arc::new(Sessions::new(
-                &cfg.jwt_secret,
-                chrono::Duration::seconds(cfg.session_ttl_seconds),
-            )),
+            sessions: Arc::new(
+                Sessions::new(
+                    &cfg.jwt_secret,
+                    chrono::Duration::seconds(cfg.session_ttl_seconds),
+                )
+                .context("building the session signer from JWT_SECRET")?,
+            ),
             default_quota_bytes: cfg.default_quota_bytes,
             versions_kept: cfg.versions_kept,
             trash_retention: (cfg.trash_retention_days > 0)

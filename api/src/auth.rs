@@ -42,17 +42,16 @@ pub struct SignFailed;
 const CLOCK_SKEW_LEEWAY_SECONDS: u64 = 5;
 
 impl Sessions {
-    #[must_use]
-    pub fn new(secret: &str, ttl: Duration) -> Self {
+    pub fn new(secret: &str, ttl: Duration) -> Result<Self, jsonwebtoken::errors::Error> {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.set_required_spec_claims(&["sub", "exp"]);
         validation.leeway = CLOCK_SKEW_LEEWAY_SECONDS;
-        Self {
-            encoding: EncodingKey::from_secret(secret.as_bytes()),
-            decoding: DecodingKey::from_secret(secret.as_bytes()),
+        Ok(Self {
+            encoding: EncodingKey::from_secret(secret.as_bytes())?,
+            decoding: DecodingKey::from_secret(secret.as_bytes())?,
             validation,
             ttl,
-        }
+        })
     }
 
     pub async fn open(&self, pool: &PgPool, user_id: Uuid) -> Result<String, ApiError> {
@@ -305,7 +304,7 @@ mod tests {
     }
 
     fn sessions(ttl: Duration) -> Sessions {
-        Sessions::new("test-secret", ttl)
+        Sessions::new("test-secret", ttl).expect("test secret is non-empty")
     }
 
     #[test]
@@ -317,6 +316,11 @@ mod tests {
             sessions.verify(&token).map(|verified| verified.user_id),
             Some(user_id)
         );
+    }
+
+    #[test]
+    fn an_empty_secret_is_refused() {
+        assert!(Sessions::new("", Duration::hours(1)).is_err());
     }
 
     #[test]
@@ -351,7 +355,8 @@ mod tests {
         let token = sessions(Duration::hours(1))
             .issue(Uuid::now_v7(), Uuid::now_v7())
             .expect("signs");
-        let attacker = Sessions::new("other-secret", Duration::hours(1));
+        let attacker =
+            Sessions::new("other-secret", Duration::hours(1)).expect("test secret is non-empty");
         assert_eq!(attacker.verify(&token), None);
     }
 
