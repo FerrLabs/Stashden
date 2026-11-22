@@ -46,7 +46,7 @@ hex = "0.4"
 
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls", "form"] }
 percent-encoding = "2"
-notify = "8"
+notify = "9"
 clap = { version = "4", features = ["derive", "env"] }
 argon2 = "0.6"
 unicode-normalization = "0.1"
