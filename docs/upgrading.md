@@ -11,8 +11,8 @@ and the chart runs it in an init container.
 1. Take a backup, the database first and the blobs after it, as in
    [backup-and-restore.md](backup-and-restore.md). Migrations only move forward. There is no down
    migration, and the way back from a release that did something you did not want is the backup.
-2. Run `stashden-api migrate` with the new image, for example
-   `docker compose run --rm migrate`. Then stop the old server and start the new one. Run a single instance: the local blob store is a
+2. Run `stashden-api migrate` with the new image, for example `docker compose run --rm migrate`.
+   Then stop the old server and start the new one. Run a single instance: the local blob store is a
    directory, and two servers sweeping and counting the same one corrupt each other's reference
    counts. With the chart, `Recreate` does the stop-then-start for you.
 3. Read the output of `migrate`. A migration that fails stops it, and the database is left as it was
@@ -24,8 +24,9 @@ and the chart runs it in an init container.
 Pin the image to an exact version in production rather than `latest`. The chart pins it through
 `appVersion`, so upgrading the chart upgrades the image with it.
 
-Downgrading is not supported. A database that a newer release has migrated has to go back to the
-backup taken before it.
+Downgrading is not supported. A server that finds a migration it does not know about, or one that
+was changed after it was applied, refuses to start, which is the safe outcome, and a database that
+a newer release has migrated has to go back to the backup taken before it.
 
 ## Things a release changed for the people running it
 

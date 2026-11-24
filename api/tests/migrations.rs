@@ -158,6 +158,37 @@ unmigrated_database_test!(
     }
 );
 
+database_test!(a_schema_from_a_newer_release_is_refused, harness, {
+    sqlx::query(
+        "INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time)
+         VALUES (99991231000001, 'from the future', true, '\\x00', 0)",
+    )
+    .execute(&harness.state.db)
+    .await
+    .expect("recording a migration this release does not carry");
+
+    match migrations::ensure_current(&harness.state.db).await {
+        Err(SchemaError::Ahead { unknown }) => assert_eq!(unknown, vec![99_991_231_000_001]),
+        other => panic!("expected Ahead, got {other:?}"),
+    }
+});
+
+database_test!(
+    a_migration_changed_after_it_was_applied_is_refused,
+    harness,
+    {
+        sqlx::query("UPDATE _sqlx_migrations SET checksum = '\\x00' WHERE version = (SELECT min(version) FROM _sqlx_migrations)")
+        .execute(&harness.state.db)
+        .await
+        .expect("tampering with a checksum");
+
+        assert!(matches!(
+            migrations::ensure_current(&harness.state.db).await,
+            Err(SchemaError::Modified { .. })
+        ));
+    }
+);
+
 unmigrated_database_test!(the_migrate_command_needs_only_the_database_url, harness, {
     let mut command = Command::new(SERVER);
     command
@@ -254,7 +285,7 @@ database_test!(the_server_starts_on_a_migrated_schema, harness, {
     assert!(serving, "the server never answered /health");
 });
 
-async fn restricted_state(harness: &Harness) -> (AppState, String) {
+async fn restricted_state(harness: &Harness) -> AppState {
     let role = format!("stashden_app_{}", Uuid::now_v7().simple());
     for statement in [
         format!("CREATE ROLE \"{role}\" NOLOGIN"),
@@ -273,6 +304,8 @@ async fn restricted_state(harness: &Harness) -> (AppState, String) {
             .expect("setting up the restricted role");
     }
 
+    harness.drop_role_on_stop(&role);
+
     let set_role = format!("SET ROLE \"{role}\"");
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -287,27 +320,9 @@ async fn restricted_state(harness: &Harness) -> (AppState, String) {
         .await
         .expect("connecting as the restricted role");
 
-    (
-        AppState {
-            db: pool,
-            ..harness.state.clone()
-        },
-        role,
-    )
-}
-
-async fn drop_role(harness: &Harness, restricted: AppState, role: &str) {
-    restricted.db.close().await;
-    for statement in [
-        format!("DROP OWNED BY \"{role}\""),
-        format!("DROP ROLE \"{role}\""),
-    ] {
-        harness
-            .state
-            .db
-            .execute(AssertSqlSafe(statement))
-            .await
-            .expect("dropping the restricted role");
+    AppState {
+        db: pool,
+        ..harness.state.clone()
     }
 }
 
@@ -318,7 +333,7 @@ database_test!(the_server_runs_without_any_ddl_rights, harness, {
     harness.write(member.id, "kept.txt", b"still here").await;
     harness.trash(&node).await;
     harness.purge(member.id, node.id).await;
-    let (restricted, role) = restricted_state(&harness).await;
+    let restricted = restricted_state(&harness).await;
 
     let ddl = restricted
         .db
@@ -342,12 +357,10 @@ database_test!(the_server_runs_without_any_ddl_rights, harness, {
         .await
         .expect("searching");
     assert_eq!(hits.len(), 1);
-
-    drop_role(&harness, restricted, &role).await;
 });
 
 database_test!(the_bootstrap_administrator_needs_only_dml, harness, {
-    let (restricted, role) = restricted_state(&harness).await;
+    let restricted = restricted_state(&harness).await;
     let admin = BootstrapAdmin {
         email: "admin@example.com".to_owned(),
         password: common::PASSWORD.to_owned(),
@@ -359,6 +372,4 @@ database_test!(the_bootstrap_administrator_needs_only_dml, harness, {
 
     let created = harness.account_by_email("admin@example.com").await;
     assert_eq!(created.role, Role::Admin);
-
-    drop_role(&harness, restricted, &role).await;
 });

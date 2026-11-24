@@ -28,6 +28,7 @@ pub struct Harness {
     maintenance: PgPool,
     database: String,
     pub database_url: String,
+    roles: std::sync::Mutex<Vec<String>>,
 }
 
 impl Harness {
@@ -102,11 +103,25 @@ impl Harness {
             local: blobs,
             maintenance,
             database_url: with_database(&url, &database),
+            roles: std::sync::Mutex::new(Vec::new()),
             database,
         })
     }
 
+    pub fn drop_role_on_stop(&self, role: &str) {
+        self.roles.lock().expect("roles lock").push(role.to_owned());
+    }
+
     pub async fn stop(self) {
+        let roles = std::mem::take(&mut *self.roles.lock().expect("roles lock"));
+        for role in roles {
+            for statement in [
+                format!("DROP OWNED BY \"{role}\""),
+                format!("DROP ROLE \"{role}\""),
+            ] {
+                let _ = self.state.db.execute(AssertSqlSafe(statement)).await;
+            }
+        }
         self.state.db.close().await;
         let _ = tokio::fs::remove_dir_all(&self.blob_root).await;
         let _ = tokio::fs::remove_dir_all(&self.upload_root).await;

@@ -1,4 +1,8 @@
+use std::time::Duration;
+
+use anyhow::Context;
 use sqlx::error::DatabaseError;
+use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
@@ -7,6 +11,15 @@ use crate::versions;
 use stashden_core::blob::BlobHash;
 use stashden_core::name::NodeName;
 use stashden_core::node::{Node, NodeKind, etag_for_directory, etag_for_file};
+
+pub async fn connect(url: &str, max_connections: u32) -> anyhow::Result<PgPool> {
+    PgPoolOptions::new()
+        .max_connections(max_connections)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect(url)
+        .await
+        .context("connecting to Postgres")
+}
 
 const NAME_PER_PARENT: &str = "nodes_unique_name_per_parent";
 

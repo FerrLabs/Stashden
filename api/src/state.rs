@@ -1,8 +1,7 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use sqlx::postgres::PgPool;
 
 use crate::auth::Sessions;
 use crate::config::Config;
@@ -68,12 +67,7 @@ async fn open_s3(cfg: &S3Config) -> S3BlobStore {
 
 impl AppState {
     pub async fn from_config(cfg: &Config) -> Result<Self> {
-        let db = PgPoolOptions::new()
-            .max_connections(20)
-            .acquire_timeout(Duration::from_secs(5))
-            .connect(&cfg.database_url)
-            .await
-            .context("connecting to Postgres")?;
+        let db = crate::db::connect(&cfg.database_url, 20).await?;
 
         let blobs = open_blobs(&cfg.blobs).await?;
         let staging = crate::uploads::Staging::open(&cfg.upload_root)
