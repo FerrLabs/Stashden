@@ -27,10 +27,19 @@ pub struct Harness {
     local: Arc<LocalBlobStore>,
     maintenance: PgPool,
     database: String,
+    pub database_url: String,
 }
 
 impl Harness {
     pub async fn start() -> Option<Self> {
+        Self::start_with(true).await
+    }
+
+    pub async fn start_unmigrated() -> Option<Self> {
+        Self::start_with(false).await
+    }
+
+    async fn start_with(migrate: bool) -> Option<Self> {
         let url = std::env::var("DATABASE_URL").ok()?;
 
         let maintenance = PgPoolOptions::new()
@@ -51,10 +60,11 @@ impl Harness {
             .await
             .expect("connecting to the test database");
 
-        sqlx::migrate!("./migrations")
-            .run(&db)
-            .await
-            .expect("running the migrations");
+        if migrate {
+            stashden_api::migrations::apply(&db)
+                .await
+                .expect("running the migrations");
+        }
 
         let blob_root = std::env::temp_dir().join(format!("stashden-blobs-{database}"));
         let upload_root = std::env::temp_dir().join(format!("stashden-uploads-{database}"));
@@ -91,6 +101,7 @@ impl Harness {
             upload_root,
             local: blobs,
             maintenance,
+            database_url: with_database(&url, &database),
             database,
         })
     }

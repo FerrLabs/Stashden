@@ -40,6 +40,23 @@ spec:
         runAsUser: 10001
         fsGroup: 10001
       terminationGracePeriodSeconds: 40
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["migrate"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stashden.migrationSecret" . }}
+                  key: {{ include "stashden.migrationSecretKey" . }}
       containers:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"

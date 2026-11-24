@@ -1,29 +1,34 @@
 use anyhow::{Context, Result};
 use std::time::Duration;
 
-use stashden_api::{build_router, config::Config, state::AppState, sweeper, users};
-use stashden_core::role::Role;
+use stashden_api::{bootstrap, build_router, config::Config, migrations, state::AppState, sweeper};
 use stashden_core::user::Email;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 const RESET_PASSWORD: &str = "reset-password";
 const CHECK: &str = "check";
+const MIGRATE: &str = "migrate";
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(25);
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing();
-    let cfg = Config::from_env().context("loading configuration")?;
 
     let mut arguments = std::env::args().skip(1);
-    if let Some(command) = arguments.next() {
+    let command = arguments.next();
+    if command.as_deref() == Some(MIGRATE) {
+        return migrate().await;
+    }
+
+    let cfg = Config::from_env().context("loading configuration")?;
+    if let Some(command) = command {
         return match command.as_str() {
             RESET_PASSWORD => reset_password(&cfg, arguments.next()).await,
             CHECK => check(&cfg, arguments.collect()).await,
             other => {
                 anyhow::bail!(
-                    "unknown command {other}; the ones there are: {RESET_PASSWORD}, {CHECK}"
+                    "unknown command {other}; the ones there are: {RESET_PASSWORD}, {CHECK}, {MIGRATE}"
                 )
             }
         };
@@ -38,12 +43,9 @@ async fn main() -> Result<()> {
 
     let state = AppState::from_config(&cfg).await?;
 
-    sqlx::migrate!("./migrations")
-        .run(&state.db)
-        .await
-        .context("running database migrations")?;
+    migrations::ensure_current(&state.db).await?;
 
-    bootstrap_admin(&state, &cfg).await?;
+    bootstrap::admin(&state.db, cfg.bootstrap_admin.as_ref()).await?;
 
     if cfg.blob_sweep_interval_seconds > 0 {
         sweeper::spawn(
@@ -117,6 +119,18 @@ async fn terminated() {
 
     #[cfg(not(unix))]
     interrupt.await;
+}
+
+async fn migrate() -> Result<()> {
+    let url = stashden_api::config::database_url().context("loading configuration")?;
+    let pool = sqlx::PgPool::connect(&url)
+        .await
+        .context("connecting to Postgres")?;
+    migrations::apply(&pool)
+        .await
+        .context("running database migrations")?;
+    info!("database migrations are up to date");
+    Ok(())
 }
 
 async fn check(cfg: &Config, flags: Vec<String>) -> Result<()> {
@@ -203,38 +217,6 @@ async fn reset_password(cfg: &Config, email: Option<String>) -> Result<()> {
         "reset the password of {} and signed it out everywhere",
         user.email
     );
-    Ok(())
-}
-
-async fn bootstrap_admin(state: &AppState, cfg: &Config) -> Result<()> {
-    let Some(admin) = &cfg.bootstrap_admin else {
-        if users::count(&state.db).await? == 0 {
-            warn!(
-                "no accounts exist; set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD to create the first one"
-            );
-        }
-        return Ok(());
-    };
-
-    if users::count(&state.db).await? > 0 {
-        info!("accounts already exist, skipping bootstrap");
-        return Ok(());
-    }
-
-    let email: Email = admin.email.parse().context("BOOTSTRAP_ADMIN_EMAIL")?;
-    let mut tx = state.db.begin().await?;
-    let user = users::create(
-        &mut tx,
-        &email,
-        "Administrator",
-        &admin.password,
-        Role::Admin,
-    )
-    .await
-    .context("creating the bootstrap administrator")?;
-    tx.commit().await?;
-
-    info!(%email, id = %user.id, "bootstrap administrator created");
     Ok(())
 }
 
