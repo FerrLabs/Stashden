@@ -18,6 +18,23 @@ use uuid::Uuid;
 
 use common::Harness;
 
+macro_rules! unmigrated_database_test {
+    ($name:ident, $harness:ident, $body:block) => {
+        #[tokio::test]
+        async fn $name() {
+            let Some($harness) = Harness::start_unmigrated().await else {
+                eprintln!(
+                    "skipping {}: DATABASE_URL is not set",
+                    stringify!($name)
+                );
+                return;
+            };
+            $body
+            $harness.stop().await;
+        }
+    };
+}
+
 const SERVER: &str = env!("CARGO_BIN_EXE_stashden-api");
 const FIRST_MIGRATIONS: usize = 3;
 
@@ -80,7 +97,7 @@ async fn run(mut command: Command) -> std::process::Output {
         .expect("running the process")
 }
 
-database_test!(migrate_applies_everything_to_an_empty_database, harness, {
+unmigrated_database_test!(migrate_applies_everything_to_an_empty_database, harness, {
     assert!(!tracked(&harness.state.db).await);
 
     migrations::apply(&harness.state.db)
@@ -93,7 +110,7 @@ database_test!(migrate_applies_everything_to_an_empty_database, harness, {
     assert_eq!(harness.account_count().await, 0);
 });
 
-database_test!(migrate_twice_changes_nothing, harness, {
+unmigrated_database_test!(migrate_twice_changes_nothing, harness, {
     migrations::apply(&harness.state.db).await.expect("first");
     let before = applied(&harness.state.db).await;
 
@@ -102,7 +119,7 @@ database_test!(migrate_twice_changes_nothing, harness, {
     assert_eq!(applied(&harness.state.db).await, before);
 });
 
-database_test!(migrate_finishes_a_partially_migrated_database, harness, {
+unmigrated_database_test!(migrate_finishes_a_partially_migrated_database, harness, {
     apply_first_migrations(&harness.state.db).await;
     let partial = applied(&harness.state.db).await;
     assert_eq!(partial, i64::try_from(FIRST_MIGRATIONS).expect("small"));
@@ -117,7 +134,7 @@ database_test!(migrate_finishes_a_partially_migrated_database, harness, {
         .expect("current");
 });
 
-database_test!(an_empty_database_is_behind_and_stays_untouched, harness, {
+unmigrated_database_test!(an_empty_database_is_behind_and_stays_untouched, harness, {
     let pending = expect_behind(migrations::ensure_current(&harness.state.db).await);
 
     assert_eq!(pending.len(), embedded());
@@ -127,7 +144,7 @@ database_test!(an_empty_database_is_behind_and_stays_untouched, harness, {
     );
 });
 
-database_test!(
+unmigrated_database_test!(
     a_partially_migrated_database_is_behind_by_the_rest,
     harness,
     {
@@ -141,7 +158,7 @@ database_test!(
     }
 );
 
-database_test!(the_migrate_command_needs_only_the_database_url, harness, {
+unmigrated_database_test!(the_migrate_command_needs_only_the_database_url, harness, {
     let mut command = Command::new(SERVER);
     command
         .env_clear()
@@ -180,7 +197,7 @@ database_test!(
     }
 );
 
-database_test!(
+unmigrated_database_test!(
     the_server_refuses_to_start_on_an_outdated_schema,
     harness,
     {

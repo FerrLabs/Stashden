@@ -123,7 +123,9 @@ async fn terminated() {
 
 async fn migrate() -> Result<()> {
     let url = stashden_api::config::database_url().context("loading configuration")?;
-    let pool = sqlx::PgPool::connect(&url)
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&url)
         .await
         .context("connecting to Postgres")?;
     migrations::apply(&pool)
