@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.56.10] - 2026-11-24
+
+### Bug Fixes
+
+- fix(deps): update rust crate gpui-kit to 0.11.0 (#498)
+
 ## [0.56.9] - 2026-11-19
 
 ### Bug Fixes
