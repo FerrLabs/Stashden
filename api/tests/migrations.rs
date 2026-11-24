@@ -213,21 +213,46 @@ unmigrated_database_test!(
     }
 );
 
-database_test!(
-    the_server_does_not_need_the_migrate_command_once_migrated,
-    harness,
-    {
-        migrations::apply(&harness.state.db)
-            .await
-            .expect("migrating");
-        let mut command = server(&harness);
-        command.arg("check");
+async fn free_port() -> u16 {
+    tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("binding a free port")
+        .local_addr()
+        .expect("the bound address")
+        .port()
+}
 
-        let output = run(command).await;
+async fn healthy(port: u16) -> bool {
+    reqwest::get(format!("http://127.0.0.1:{port}/health"))
+        .await
+        .is_ok_and(|response| response.status().is_success())
+}
 
-        assert!(output.status.success(), "{output:?}");
+database_test!(the_server_starts_on_a_migrated_schema, harness, {
+    migrations::apply(&harness.state.db)
+        .await
+        .expect("migrating");
+    let port = free_port().await;
+    let mut command = server(&harness);
+    command.env("PORT", port.to_string());
+    let mut child = command.spawn().expect("starting the server");
+
+    let mut serving = false;
+    for _ in 0..100 {
+        if healthy(port).await {
+            serving = true;
+            break;
+        }
+        assert!(
+            child.try_wait().expect("polling the server").is_none(),
+            "the server exited instead of serving"
+        );
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
-);
+    child.kill().await.expect("stopping the server");
+
+    assert!(serving, "the server never answered /health");
+});
 
 async fn restricted_state(harness: &Harness) -> (AppState, String) {
     let role = format!("stashden_app_{}", Uuid::now_v7().simple());
