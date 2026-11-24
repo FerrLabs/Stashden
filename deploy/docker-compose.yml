@@ -13,13 +13,23 @@ services:
       timeout: 3s
       retries: 10
 
-  api:
+  migrate:
+    image: stashden-api
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    command: ["migrate"]
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://roxycloud:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db/roxycloud
+
+  api:
+    image: stashden-api
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgres://roxycloud:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db/roxycloud
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}

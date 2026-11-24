@@ -62,7 +62,7 @@ export const en: SiteContent = {
         },
         {
           title: 'A binary and a database',
-          body: 'Migrations run on boot, configuration is environment only, and there is no plugin system to keep secure. Upgrading is replacing the image.',
+          body: 'Migrations are one command, `stashden-api migrate`, configuration is environment only, and there is no plugin system to keep secure. Upgrading is replacing the image.',
         },
         {
           title: 'The source link is not decoration',
@@ -110,7 +110,7 @@ curl --fail http://localhost:3001/health`,
     },
     source: {
       heading: 'From source',
-      body: 'The server reads its configuration from the environment and runs its migrations on boot, so a database and a signing secret are enough to get it up.',
+      body: 'The server reads its configuration from the environment and migrates with `stashden-api migrate`, so a database and a signing secret are enough to get it up.',
       blocks: [
         {
           caption: 'Run the API against a local Postgres',

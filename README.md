@@ -163,10 +163,12 @@ installer carries no update signature.
 Postgres 15 or later, and a Rust toolchain matching `rust-toolchain.toml`.
 
 ```bash
-DATABASE_URL=postgres://localhost/stashden JWT_SECRET=dev-secret cargo run -p stashden-api
+export DATABASE_URL=postgres://localhost/stashden
+cargo run -p stashden-api -- migrate
+JWT_SECRET=dev-secret cargo run -p stashden-api
 ```
 
-Migrations run on boot. Configuration is environment only:
+The server does not migrate. `stashden-api migrate` applies the pending migrations and exits, reading only `DATABASE_URL`, and the server refuses to start while the schema is behind. Run it with a role that owns the schema, before every start of a new version; the server itself then needs only DML on the tables (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, sequence usage, and `SELECT` on `_sqlx_migrations`). The compose file and the chart run it for you. Configuration is environment only:
 
 | Variable | Default | Purpose |
 |---|---|---|

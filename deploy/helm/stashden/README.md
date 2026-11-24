@@ -135,6 +135,10 @@ this chart is capable of deleting the blob store.
 
 ## Values
 
+The server does not migrate. An init container runs `stashden-api migrate` before every start, and
+the pod stays pending if it fails. It uses the database secret unless `migration.existingSecret` is
+set, which is how the server runs as a role with DML only while the migration runs as the owner.
+
 | Value | Default | Purpose |
 |---|---|---|
 | `image.repository` | `ghcr.io/ferrlabs/stashden-api` | Image to run |
@@ -142,6 +146,8 @@ this chart is capable of deleting the blob store.
 | `database.url` | none | Postgres connection string, required unless `database.existingSecret` is set |
 | `database.existingSecret` | none | Secret already holding the connection string |
 | `database.existingSecretKey` | `database-url` | Key inside that Secret |
+| `migration.existingSecret` | none | Secret holding the connection string the `migrate` init container uses, for a role that owns the schema. Falls back to the database secret |
+| `migration.existingSecretKey` | `database-url` | Key inside that Secret |
 | `jwt.secret` | none | HS256 secret for session tokens, required unless `jwt.existingSecret` is set |
 | `jwt.existingSecret` | none | Secret already holding it |
 | `jwt.existingSecretKey` | `jwt-secret` | Key inside that Secret |

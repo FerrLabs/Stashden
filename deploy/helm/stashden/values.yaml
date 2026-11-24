@@ -15,6 +15,13 @@ database:
   existingSecret: ""
   existingSecretKey: database-url
 
+# The server does not migrate. An init container runs `migrate` before it, with
+# this connection string when set (a role that owns the schema), otherwise with
+# the database one above. Set it when the server runs as a role with DML only.
+migration:
+  existingSecret: ""
+  existingSecretKey: database-url
+
 # HS256 secret for session tokens. Rotating it signs every session out.
 jwt:
   secret: ""

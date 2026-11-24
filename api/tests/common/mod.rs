@@ -27,10 +27,20 @@ pub struct Harness {
     local: Arc<LocalBlobStore>,
     maintenance: PgPool,
     database: String,
+    pub database_url: String,
+    roles: std::sync::Mutex<Vec<String>>,
 }
 
 impl Harness {
     pub async fn start() -> Option<Self> {
+        Self::start_with(true).await
+    }
+
+    pub async fn start_unmigrated() -> Option<Self> {
+        Self::start_with(false).await
+    }
+
+    async fn start_with(migrate: bool) -> Option<Self> {
         let url = std::env::var("DATABASE_URL").ok()?;
 
         let maintenance = PgPoolOptions::new()
@@ -51,10 +61,11 @@ impl Harness {
             .await
             .expect("connecting to the test database");
 
-        sqlx::migrate!("./migrations")
-            .run(&db)
-            .await
-            .expect("running the migrations");
+        if migrate {
+            stashden_api::migrations::apply(&db)
+                .await
+                .expect("running the migrations");
+        }
 
         let blob_root = std::env::temp_dir().join(format!("stashden-blobs-{database}"));
         let upload_root = std::env::temp_dir().join(format!("stashden-uploads-{database}"));
@@ -91,11 +102,26 @@ impl Harness {
             upload_root,
             local: blobs,
             maintenance,
+            database_url: with_database(&url, &database),
+            roles: std::sync::Mutex::new(Vec::new()),
             database,
         })
     }
 
+    pub fn drop_role_on_stop(&self, role: &str) {
+        self.roles.lock().expect("roles lock").push(role.to_owned());
+    }
+
     pub async fn stop(self) {
+        let roles = std::mem::take(&mut *self.roles.lock().expect("roles lock"));
+        for role in roles {
+            for statement in [
+                format!("DROP OWNED BY \"{role}\""),
+                format!("DROP ROLE \"{role}\""),
+            ] {
+                let _ = self.state.db.execute(AssertSqlSafe(statement)).await;
+            }
+        }
         self.state.db.close().await;
         let _ = tokio::fs::remove_dir_all(&self.blob_root).await;
         let _ = tokio::fs::remove_dir_all(&self.upload_root).await;

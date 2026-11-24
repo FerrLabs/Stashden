@@ -28,6 +28,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default (include "stashden.fullname" .) .Values.database.existingSecret }}
 {{- end }}
 
+{{- define "stashden.migrationSecret" -}}
+{{- default (include "stashden.databaseSecret" .) .Values.migration.existingSecret }}
+{{- end }}
+
+{{- define "stashden.migrationSecretKey" -}}
+{{- if .Values.migration.existingSecret }}
+{{- .Values.migration.existingSecretKey }}
+{{- else }}
+{{- .Values.database.existingSecretKey }}
+{{- end }}
+{{- end }}
+
 {{- define "stashden.jwtSecret" -}}
 {{- default (include "stashden.fullname" .) .Values.jwt.existingSecret }}
 {{- end }}

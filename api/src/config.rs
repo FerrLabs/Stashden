@@ -86,6 +86,10 @@ pub fn jwt_secret_is_short(secret: &str) -> bool {
     secret.chars().count() < MIN_JWT_SECRET_CHARS
 }
 
+pub fn database_url() -> Result<String, ConfigError> {
+    required("DATABASE_URL")
+}
+
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         let backend = blobs()?;
@@ -95,7 +99,7 @@ impl Config {
         )?;
         Ok(Self {
             port: parse_or("PORT", 3001)?,
-            database_url: required("DATABASE_URL")?,
+            database_url: database_url()?,
             blobs: backend.clone(),
             upload_root: upload_root(&backend)?,
             web_root: optional("WEB_ROOT").map(PathBuf::from),
