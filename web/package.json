@@ -9,7 +9,8 @@
     "build": "node scripts/build.mjs",
     "preview": "ng serve --configuration production",
     "lint": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.test.json --noEmit",
-    "test": "TZ=UTC node --import ./test/register.mjs --test \"test/*.test.ts\" \"src/**/*.test.mjs\""
+    "test": "TZ=UTC node --import ./test/register.mjs --test \"test/*.test.ts\" \"src/**/*.test.mjs\"",
+    "test:coverage": "mkdir -p coverage && TZ=UTC node --import ./test/register.mjs --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/node.lcov \"test/*.test.ts\" \"src/**/*.test.mjs\" && sed 's#^SF:#SF:web/#' coverage/node.lcov > coverage/web.lcov"
   },
   "dependencies": {
     "@angular/common": "^22.0.0",
