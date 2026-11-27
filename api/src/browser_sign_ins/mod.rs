@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::app_passwords::{self, Minted, fingerprint, secret};
 use crate::error::ApiError;
 use crate::metrics::same_token;
-use crate::users;
+use crate::{sessions, users};
 
 pub const LIFETIME_SECONDS: i32 = 15 * 60;
 pub const MOST_LIVE: i64 = 1000;
@@ -62,15 +62,23 @@ impl Pending {
     }
 }
 
+fn is_hidden(character: char) -> bool {
+    character.is_control()
+        || matches!(
+            character,
+            '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{FEFF}'
+        )
+}
+
 fn callback(port: i32, id: Uuid, outcome: &str) -> String {
     format!("http://127.0.0.1:{port}/callback?id={id}&{outcome}")
 }
 
 pub async fn start(pool: &PgPool, request: &NewRequest<'_>) -> Result<Started, ApiError> {
     let device_name = app_passwords::clean_name(request.device_name)?;
-    if device_name.chars().any(char::is_control) {
+    if device_name.chars().any(is_hidden) {
         return Err(ApiError::WrongKind {
-            expected: "device name without control characters",
+            expected: "device name without control or invisible formatting characters",
         });
     }
     proof::valid_challenge(request.challenge)?;
@@ -126,8 +134,21 @@ pub async fn waiting(pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<Waiting, 
     .ok_or(ApiError::NotFound)
 }
 
-pub async fn approve(pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<String, ApiError> {
+pub async fn approve(
+    pool: &PgPool,
+    id: Uuid,
+    user_id: Uuid,
+    session_id: Uuid,
+) -> Result<String, ApiError> {
     let code = secret();
+    let mut tx = pool.begin().await?;
+    let account = sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE id = $1 FOR SHARE")
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+    if account.is_none() || !sessions::is_live(&mut *tx, session_id, user_id).await? {
+        return Err(ApiError::Unauthenticated);
+    }
     let port = sqlx::query_scalar::<_, i32>(
         "UPDATE browser_sign_ins
          SET user_id = $2, code_hash = $3, approved_at = now()
@@ -137,8 +158,9 @@ pub async fn approve(pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<String, A
     .bind(id)
     .bind(user_id)
     .bind(fingerprint(&code))
-    .fetch_optional(pool)
+    .fetch_optional(&mut *tx)
     .await?;
+    tx.commit().await?;
 
     let Some(port) = port else {
         return Err(refused_approval(pool, id, user_id).await?);
@@ -272,4 +294,30 @@ pub async fn purge_expired(pool: &PgPool) -> Result<u64, ApiError> {
             .await?
             .rows_affected(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_hidden;
+
+    #[test]
+    fn bidi_overrides_and_zero_width_characters_are_hidden() {
+        for hidden in [
+            '\u{200B}', '\u{200C}', '\u{200D}', '\u{200E}', '\u{200F}', '\u{202A}', '\u{202D}',
+            '\u{202E}', '\u{2066}', '\u{2069}', '\u{FEFF}', '\n', '\u{7}',
+        ] {
+            assert!(is_hidden(hidden), "{hidden:?}");
+        }
+    }
+
+    #[test]
+    fn ordinary_names_in_any_script_are_not() {
+        assert!(
+            "Ada's laptop, \u{4e2d}\u{6587} \u{1F4BB} caf\u{e9}"
+                .chars()
+                .all(|c| !is_hidden(c))
+        );
+        assert!(!is_hidden('\u{200A}'));
+        assert!(!is_hidden('\u{2070}'));
+    }
 }

@@ -25,7 +25,11 @@ pub async fn create(
     Ok(id)
 }
 
-pub async fn is_live(pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<bool, ApiError> {
+pub async fn is_live(
+    executor: impl PgExecutor<'_>,
+    id: Uuid,
+    user_id: Uuid,
+) -> Result<bool, ApiError> {
     Ok(sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS (
              SELECT 1 FROM sessions WHERE id = $1 AND user_id = $2 AND expires_at > now()
@@ -33,7 +37,7 @@ pub async fn is_live(pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<bool, Api
     )
     .bind(id)
     .bind(user_id)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?)
 }
 
