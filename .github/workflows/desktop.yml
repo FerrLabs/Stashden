@@ -166,7 +166,7 @@ jobs:
           EXE: ${{ matrix.exe }}
 
       - name: Refuse a Windows executable without its icon and version resources
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && hashFiles('app/build.rs') != ''
         shell: pwsh
         run: .workflow/.github/scripts/check_windows_resources.ps1 -Path target/release/Stashden.exe
 
