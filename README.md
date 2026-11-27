@@ -288,7 +288,7 @@ POST   /v1/auth/oidc/callback  finish one, answering a session token (no session
 GET    /v1/folders            list the root
 GET    /v1/folders/{*path}    list a directory
 POST   /v1/folders/{*path}    create one, and the ones above it; 409 if the name is taken
-PUT    /v1/files/{*path}      upload, creating parent directories; honours If-Match and If-None-Match: *
+PUT    /v1/files/{*path}      upload, creating parent directories; honours If-Match and If-None-Match: *; a 412 carries the current ETag
 GET    /v1/files/{*path}      download, with Range and If-None-Match honoured
 GET    /v1/archive/{*path}    a folder as a zip, streamed, stored not compressed, Zip64 past 4 GiB
 DELETE /v1/files/{*path}      move to trash
@@ -730,6 +730,19 @@ printf '%s\n' 'a new password of twelve characters or more' \
 It sets the password from the first line of standard input, signs the account out everywhere and
 clears a lockout from too many wrong guesses. The password goes in on standard input so that it is
 not left in the process list or the shell history by an argument.
+
+### Conditional writes
+
+`PUT /v1/files/{*path}`, `POST /v1/uploads` and `POST /v1/uploads/{id}/finish` take `If-Match: <etag>`
+to write only over the version the client last saw, `If-Match: *` to write only over something that
+exists, and `If-None-Match: *` to create only where nothing is. A write whose condition does not hold
+is refused with 412 and changes nothing.
+
+The refusal carries an `ETag` header with the current version of the file, so a client that wants to
+overwrite anyway, or to compare, does not need to read it first: it sends the same write again with
+`If-Match` set to that tag. When there is no file at the path (it was deleted, moved or never
+existed) the refusal has no `ETag` header. The status and the body are the same either way. WebDAV
+refusals do not carry the header.
 
 ## Syncing a folder
 

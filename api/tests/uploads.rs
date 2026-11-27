@@ -793,3 +793,62 @@ database_test!(
         );
     }
 );
+
+fn etag(answer: &Answer) -> Option<&str> {
+    answer
+        .headers
+        .get(header::ETAG)
+        .and_then(|value| value.to_str().ok())
+}
+
+database_test!(
+    opening_an_upload_over_a_taken_name_answers_with_its_etag,
+    harness,
+    {
+        let (owner, bearer) = session(&harness, "etag-open@example.com", Role::Member).await;
+        let existing = harness.write(owner, "a.bin", b"already here").await;
+
+        let opened = begin_with(&harness, &bearer, "a.bin", 11, &[("if-none-match", "*")]).await;
+
+        assert_eq!(opened.status, StatusCode::PRECONDITION_FAILED);
+        assert_eq!(etag(&opened), Some(existing.etag.as_str()));
+    }
+);
+
+database_test!(
+    finishing_an_upload_over_a_newer_version_answers_with_its_etag,
+    harness,
+    {
+        let (owner, bearer) = session(&harness, "etag-finish@example.com", Role::Member).await;
+        let seen = harness.write(owner, "a.bin", b"listed").await;
+        let upload = begin_with(&harness, &bearer, "a.bin", 11, &[("if-match", &seen.etag)])
+            .await
+            .id();
+        send(&harness, &bearer, &upload, 0, b"edited here").await;
+        let current = harness.write(owner, "a.bin", b"edited elsewhere").await;
+
+        let finished = finish_with(&harness, &bearer, &upload, &[("if-match", &seen.etag)]).await;
+
+        assert_eq!(finished.status, StatusCode::PRECONDITION_FAILED);
+        assert_eq!(etag(&finished), Some(current.etag.as_str()));
+    }
+);
+
+database_test!(
+    finishing_an_upload_whose_file_was_trashed_answers_without_an_etag,
+    harness,
+    {
+        let (owner, bearer) = session(&harness, "etag-gone@example.com", Role::Member).await;
+        let seen = harness.write(owner, "a.bin", b"listed").await;
+        let upload = begin_with(&harness, &bearer, "a.bin", 11, &[("if-match", &seen.etag)])
+            .await
+            .id();
+        send(&harness, &bearer, &upload, 0, b"edited here").await;
+        harness.trash(&seen).await;
+
+        let finished = finish_with(&harness, &bearer, &upload, &[("if-match", &seen.etag)]).await;
+
+        assert_eq!(finished.status, StatusCode::PRECONDITION_FAILED);
+        assert_eq!(etag(&finished), None);
+    }
+);
