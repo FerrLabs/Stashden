@@ -22,13 +22,12 @@ export function contentSecurityPolicy({ apiUrl, telemetryUrl }) {
   }
   return [
     "default-src 'self'",
-    "script-src 'self' 'wasm-unsafe-eval'",
+    "script-src 'self'",
     'object-src blob:',
     "base-uri 'self'",
     "form-action 'none'",
     "img-src 'self' blob:",
     'frame-src blob:',
-    "worker-src 'self' blob:",
     `connect-src ${[...connect].join(' ')}`,
     "style-src 'self' 'unsafe-inline'",
   ].join('; ');

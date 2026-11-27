@@ -31,7 +31,8 @@ test('the same origin twice is listed once', () => {
 
 test('scripts, forms and the base element stay locked down', () => {
   const policy = contentSecurityPolicy({ apiUrl: '', telemetryUrl: '' });
-  assert.equal(directive(policy, 'script-src'), "script-src 'self' 'wasm-unsafe-eval'");
+  assert.equal(directive(policy, 'script-src'), "script-src 'self'");
+  assert.equal(directive(policy, 'worker-src'), undefined);
   assert.equal(directive(policy, 'form-action'), "form-action 'none'");
   assert.equal(directive(policy, 'base-uri'), "base-uri 'self'");
 });
