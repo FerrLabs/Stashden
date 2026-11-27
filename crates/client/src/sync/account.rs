@@ -141,9 +141,7 @@ mod tests {
             usize::try_from(state.wrapping_mul(0x2545_F491_4F6C_DD1D) % bound as u64).unwrap()
         };
         for _ in 0..20_000 {
-            let server: String = (0..1 + next(8))
-                .map(|_| PIECES[next(PIECES.len())])
-                .collect();
+            let server: String = (0..=next(8)).map(|_| PIECES[next(PIECES.len())]).collect();
             let once = normalize(&server);
             assert_eq!(normalize(&once), once, "{server:?}");
         }
