@@ -95,52 +95,56 @@ impl Config {
         Self::from_lookup(&process_env)
     }
 
-    fn from_lookup(env: Lookup) -> Result<Self, ConfigError> {
-        let backend = blobs(env)?;
+    fn from_lookup(lookup: Lookup) -> Result<Self, ConfigError> {
+        let backend = blobs(lookup)?;
         let blob_sweep_interval_seconds = parse_or(
-            env,
+            lookup,
             "BLOB_SWEEP_INTERVAL_SECONDS",
             DEFAULT_BLOB_SWEEP_INTERVAL_SECONDS,
         )?;
         Ok(Self {
-            port: parse_or(env, "PORT", 3001)?,
-            database_url: required(env, "DATABASE_URL")?,
+            port: parse_or(lookup, "PORT", 3001)?,
+            database_url: required(lookup, "DATABASE_URL")?,
             blobs: backend.clone(),
-            upload_root: upload_root(env, &backend)?,
-            web_root: optional(env, "WEB_ROOT").map(PathBuf::from),
-            jwt_secret: required(env, "JWT_SECRET")?,
-            cors_allowed_origins: optional(env, "CORS_ALLOWED_ORIGINS")
+            upload_root: upload_root(lookup, &backend)?,
+            web_root: optional(lookup, "WEB_ROOT").map(PathBuf::from),
+            jwt_secret: required(lookup, "JWT_SECRET")?,
+            cors_allowed_origins: optional(lookup, "CORS_ALLOWED_ORIGINS")
                 .unwrap_or_default()
                 .split(',')
                 .map(str::trim)
                 .filter(|origin| !origin.is_empty())
                 .map(ToOwned::to_owned)
                 .collect(),
-            default_quota_bytes: parse_or(env, "DEFAULT_QUOTA_BYTES", DEFAULT_QUOTA_BYTES)?,
-            versions_kept: parse_or(env, "VERSIONS_KEPT", VERSIONS_KEPT)?,
+            default_quota_bytes: parse_or(lookup, "DEFAULT_QUOTA_BYTES", DEFAULT_QUOTA_BYTES)?,
+            versions_kept: parse_or(lookup, "VERSIONS_KEPT", VERSIONS_KEPT)?,
             trash_retention_days: trash_retention(
-                parse_or(env, "TRASH_RETENTION_DAYS", 0)?,
+                parse_or(lookup, "TRASH_RETENTION_DAYS", 0)?,
                 blob_sweep_interval_seconds,
             )?,
-            session_ttl_seconds: parse_or(env, "SESSION_TTL_SECONDS", DEFAULT_SESSION_TTL_SECONDS)?,
+            session_ttl_seconds: parse_or(
+                lookup,
+                "SESSION_TTL_SECONDS",
+                DEFAULT_SESSION_TTL_SECONDS,
+            )?,
             blob_sweep_interval_seconds,
             blob_grace_period_seconds: parse_or(
-                env,
+                lookup,
                 "BLOB_GRACE_PERIOD_SECONDS",
                 DEFAULT_BLOB_GRACE_PERIOD_SECONDS,
             )?,
-            oidc: oidc(env),
-            metrics_token: optional(env, "METRICS_TOKEN"),
-            bootstrap_admin: bootstrap_admin(env),
-            mail: mail(env)?,
+            oidc: oidc(lookup),
+            metrics_token: optional(lookup, "METRICS_TOKEN"),
+            bootstrap_admin: bootstrap_admin(lookup),
+            mail: mail(lookup)?,
         })
     }
 }
 
 /// Beside the blobs by default, because that is the one directory a deployment has already had to
 /// make writable. An object store deployment has no such directory, so it has to say where.
-fn upload_root(env: Lookup, blobs: &BlobBackend) -> Result<PathBuf, ConfigError> {
-    if let Some(configured) = optional(env, "UPLOAD_ROOT") {
+fn upload_root(lookup: Lookup, blobs: &BlobBackend) -> Result<PathBuf, ConfigError> {
+    if let Some(configured) = optional(lookup, "UPLOAD_ROOT") {
         return Ok(PathBuf::from(configured));
     }
     match blobs {
@@ -165,18 +169,20 @@ fn trash_retention(days: u32, sweep_interval_seconds: u64) -> Result<u32, Config
 /// Local disk unless `BLOB_BACKEND=s3`. An unknown value is refused rather than quietly falling
 /// back, because a deployment that meant S3 and got local disk loses every upload when the pod
 /// restarts.
-fn blobs(env: Lookup) -> Result<BlobBackend, ConfigError> {
-    match optional(env, "BLOB_BACKEND").as_deref() {
+fn blobs(lookup: Lookup) -> Result<BlobBackend, ConfigError> {
+    match optional(lookup, "BLOB_BACKEND").as_deref() {
         None | Some("local") => Ok(BlobBackend::Local {
-            root: PathBuf::from(optional(env, "BLOB_ROOT").unwrap_or_else(|| "./data".to_owned())),
+            root: PathBuf::from(
+                optional(lookup, "BLOB_ROOT").unwrap_or_else(|| "./data".to_owned()),
+            ),
         }),
         Some("s3") => Ok(BlobBackend::S3(S3Config {
-            bucket: required(env, "S3_BUCKET")?,
-            region: optional(env, "S3_REGION"),
-            endpoint: optional(env, "S3_ENDPOINT"),
-            prefix: optional(env, "S3_PREFIX").unwrap_or_default(),
-            access_key_id: optional(env, "S3_ACCESS_KEY_ID"),
-            secret_access_key: optional(env, "S3_SECRET_ACCESS_KEY"),
+            bucket: required(lookup, "S3_BUCKET")?,
+            region: optional(lookup, "S3_REGION"),
+            endpoint: optional(lookup, "S3_ENDPOINT"),
+            prefix: optional(lookup, "S3_PREFIX").unwrap_or_default(),
+            access_key_id: optional(lookup, "S3_ACCESS_KEY_ID"),
+            secret_access_key: optional(lookup, "S3_SECRET_ACCESS_KEY"),
         })),
         Some(_) => Err(ConfigError::Invalid {
             name: "BLOB_BACKEND",
@@ -185,32 +191,32 @@ fn blobs(env: Lookup) -> Result<BlobBackend, ConfigError> {
     }
 }
 
-fn oidc(env: Lookup) -> Option<OidcConfig> {
+fn oidc(lookup: Lookup) -> Option<OidcConfig> {
     Some(OidcConfig {
-        issuer: optional(env, "OIDC_ISSUER")?,
-        client_id: optional(env, "OIDC_CLIENT_ID")?,
-        client_secret: optional(env, "OIDC_CLIENT_SECRET")?,
-        redirect_url: optional(env, "OIDC_REDIRECT_URL")?,
-        create_accounts: optional(env, "OIDC_CREATE_ACCOUNTS")
+        issuer: optional(lookup, "OIDC_ISSUER")?,
+        client_id: optional(lookup, "OIDC_CLIENT_ID")?,
+        client_secret: optional(lookup, "OIDC_CLIENT_SECRET")?,
+        redirect_url: optional(lookup, "OIDC_REDIRECT_URL")?,
+        create_accounts: optional(lookup, "OIDC_CREATE_ACCOUNTS")
             .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "yes")),
     })
 }
 
-fn mail(env: Lookup) -> Result<Option<MailConfig>, ConfigError> {
-    let Some(smtp_url) = optional(env, "SMTP_URL") else {
+fn mail(lookup: Lookup) -> Result<Option<MailConfig>, ConfigError> {
+    let Some(smtp_url) = optional(lookup, "SMTP_URL") else {
         return Ok(None);
     };
     Ok(Some(MailConfig {
         smtp_url,
-        from: required(env, "MAIL_FROM")?,
-        public_url: required(env, "PUBLIC_URL")?,
+        from: required(lookup, "MAIL_FROM")?,
+        public_url: required(lookup, "PUBLIC_URL")?,
     }))
 }
 
-fn bootstrap_admin(env: Lookup) -> Option<BootstrapAdmin> {
+fn bootstrap_admin(lookup: Lookup) -> Option<BootstrapAdmin> {
     Some(BootstrapAdmin {
-        email: optional(env, "BOOTSTRAP_ADMIN_EMAIL")?,
-        password: optional(env, "BOOTSTRAP_ADMIN_PASSWORD")?,
+        email: optional(lookup, "BOOTSTRAP_ADMIN_EMAIL")?,
+        password: optional(lookup, "BOOTSTRAP_ADMIN_PASSWORD")?,
     })
 }
 
@@ -220,8 +226,8 @@ fn process_env(name: &str) -> Result<String, VarError> {
     env::var(name)
 }
 
-fn required(env: Lookup, name: &'static str) -> Result<String, ConfigError> {
-    match env(name) {
+fn required(lookup: Lookup, name: &'static str) -> Result<String, ConfigError> {
+    match lookup(name) {
         Ok(value) if !value.is_empty() => Ok(value),
         Ok(_) | Err(VarError::NotPresent) => Err(ConfigError::Missing(name)),
         Err(VarError::NotUnicode(_)) => Err(ConfigError::Invalid {
@@ -231,16 +237,16 @@ fn required(env: Lookup, name: &'static str) -> Result<String, ConfigError> {
     }
 }
 
-fn optional(env: Lookup, name: &str) -> Option<String> {
-    env(name).ok().filter(|value| !value.is_empty())
+fn optional(lookup: Lookup, name: &str) -> Option<String> {
+    lookup(name).ok().filter(|value| !value.is_empty())
 }
 
 fn parse_or<T: std::str::FromStr>(
-    env: Lookup,
+    lookup: Lookup,
     name: &'static str,
     fallback: T,
 ) -> Result<T, ConfigError> {
-    match optional(env, name) {
+    match optional(lookup, name) {
         None => Ok(fallback),
         Some(raw) => raw.parse().map_err(|_| ConfigError::Invalid {
             name,
@@ -280,7 +286,7 @@ mod tests {
         assert_eq!(config.versions_kept, VERSIONS_KEPT);
         assert_eq!(config.session_ttl_seconds, DEFAULT_SESSION_TTL_SECONDS);
         assert_eq!(config.trash_retention_days, 0);
-        assert!(config.cors_allowed_origins.is_empty());
+        assert_eq!(config.cors_allowed_origins, Vec::<String>::new());
         assert!(config.oidc.is_none());
         assert!(config.mail.is_none());
         assert!(config.bootstrap_admin.is_none());

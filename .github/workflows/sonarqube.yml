@@ -103,6 +103,7 @@ jobs:
       runner: ubuntu-latest
       project-key: RoxyCloud
       coverage-artifact-pattern: coverage-*
+      exclusions: '**/node_modules/**,**/dist/**,**/build/**,**/target/**,**/coverage/**,**/.next/**,**/out/**,**/vendor/**,**/*.min.js,**/*.min.css,**/*.test.ts,**/*.test.mjs,web/test/**,**/tests/**'
       args: >-
         -Dsonar.sources=.
         -Dsonar.tests=.
