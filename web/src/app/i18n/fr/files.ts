@@ -22,12 +22,12 @@ export const files = {
   'files.loadFailed': 'Ce dossier n’a pas pu être chargé.',
   'files.emptyHint': 'Déposez des fichiers ici, ou utilisez le bouton d’envoi.',
   'files.receivedFailed':
-    'Les informations sur qui a partagé ceci avec vous, et avec quels droits, n’ont pas pu être chargées : rien ne peut être modifié ici pour le moment.',
+    'Impossible de savoir qui a partagé ce dossier avec vous, ni avec quels droits. Rien ne peut être modifié ici pour le moment.',
   'files.sharedBy.read':
     '{owner} partage ceci avec vous. Vous pouvez consulter et télécharger son contenu, mais pas le modifier.',
   'files.sharedBy.write':
     '{owner} partage ceci avec vous. Ce que vous ajoutez ou modifiez ici est enregistré dans ses fichiers.',
-  'files.origin': 'De {owner}, {access}',
+  'files.origin': 'Partagé par {owner}, {access}',
 
   'files.action.downloadZip': 'Télécharger {name} en zip',
   'files.action.versions': 'Versions de {name}',
@@ -51,7 +51,7 @@ export const files = {
 
   'files.rename.heading': 'Renommer {name}',
   'files.rename.label': 'Nouveau nom',
-  'files.rename.hint': 'Saisissez un chemin avec / pour le déplacer dans un dossier d’ici.',
+  'files.rename.hint': 'Pour le déplacer dans un sous-dossier, saisissez un chemin avec /.',
   'files.rename.action': 'Renommer',
   'files.newFolder.label': 'Nom',
   'files.newFolder.hint': 'Saisissez un chemin avec / pour créer des dossiers imbriqués.',

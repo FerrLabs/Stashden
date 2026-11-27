@@ -20,11 +20,12 @@ export const shell = {
   'signIn.busy': 'Connexion en cours',
   'signIn.forgot': 'Mot de passe oublié ?',
   'signIn.provider': 'Se connecter avec votre fournisseur d’identité',
+  'signIn.invalid': 'Adresse e-mail ou mot de passe incorrect.',
 
   'language.label': 'Langue',
 
   'menu.displayName': 'Modifier le nom affiché',
-  'menu.password': 'Changer le mot de passe',
+  'menu.password': 'Modifier le mot de passe',
   'menu.appPasswords': 'Mots de passe d’application',
   'menu.accounts': 'Comptes',
   'menu.deleteAccount': 'Supprimer le compte',

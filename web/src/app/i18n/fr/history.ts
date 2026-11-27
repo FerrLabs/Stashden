@@ -11,18 +11,20 @@ export const history = {
   'trash.purge': 'Supprimer définitivement',
   'trash.purgeLabel': 'Supprimer {name} définitivement',
   'trash.deleted': 'supprimé le {moment}',
-  'trash.expires': 'disparaît définitivement le {moment}',
-  'trash.restoreConflict': '{reason}. Renommez ou déplacez cet élément, puis restaurez à nouveau.',
+  'trash.expires': 'suppression définitive le {moment}',
+  'trash.restoreConflict':
+    '{reason}. Renommez ou déplacez l’élément existant, puis relancez la restauration.',
   'trash.announce.emptied': 'Corbeille vidée',
   'trash.announce.restored': '{name} restauré à son emplacement d’origine',
   'trash.announce.purged': '{name} supprimé définitivement',
   'trash.emptyHeading': 'Vider la corbeille ?',
   'trash.emptyBody':
-    'Tout son contenu est supprimé définitivement, avec ses versions. Cette action est irréversible.',
+    'Tout son contenu sera supprimé définitivement, versions comprises. Cette action est irréversible.',
   'trash.purgeHeading': 'Supprimer {name} définitivement ?',
   'trash.purgeFolder':
-    'Le dossier et tout ce qu’il contient sont supprimés, avec leurs versions. Cette action est irréversible.',
-  'trash.purgeFile': 'Le fichier est supprimé, avec ses versions. Cette action est irréversible.',
+    'Le dossier, tout ce qu’il contient et leurs versions seront supprimés définitivement. Cette action est irréversible.',
+  'trash.purgeFile':
+    'Le fichier et ses versions seront supprimés définitivement. Cette action est irréversible.',
 
   'versions.heading': 'Versions de {name}',
   'versions.hint':
@@ -34,7 +36,7 @@ export const history = {
   'versions.restoreLabel': 'Restaurer la version du {moment}',
   'versions.restoreHeading': 'Restaurer {name} ?',
   'versions.restoreBody':
-    'Le fichier revient à la version du {moment}. Le contenu actuel est conservé comme version, ce qui permet d’annuler.',
+    'Le fichier reviendra à la version du {moment}. Son contenu actuel sera conservé dans les versions : vous pourrez annuler.',
   'versions.announce.downloaded': 'Version du {moment} téléchargée.',
   'versions.announce.saved': 'Version du {moment} enregistrée dans {destination}.',
   'versions.announce.restored':

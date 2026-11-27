@@ -24,7 +24,7 @@ export const files = {
     '{owner} shares this with you. You can view and download what is in it, and not change it.',
   'files.sharedBy.write':
     '{owner} shares this with you. What you add or change here is stored in their files.',
-  'files.origin': 'From {owner}, {access}',
+  'files.origin': 'Shared by {owner}, {access}',
 
   'files.action.downloadZip': 'Download {name} as a zip',
   'files.action.versions': 'Versions of {name}',

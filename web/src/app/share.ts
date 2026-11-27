@@ -1,4 +1,4 @@
-import { formatDay, t } from './i18n/language';
+import { formatDay, joinDetails, t } from './i18n/language';
 import type { NodeKind } from './node';
 
 export type Share = {
@@ -73,5 +73,5 @@ export function describeLink(share: Share): string {
   if (share.has_password) {
     parts.push(t('share.describe.password'));
   }
-  return parts.join(', ');
+  return joinDetails(parts);
 }

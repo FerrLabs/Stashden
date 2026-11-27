@@ -17,6 +17,7 @@ export const shell = {
   'signIn.busy': 'Signing in',
   'signIn.forgot': 'Forgot your password?',
   'signIn.provider': 'Sign in with your identity provider',
+  'signIn.invalid': 'Wrong email or password.',
 
   'language.label': 'Language',
 

@@ -37,7 +37,7 @@ export const publicLink = {
     other: 'Too many requests, try again in about {count} seconds.',
   },
 
-  'error.unreachable': 'The server did not answer, try again later.',
+  'error.unreachable': 'The server is not responding. Try again later.',
   'error.readOnly': 'this account may only read',
   'error.noRoom': 'there is no room left in this account',
   'error.notCurrentPassword': 'that is not your current password',

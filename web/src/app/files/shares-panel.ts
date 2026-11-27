@@ -11,7 +11,7 @@ import { SHARED_WITH_ME, describeAccess, type Given } from '../grant';
 import { PLATFORM } from '../platform';
 import { describeLink, type Share } from '../share';
 import { Confirm } from '../shared/confirm';
-import { t } from '../i18n/language';
+import { joinDetails, t } from '../i18n/language';
 
 @Component({
   selector: 'rx-shares-panel',
@@ -49,7 +49,7 @@ export class SharesPanel {
     if (given.in_trash) {
       parts.push(t('share.panel.inTrash'));
     }
-    return parts.join(', ');
+    return joinDetails(parts);
   }
 
   protected async revoke(share: Share): Promise<void> {
