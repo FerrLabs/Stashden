@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.57.1] - 2026-11-27
+
+### Bug Fixes
+
+- fix(web): bring light-theme text and primary buttons up to WCAG AA contrast (#527)
+
 ## [0.57.0] - 2026-11-24
 
 ### Features
