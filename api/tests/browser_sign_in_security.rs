@@ -465,6 +465,8 @@ database_test!(
     approvals_racing_password_changes_never_leave_a_redeemable_code,
     harness,
     {
+        let admin = harness.account("root@example.com", Role::Admin).await;
+        let admin_session = harness.session(admin.id).await;
         for round in 0..6 {
             let email = format!("racer{round}@example.com");
             let user = harness.account(&email, Role::Member).await;
@@ -479,14 +481,15 @@ database_test!(
             });
             let change = tokio::spawn({
                 let state = harness.state.clone();
-                let session = session.clone();
+                let admin_session = admin_session.clone();
+                let user_id = user.id;
                 async move {
                     send(
                         &state,
                         "PUT",
-                        "/v1/auth/password",
-                        &Auth::Session(&session),
-                        Some(json!({ "current": PASSWORD, "password": NEW_PASSWORD })),
+                        &format!("/v1/users/{user_id}/password"),
+                        &Auth::Session(&admin_session),
+                        Some(json!({ "password": NEW_PASSWORD })),
                     )
                     .await
                 }
