@@ -230,7 +230,7 @@ pub async fn reset_password(
     let mut tx = state.db.begin().await?;
     users::set_password(&mut *tx, id, &request.password).await?;
     sessions::revoke_all(&mut *tx, id, None).await?;
-    app_passwords::revoke_all(&mut *tx, id).await?;
+    app_passwords::revoke_all(&mut tx, id).await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -319,7 +319,7 @@ pub async fn change_password(
     let mut tx = state.db.begin().await?;
     users::set_password(&mut *tx, caller.user.id, &request.password).await?;
     sessions::revoke_all(&mut *tx, caller.user.id, Some(caller.session_id)).await?;
-    app_passwords::revoke_all(&mut *tx, caller.user.id).await?;
+    app_passwords::revoke_all(&mut tx, caller.user.id).await?;
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }

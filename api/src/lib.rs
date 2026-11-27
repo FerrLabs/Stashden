@@ -4,6 +4,7 @@ pub mod archive;
 pub mod attempts;
 pub mod auth;
 pub mod bootstrap;
+pub mod browser_sign_ins;
 pub mod check;
 pub mod config;
 pub mod dav;

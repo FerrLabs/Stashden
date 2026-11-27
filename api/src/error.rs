@@ -22,6 +22,8 @@ pub enum ApiError {
     SharePassword,
     #[error("too many attempts, try again in {seconds} seconds")]
     TooManyAttempts { seconds: i64 },
+    #[error("too many sign-in requests are waiting, try again shortly")]
+    Busy,
     #[error("this account may not write")]
     Forbidden,
     #[error("an app password cannot manage the account, sign in with the account's password")]
@@ -119,6 +121,7 @@ impl ApiError {
             Self::TooManySessions { .. } | Self::TooManyAttempts { .. } => {
                 StatusCode::TOO_MANY_REQUESTS
             }
+            Self::Busy => StatusCode::SERVICE_UNAVAILABLE,
             Self::Credential | Self::Storage(_) | Self::Database(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }

@@ -17,7 +17,7 @@ pub async fn reset_password(
     let mut tx = pool.begin().await?;
     users::set_password(&mut *tx, user.id, plaintext).await?;
     sessions::revoke_all(&mut *tx, user.id, None).await?;
-    app_passwords::revoke_all(&mut *tx, user.id).await?;
+    app_passwords::revoke_all(&mut tx, user.id).await?;
     tx.commit().await?;
 
     attempts::forget(pool, Scope::Login, email.as_str()).await?;

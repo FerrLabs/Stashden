@@ -2,6 +2,8 @@
 // test file reads as dead code in the others.
 #![allow(dead_code)]
 
+pub mod browser;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 

@@ -28,10 +28,15 @@ pub struct Returned {
 }
 
 #[derive(Serialize)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the wire shape is one flag per sign-in method"
+)]
 pub struct Methods {
     password: bool,
     password_reset: bool,
     oidc: bool,
+    browser: bool,
 }
 
 impl Methods {
@@ -40,6 +45,7 @@ impl Methods {
             password,
             password_reset: password && state.mail.is_some(),
             oidc: state.oidc.is_some(),
+            browser: true,
         }
     }
 }

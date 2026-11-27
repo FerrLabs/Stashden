@@ -297,6 +297,11 @@ GET    /v1/auth/methods     what this installation offers to sign in with (no se
 PUT    /v1/auth/methods     turn password login off or on            (admin)
 POST   /v1/auth/oidc/start  begin an authorization code flow (no session needed)
 POST   /v1/auth/oidc/callback  finish one, answering a session token (no session needed)
+POST   /v1/auth/browser     start a browser sign-in for a client: `device_name`, `challenge` (base64url SHA-256 of a verifier the client keeps) and `loopback_port` (1024 to 65535); answers 201 `id`, `confirmation`, `expires_in`; 503 above 1000 live requests (no session needed)
+GET    /v1/auth/browser/{id}  what is asking: `device_name`, `confirmation`, `created_at`, `expires_at`; 404 once expired or approved by another account (session only)
+POST   /v1/auth/browser/{id}/approve  attach the request to this account and answer `callback`, a `http://127.0.0.1:{port}/callback` URL carrying a one-time code, built from the port the client registered; 409 if already approved (session only)
+DELETE /v1/auth/browser/{id}  refuse it, answering a `callback` with `error=denied` (session only)
+POST   /v1/auth/browser/{id}/redeem  `code` and `verifier` for an app password named after the device, answering the app password's fields, `secret` and `user`; once, and every refusal is the same 401 (no session needed)
 GET    /v1/folders            list the root
 GET    /v1/folders/{*path}    list a directory
 POST   /v1/folders/{*path}    create one, and the ones above it; 409 if the name is taken
@@ -656,6 +661,17 @@ these integrations is broken, so the decision lives in one function and is teste
 directions: it neither takes over an existing account nor creates a new one. A missing
 `email_verified` claim is not a verified address; a provider that says nothing has vouched for
 nothing.
+
+A client with a browser, the desktop app or the command line, can sign in without handling a
+password or registering anything with the provider. It sends a PKCE challenge and the loopback port
+it listens on to `POST /v1/auth/browser`, and opens the web app on that request. Once the person
+approves it from a web session, however that session was opened, the server answers the web app with
+a callback URL it builds itself from the registered port, always on `127.0.0.1`, carrying a code of
+256 random bits that is kept only as a hash. The client trades that code and its verifier for an app
+password: never a session token, and never anything that travels in a URL. A request lives fifteen
+minutes, a code works once, five wrong answers delete the request, and the account must still be
+active at the moment of the exchange. Changing or resetting the account's password cancels its
+pending requests along with its app passwords.
 
 The web app asks `GET /v1/auth/methods` and draws a "Sign in with your identity provider" button
 when the server has one, in place of the password form once an administrator has turned passwords
