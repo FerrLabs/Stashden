@@ -8,7 +8,8 @@
     "dev": "ng serve",
     "build": "ng build",
     "preview": "ng serve --configuration production",
-    "lint": "tsc -p tsconfig.app.json --noEmit"
+    "lint": "tsc -p tsconfig.app.json --noEmit",
+    "test": "node --test"
   },
   "dependencies": {
     "@angular/common": "^22.0.0",

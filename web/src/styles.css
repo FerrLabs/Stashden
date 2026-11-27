@@ -10,7 +10,7 @@
   --surface-raised: #f2f7fb;
   --ink: #0f172a;
   --ink-muted: #4a5a72;
-  --ink-faint: #7b8aa1;
+  --ink-faint: #5d6b82;
   --rule: #dde4ec;
   --rule-soft: #eef2f6;
   --rule-strong: #b9c5d4;
@@ -78,8 +78,8 @@ button.ghost {
 }
 
 button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
   color: var(--accent-contrast);
 }
 
