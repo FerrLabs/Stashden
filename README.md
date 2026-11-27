@@ -157,7 +157,9 @@ cargo packager -p stashden-app --release --formats appimage
 
 The binary is copied to `Stashden` first so the installer lays out the same `Stashden.exe`,
 shortcuts and registry keys as the Tauri build it replaces. On Windows copy `stashden-app.exe` to
-`Stashden.exe` and pass `--formats nsis`. The bundle lands in `target/release/bundle/`, since every
+`Stashden.exe` and pass `--formats nsis`. A Windows build embeds `app/icons/icon.ico` and the version
+information in the executable (`app/build.rs`), which is where Windows reads the icon of the
+shortcuts, the taskbar and the window. The bundle lands in `target/release/bundle/`, since every
 crate in the workspace shares one output directory. Without `CARGO_PACKAGER_SIGN_PRIVATE_KEY` the
 installer carries no update signature.
 
