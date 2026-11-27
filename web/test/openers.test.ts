@@ -4,6 +4,7 @@ import {
   PREVIEW_LIMIT,
   extensionOf,
   mimeOf,
+  offersSeveralWays,
   openerFor,
   waysToOpen,
 } from '../src/app/files/openers.ts';
@@ -90,4 +91,24 @@ test('the mime type follows the extension and falls back to octet-stream', () =>
   assert.equal(mimeOf('a.pdf'), 'application/pdf');
   assert.equal(mimeOf('a.txt'), 'application/octet-stream');
   assert.equal(mimeOf('Makefile'), 'application/octet-stream');
+});
+
+const editable = [{ extensions: ['md'], viewer: 'text' as const, editor: 'markdown' as const }];
+
+test('an editor is offered to an account that can change the folder, and not to others', () => {
+  const node = { name: 'a.md', size: 10 };
+  assert.equal(openerFor(node, writer, editable).editor, 'markdown');
+  assert.equal(openerFor(node, reader, editable).editor, null);
+});
+
+test('the Open with menu follows the account: it exists for a writer and not for a reader', () => {
+  const node = { name: 'a.md', size: 10 };
+  assert.deepEqual(waysToOpen(openerFor(node, writer, editable)), ['preview', 'download']);
+  assert.deepEqual(waysToOpen(openerFor(node, reader, editable)), []);
+});
+
+test('a file offers several ways only with a viewer and an editor', () => {
+  assert.equal(offersSeveralWays({ viewer: 'text', editor: 'markdown', reason: 'ready' }), true);
+  assert.equal(offersSeveralWays({ viewer: 'text', editor: null, reason: 'ready' }), false);
+  assert.equal(offersSeveralWays({ viewer: null, editor: null, reason: 'unsupported' }), false);
 });

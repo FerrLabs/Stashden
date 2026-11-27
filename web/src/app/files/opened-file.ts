@@ -7,6 +7,7 @@ import {
   untracked,
   type Signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { linkTo } from '../folder';
@@ -22,9 +23,23 @@ export type OpenedFileOptions = {
   readonly missing: (name: string) => void;
 };
 
+export type Leaving = {
+  readonly back: () => void;
+  readonly replace: () => void;
+};
+
+export function closeFile(openedFromList: boolean, leaving: Leaving): void {
+  if (openedFromList) {
+    leaving.back();
+  } else {
+    leaving.replace();
+  }
+}
+
 export class OpenedFile {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  private readonly location = inject(Location);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap, {
     initialValue: convertToParamMap({}),
   });
@@ -53,11 +68,10 @@ export class OpenedFile {
   }
 
   close(): void {
-    if (this.fromList) {
-      history.back();
-      return;
-    }
-    void this.router.navigate(linkTo(this.options.path()), { replaceUrl: true });
+    closeFile(this.fromList, {
+      back: () => this.location.back(),
+      replace: () => void this.router.navigate(linkTo(this.options.path()), { replaceUrl: true }),
+    });
   }
 
   private resolve(): void {

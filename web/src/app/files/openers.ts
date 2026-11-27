@@ -16,7 +16,7 @@ export type Way = 'preview' | 'download';
 
 export type Capabilities = { readonly canChange: boolean };
 
-type Opener = {
+export type Opener = {
   readonly extensions: readonly string[];
   readonly viewer: Viewer | null;
   readonly editor: Editor | null;
@@ -66,16 +66,20 @@ export function extensionOf(name: string): string {
   return at > 0 ? name.slice(at + 1).toLowerCase() : '';
 }
 
-function openerOf(name: string): Opener | undefined {
+function openerOf(name: string, table: readonly Opener[] = OPENERS): Opener | undefined {
   const extension = extensionOf(name);
-  return OPENERS.find((opener) => opener.extensions.includes(extension));
+  return table.find((opener) => opener.extensions.includes(extension));
 }
 
-export function openerFor(node: Pick<Node, 'name' | 'size'>, options: Capabilities): Opening {
+export function openerFor(
+  node: Pick<Node, 'name' | 'size'>,
+  options: Capabilities,
+  table: readonly Opener[] = OPENERS,
+): Opening {
   if (node.size > PREVIEW_LIMIT) {
     return { viewer: null, editor: null, reason: 'tooLarge' };
   }
-  const opener = openerOf(node.name);
+  const opener = openerOf(node.name, table);
   if (opener === undefined || opener.viewer === null) {
     return { viewer: null, editor: null, reason: 'unsupported' };
   }
@@ -86,8 +90,12 @@ export function openerFor(node: Pick<Node, 'name' | 'size'>, options: Capabiliti
   };
 }
 
+export function offersSeveralWays(opening: Opening): boolean {
+  return opening.viewer !== null && opening.editor !== null;
+}
+
 export function waysToOpen(opening: Opening): Way[] {
-  return opening.viewer !== null && opening.editor !== null ? ['preview', 'download'] : [];
+  return offersSeveralWays(opening) ? ['preview', 'download'] : [];
 }
 
 export function mimeOf(name: string): string {

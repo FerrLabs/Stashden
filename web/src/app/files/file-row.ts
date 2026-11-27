@@ -74,7 +74,7 @@ export class FileRow {
 
   protected readonly ways = computed(() => {
     const node = this.node();
-    return node.kind === 'file' ? waysToOpen(openerFor(node, { canChange: false })) : [];
+    return node.kind === 'file' ? waysToOpen(openerFor(node, { canChange: this.mayChange() })) : [];
   });
 
   focus(): void {
