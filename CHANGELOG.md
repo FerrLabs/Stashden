@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.62.2] - 2026-11-27
+
+### Bug Fixes
+
+- fix(api): close the browser sign-in approve race and tighten inputs (#574)
+
 ## [0.62.1] - 2026-11-27
 
 ### Bug Fixes
