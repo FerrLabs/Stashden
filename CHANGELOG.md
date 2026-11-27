@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.62.0] - 2026-11-27
+
+### Features
+
+- feat(api): add browser sign-in requests that end in an app password (#568)
+
 ## [0.61.2] - 2026-11-27
 
 ### Bug Fixes
