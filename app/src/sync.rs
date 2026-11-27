@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use stashden_client::sync::watch::{Command, DEFAULT_POLL, Session, Status, watch};
-use stashden_client::{Account, Debounce, Engine, Remote, Report};
+use stashden_client::{Account, Debounce, Engine, Report};
 
 use crate::desktop::Desktop;
 use crate::failure::Failure;
@@ -135,11 +135,15 @@ impl Desktop {
     }
 
     pub async fn resume_saved_syncs(self: &Arc<Self>) -> Option<String> {
-        let account = self.account_email()?;
+        let remembered = self.account_email()?;
+        let account = match self.account().await {
+            Ok(account) => account,
+            Err(failure) => return Some(failure.to_string()),
+        };
         let mut refused = Vec::new();
-        for folder in Remembered::load(&self.config).of(&account) {
+        for folder in Remembered::load(&self.config).of(&remembered) {
             let running = self.folders.lock().await.contains(folder);
-            if !running && let Err(failure) = self.begin(folder.clone()).await {
+            if !running && let Err(failure) = self.begin(folder.clone(), &account).await {
                 refused.push(failure.about(&folder.display().to_string()).to_string());
             }
         }
@@ -147,7 +151,8 @@ impl Desktop {
     }
 
     pub async fn start_sync(self: &Arc<Self>, folder: PathBuf) -> Result<(), Failure> {
-        self.begin(folder.clone()).await?;
+        let account = self.account().await?;
+        self.begin(folder.clone(), &account).await?;
         self.remember(folder, true)
     }
 
@@ -198,17 +203,10 @@ impl Desktop {
         })
     }
 
-    async fn account_of(&self, remote: &Remote) -> Result<Account, Failure> {
-        let server = self.server().ok_or("not connected to a server")?;
-        let user = remote.me().await?;
-        Ok(Account::new(&server, user.id))
-    }
-
-    async fn begin(self: &Arc<Self>, folder: PathBuf) -> Result<(), Failure> {
+    async fn begin(self: &Arc<Self>, folder: PathBuf, account: &Account) -> Result<(), Failure> {
         let remote = self.fresh_remote()?;
-        let account = self.account_of(&remote).await?;
         let engine =
-            Engine::open(folder.clone(), remote, &account).map_err(|error| error.to_string())?;
+            Engine::open(folder.clone(), remote, account).map_err(|error| error.to_string())?;
         let session =
             watch(engine, Debounce::default(), DEFAULT_POLL).map_err(|error| error.to_string())?;
         let mut status = session.subscribe();

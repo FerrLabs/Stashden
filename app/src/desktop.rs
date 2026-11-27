@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use stashden_client::{Methods, Remote, RemoteError, free_path};
+use stashden_client::{Account, Methods, Remote, RemoteError, free_path};
 use stashden_core::node::Node;
 use tokio::sync::broadcast;
 
@@ -77,6 +77,21 @@ impl Desktop {
             .map(|connection| connection.credentials.email.clone())
     }
 
+    pub(crate) async fn account(&self) -> Result<Account, Failure> {
+        let known = self.connection().as_ref().and_then(|connection| {
+            let credentials = &connection.credentials;
+            credentials
+                .user_id
+                .map(|id| Account::new(&credentials.server, id))
+        });
+        if let Some(account) = known {
+            return Ok(account);
+        }
+        let server = self.server().ok_or("not connected to a server")?;
+        let user = self.remote()?.me().await?;
+        Ok(Account::new(&server, user.id))
+    }
+
     pub(crate) fn fresh_remote(&self) -> Result<Remote, Failure> {
         let credentials = self
             .connection()
@@ -133,7 +148,7 @@ impl Desktop {
         server: String,
         session: Remote,
     ) -> Result<Option<String>, Failure> {
-        let email = session.me().await?.email;
+        let user = session.me().await?;
         let minted = session
             .mint_app_password(&format!("Stashden desktop on {}", this_computer()))
             .await?;
@@ -141,8 +156,9 @@ impl Desktop {
 
         let credentials = Credentials {
             server,
-            email,
+            email: user.email,
             secret: minted.secret,
+            user_id: Some(user.id),
         };
         self.keep_server(&credentials.server);
         let refused = self.connect(credentials.clone()).await?;
@@ -165,9 +181,15 @@ impl Desktop {
 
     async fn connect(
         self: &Arc<Self>,
-        credentials: Credentials,
+        mut credentials: Credentials,
     ) -> Result<Option<String>, Failure> {
         let remote = Arc::new(remote_for(&credentials)?);
+        if credentials.user_id.is_none()
+            && let Ok(user) = remote.me().await
+        {
+            credentials.user_id = Some(user.id);
+            let _ = keychain::keep(credentials.clone()).await;
+        }
         *self.connection() = Some(Connection {
             remote,
             credentials,

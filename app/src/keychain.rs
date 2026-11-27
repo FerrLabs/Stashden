@@ -1,6 +1,7 @@
 use crate::runtime::blocking;
 use keyring::{Entry, Error};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 const SERVICE: &str = "Stashden";
 const ACCOUNT: &str = "desktop";
@@ -10,6 +11,8 @@ pub struct Credentials {
     pub server: String,
     pub email: String,
     pub secret: String,
+    #[serde(default)]
+    pub user_id: Option<Uuid>,
 }
 
 fn entry() -> Result<Entry, String> {

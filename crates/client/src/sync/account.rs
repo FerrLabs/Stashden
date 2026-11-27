@@ -40,9 +40,14 @@ impl fmt::Display for Account {
 }
 
 fn normalize(server: &str) -> String {
-    let server = server.trim();
-    let canonical = Url::parse(server).map_or_else(|_| server.to_owned(), String::from);
-    canonical.trim_end_matches('/').to_owned()
+    let bare = strip(server);
+    let canonical = Url::parse(bare).map_or_else(|_| bare.to_owned(), String::from);
+    strip(&canonical).to_owned()
+}
+
+fn strip(text: &str) -> &str {
+    text.trim_start()
+        .trim_end_matches(|c: char| c == '/' || c.is_whitespace())
 }
 
 #[cfg(test)]
@@ -84,6 +89,23 @@ mod tests {
             Account::new("not a url/", USER),
             Account::new(" not a url", USER)
         );
+    }
+
+    #[test]
+    fn what_is_written_reads_back_as_the_same_account() {
+        for server in [
+            "files.example.com /",
+            "https://files.example.com:443 /",
+            "not a url / /",
+            "",
+            "/",
+            "https://Files.Example.com/stash/ ",
+        ] {
+            let account = Account::new(server, USER);
+            let written = serde_json::to_string(&account).expect("writes");
+            let read: Account = serde_json::from_str(&written).expect("reads");
+            assert_eq!(read, account, "{server:?}");
+        }
     }
 
     #[test]
