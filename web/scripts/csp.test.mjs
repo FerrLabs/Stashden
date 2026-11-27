@@ -29,15 +29,36 @@ test('the same origin twice is listed once', () => {
   assert.equal(directive(policy, 'connect-src'), "connect-src 'self' https://x.example.com");
 });
 
-test('scripts, plugins and the base element stay restricted', () => {
+test('scripts, forms and the base element stay locked down', () => {
   const policy = contentSecurityPolicy({ apiUrl: '', telemetryUrl: '' });
   assert.equal(directive(policy, 'script-src'), "script-src 'self' 'wasm-unsafe-eval'");
-  assert.equal(directive(policy, 'object-src'), "object-src 'none'");
+  assert.equal(directive(policy, 'form-action'), "form-action 'none'");
   assert.equal(directive(policy, 'base-uri'), "base-uri 'self'");
 });
 
-test('a malformed URL fails the build instead of widening the policy', () => {
-  assert.throws(() => contentSecurityPolicy({ apiUrl: 'http://', telemetryUrl: '' }));
+test('the PDF preview is allowed to load its blob in the viewer plugin and nothing else', () => {
+  const policy = contentSecurityPolicy({ apiUrl: '', telemetryUrl: '' });
+  assert.equal(directive(policy, 'object-src'), 'object-src blob:');
+  assert.equal(directive(policy, 'frame-src'), 'frame-src blob:');
+  assert.equal(directive(policy, 'img-src'), "img-src 'self' blob:");
+});
+
+test('an empty value or a same-origin path adds no origin', () => {
+  for (const value of ['', '/api', '/']) {
+    const policy = contentSecurityPolicy({ apiUrl: value, telemetryUrl: '' });
+    assert.equal(directive(policy, 'connect-src'), "connect-src 'self'", value);
+  }
+});
+
+test('a value that is not an absolute http(s) URL fails the build', () => {
+  for (const value of ['api.example.com', '//api.example.com', 'javascript:x', 'http://', 'ftp://x.example.com']) {
+    assert.throws(
+      () => contentSecurityPolicy({ apiUrl: value, telemetryUrl: '' }),
+      /http|absolute/,
+      value,
+    );
+    assert.throws(() => contentSecurityPolicy({ apiUrl: '', telemetryUrl: value }), Error, value);
+  }
 });
 
 test('the policy lands right after the charset, before any resource is requested', () => {
@@ -68,6 +89,11 @@ test('defines come from both argument forms and override the defaults', () => {
     STASHDEN_TELEMETRY_URL: 'https://t.example.com/c',
     STASHDEN_SOURCE_URL: 'src',
   });
+});
+
+test('double quotes around a define are stripped like single ones', () => {
+  const defines = definesFrom(['--define', 'STASHDEN_API_URL="https://a.example.com"'], {});
+  assert.equal(defines.STASHDEN_API_URL, 'https://a.example.com');
 });
 
 test('an empty define overrides a default', () => {

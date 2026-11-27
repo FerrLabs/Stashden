@@ -497,9 +497,10 @@ and it renders images through `<img>`, where an SVG cannot execute.
 
 A Content-Security-Policy backs this up for the app itself. The web build writes it into
 `index.html` as a meta tag, because the API and telemetry origins are compiled in and only the build
-knows them (`web/scripts/build.mjs`, `web/scripts/csp.mjs`): `script-src 'self'`, no plugins,
-`connect-src` limited to the page, the API and the telemetry collector, and `frame-src blob:` for
-the PDF preview. `frame-ancestors` is ignored in a meta tag, so the API sends it as a header on the
+knows them (`web/scripts/build.mjs`, `web/scripts/csp.mjs`): `script-src 'self'`, no forms
+posting anywhere, `connect-src` limited to the page, the API and the telemetry collector, and
+`frame-src blob:` plus `object-src blob:` for the PDF preview, since Chromium's viewer loads the
+blob through an internal plugin. `frame-ancestors` is ignored in a meta tag, so the API sends it as a header on the
 pages it serves from `WEB_ROOT` and on nothing else. Styles keep `'unsafe-inline'`, since Angular
 writes component styles inline. The policy limits the damage of an injection that got past
 sanitization; it does not replace it.

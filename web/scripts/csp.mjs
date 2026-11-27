@@ -1,7 +1,17 @@
 const CHARSET_META = /<meta charset="UTF-8"\s*\/>/;
 
 export function originOf(url) {
-  return url.length > 0 ? new URL(url, 'http://placeholder.invalid').origin : null;
+  if (url.length === 0 || (url.startsWith('/') && !url.startsWith('//'))) return null;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`"${url}" is not an absolute http(s) URL, a path starting with "/" or empty`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`"${url}" must use http: or https:`);
+  }
+  return parsed.origin;
 }
 
 export function contentSecurityPolicy({ apiUrl, telemetryUrl }) {
@@ -13,10 +23,11 @@ export function contentSecurityPolicy({ apiUrl, telemetryUrl }) {
   return [
     "default-src 'self'",
     "script-src 'self' 'wasm-unsafe-eval'",
-    "object-src 'none'",
+    'object-src blob:',
     "base-uri 'self'",
-    "img-src 'self' blob: data:",
-    'frame-src blob: about:',
+    "form-action 'none'",
+    "img-src 'self' blob:",
+    'frame-src blob:',
     "worker-src 'self' blob:",
     `connect-src ${[...connect].join(' ')}`,
     "style-src 'self' 'unsafe-inline'",
@@ -36,7 +47,7 @@ export function definesFrom(args, fallback) {
   args.forEach((arg, index) => {
     const value = arg === '--define' ? args[index + 1] : arg.startsWith('--define=') ? arg.slice(9) : null;
     const match = value?.match(/^(\w+)=(.*)$/s);
-    if (match) defines[match[1]] = match[2].replace(/^'(.*)'$/s, '$1');
+    if (match) defines[match[1]] = match[2].replace(/^(['"])(.*)\1$/s, '$2');
   });
   return defines;
 }

@@ -230,8 +230,8 @@ sending, and browsers that send Global Privacy Control or Do Not Track never rep
 
 The build writes a Content-Security-Policy into `index.html` from those values: scripts and
 everything else only from the page's own origin, and `connect-src` limited to that origin, the API
-origin and the telemetry origin, so a script that gets injected can neither run nor send data to a
-third party. The policy follows `STASHDEN_API_URL` and `STASHDEN_TELEMETRY_URL`, so build with
+origin and the telemetry origin, which makes an injected script much harder to run and to use for
+sending data out. Top-level navigations are not covered by a CSP. The policy follows `STASHDEN_API_URL` and `STASHDEN_TELEMETRY_URL`, so build with
 `pnpm --filter @stashden/web build` (not `ng build` directly) or the page ships without one. When
 `WEB_ROOT` serves the app, the API also sends `Content-Security-Policy: frame-ancestors 'none'` with
 every page, which a meta tag cannot express. A reverse proxy that sets its own policy has to keep
