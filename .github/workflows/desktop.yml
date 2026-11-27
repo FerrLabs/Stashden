@@ -156,6 +156,20 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Build the executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --release --locked -p stashden-app
+          cp "target/release/stashden-app$EXE" "target/release/Stashden$EXE"
+        env:
+          EXE: ${{ matrix.exe }}
+
+      - name: Refuse a Windows executable without its icon and version resources
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .workflow/.github/scripts/check_windows_resources.ps1 -Path target/release/Stashden.exe
+
       - name: Bundle
         shell: bash
         run: |
@@ -164,8 +178,6 @@ jobs:
           trap 'rm -f "$key"' EXIT
           python .workflow/.github/scripts/decrypt_update_key.py "$key"
           export CARGO_PACKAGER_SIGN_PRIVATE_KEY="$key"
-          cargo build --release --locked -p stashden-app
-          cp "target/release/stashden-app$EXE" "target/release/Stashden$EXE"
           if [ -n "$SIGN_COMMAND" ]; then
             printf '\n[package.metadata.packager.windows]\nsign-command = %s\n' \
               "$(jq -Rn --arg command "$SIGN_COMMAND" '$command')" >> app/Cargo.toml
@@ -180,7 +192,6 @@ jobs:
           AZURE_CLIENT_ID: ${{ steps.signing.outputs.enabled == 'true' && secrets.AZURE_CLIENT_ID || '' }}
           AZURE_CLIENT_SECRET: ${{ steps.signing.outputs.enabled == 'true' && secrets.AZURE_CLIENT_SECRET || '' }}
           FORMAT: ${{ matrix.format }}
-          EXE: ${{ matrix.exe }}
           SIGN_COMMAND: ${{ steps.signing.outputs.command }}
 
       - name: Refuse a Windows installer unless it carries a valid Authenticode signature from the expected publisher
