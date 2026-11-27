@@ -54,7 +54,8 @@ diagram that lies is worse than no diagram, because people trust it.
 ## Licensing your contribution
 
 Stashden is AGPL-3.0-only. Contributions are accepted under the same licence. You keep the copyright
-on what you write.
+on what you write. The CLA grants FerrLabs a licence to your contribution that includes the right to
+relicense it, including under proprietary terms.
 
 If you run a modified Stashden as a network service, the AGPL requires you to offer your users the
 source of your modified version. The web app carries a source link for exactly that reason; leave it
@@ -62,7 +63,9 @@ in place.
 
 ## Contributor License Agreement
 
-Contributions are covered by the [CLA](https://github.com/FerrLabs/.github/blob/main/CLA.md). Sign it once on https://cla.ferrlabs.com, using the link in the `cla` check of your first pull request.
+Contributions are covered by the [CLA](https://github.com/FerrLabs/.github/blob/main/CLA.md). Sign it once by posting this comment on your first pull request:
+
+> I have read the CLA Document and I hereby sign the CLA
 
 ## Scope
 

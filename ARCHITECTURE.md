@@ -6,7 +6,9 @@ content-addressed blob store. It is the OSS member of the FerrLabs portfolio, li
 The licence is a product decision, not a formality. AGPL is what stops a larger host from running a
 closed fork of this as a service, which is the main commercial risk for self-hosted software, and it
 is what Nextcloud, ownCloud and Seafile all landed on. It costs us corporate adoption, because a
-number of companies refuse AGPL dependencies outright. Contributions come in under the CLA.
+number of companies refuse AGPL dependencies outright. Contributions come in under the
+[FerrLabs CLA](https://github.com/FerrLabs/.github/blob/main/CLA.md), which lets FerrLabs relicense them,
+including selling proprietary exceptions; AGPL binds everyone else.
 
 Stashden is the first FerrLabs product that does not carry the `Ferr*` prefix. That is deliberate:
 it competes in a self-hosted market where the brand has to stand on its own, next to Nextcloud and
