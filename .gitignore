@@ -8,3 +8,4 @@ out-tsc/
 .env
 .env.*
 !.env.example
+web/coverage/

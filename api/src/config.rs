@@ -87,54 +87,60 @@ pub fn jwt_secret_is_short(secret: &str) -> bool {
 }
 
 pub fn database_url() -> Result<String, ConfigError> {
-    required("DATABASE_URL")
+    required(&process_env, "DATABASE_URL")
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
-        let backend = blobs()?;
+        Self::from_lookup(&process_env)
+    }
+
+    fn from_lookup(env: Lookup) -> Result<Self, ConfigError> {
+        let backend = blobs(env)?;
         let blob_sweep_interval_seconds = parse_or(
+            env,
             "BLOB_SWEEP_INTERVAL_SECONDS",
             DEFAULT_BLOB_SWEEP_INTERVAL_SECONDS,
         )?;
         Ok(Self {
-            port: parse_or("PORT", 3001)?,
-            database_url: database_url()?,
+            port: parse_or(env, "PORT", 3001)?,
+            database_url: required(env, "DATABASE_URL")?,
             blobs: backend.clone(),
-            upload_root: upload_root(&backend)?,
-            web_root: optional("WEB_ROOT").map(PathBuf::from),
-            jwt_secret: required("JWT_SECRET")?,
-            cors_allowed_origins: optional("CORS_ALLOWED_ORIGINS")
+            upload_root: upload_root(env, &backend)?,
+            web_root: optional(env, "WEB_ROOT").map(PathBuf::from),
+            jwt_secret: required(env, "JWT_SECRET")?,
+            cors_allowed_origins: optional(env, "CORS_ALLOWED_ORIGINS")
                 .unwrap_or_default()
                 .split(',')
                 .map(str::trim)
                 .filter(|origin| !origin.is_empty())
                 .map(ToOwned::to_owned)
                 .collect(),
-            default_quota_bytes: parse_or("DEFAULT_QUOTA_BYTES", DEFAULT_QUOTA_BYTES)?,
-            versions_kept: parse_or("VERSIONS_KEPT", VERSIONS_KEPT)?,
+            default_quota_bytes: parse_or(env, "DEFAULT_QUOTA_BYTES", DEFAULT_QUOTA_BYTES)?,
+            versions_kept: parse_or(env, "VERSIONS_KEPT", VERSIONS_KEPT)?,
             trash_retention_days: trash_retention(
-                parse_or("TRASH_RETENTION_DAYS", 0)?,
+                parse_or(env, "TRASH_RETENTION_DAYS", 0)?,
                 blob_sweep_interval_seconds,
             )?,
-            session_ttl_seconds: parse_or("SESSION_TTL_SECONDS", DEFAULT_SESSION_TTL_SECONDS)?,
+            session_ttl_seconds: parse_or(env, "SESSION_TTL_SECONDS", DEFAULT_SESSION_TTL_SECONDS)?,
             blob_sweep_interval_seconds,
             blob_grace_period_seconds: parse_or(
+                env,
                 "BLOB_GRACE_PERIOD_SECONDS",
                 DEFAULT_BLOB_GRACE_PERIOD_SECONDS,
             )?,
-            oidc: oidc(),
-            metrics_token: optional("METRICS_TOKEN"),
-            bootstrap_admin: bootstrap_admin(),
-            mail: mail()?,
+            oidc: oidc(env),
+            metrics_token: optional(env, "METRICS_TOKEN"),
+            bootstrap_admin: bootstrap_admin(env),
+            mail: mail(env)?,
         })
     }
 }
 
 /// Beside the blobs by default, because that is the one directory a deployment has already had to
 /// make writable. An object store deployment has no such directory, so it has to say where.
-fn upload_root(blobs: &BlobBackend) -> Result<PathBuf, ConfigError> {
-    if let Some(configured) = optional("UPLOAD_ROOT") {
+fn upload_root(env: Lookup, blobs: &BlobBackend) -> Result<PathBuf, ConfigError> {
+    if let Some(configured) = optional(env, "UPLOAD_ROOT") {
         return Ok(PathBuf::from(configured));
     }
     match blobs {
@@ -159,18 +165,18 @@ fn trash_retention(days: u32, sweep_interval_seconds: u64) -> Result<u32, Config
 /// Local disk unless `BLOB_BACKEND=s3`. An unknown value is refused rather than quietly falling
 /// back, because a deployment that meant S3 and got local disk loses every upload when the pod
 /// restarts.
-fn blobs() -> Result<BlobBackend, ConfigError> {
-    match optional("BLOB_BACKEND").as_deref() {
+fn blobs(env: Lookup) -> Result<BlobBackend, ConfigError> {
+    match optional(env, "BLOB_BACKEND").as_deref() {
         None | Some("local") => Ok(BlobBackend::Local {
-            root: PathBuf::from(optional("BLOB_ROOT").unwrap_or_else(|| "./data".to_owned())),
+            root: PathBuf::from(optional(env, "BLOB_ROOT").unwrap_or_else(|| "./data".to_owned())),
         }),
         Some("s3") => Ok(BlobBackend::S3(S3Config {
-            bucket: required("S3_BUCKET")?,
-            region: optional("S3_REGION"),
-            endpoint: optional("S3_ENDPOINT"),
-            prefix: optional("S3_PREFIX").unwrap_or_default(),
-            access_key_id: optional("S3_ACCESS_KEY_ID"),
-            secret_access_key: optional("S3_SECRET_ACCESS_KEY"),
+            bucket: required(env, "S3_BUCKET")?,
+            region: optional(env, "S3_REGION"),
+            endpoint: optional(env, "S3_ENDPOINT"),
+            prefix: optional(env, "S3_PREFIX").unwrap_or_default(),
+            access_key_id: optional(env, "S3_ACCESS_KEY_ID"),
+            secret_access_key: optional(env, "S3_SECRET_ACCESS_KEY"),
         })),
         Some(_) => Err(ConfigError::Invalid {
             name: "BLOB_BACKEND",
@@ -179,37 +185,43 @@ fn blobs() -> Result<BlobBackend, ConfigError> {
     }
 }
 
-fn oidc() -> Option<OidcConfig> {
+fn oidc(env: Lookup) -> Option<OidcConfig> {
     Some(OidcConfig {
-        issuer: optional("OIDC_ISSUER")?,
-        client_id: optional("OIDC_CLIENT_ID")?,
-        client_secret: optional("OIDC_CLIENT_SECRET")?,
-        redirect_url: optional("OIDC_REDIRECT_URL")?,
-        create_accounts: optional("OIDC_CREATE_ACCOUNTS")
+        issuer: optional(env, "OIDC_ISSUER")?,
+        client_id: optional(env, "OIDC_CLIENT_ID")?,
+        client_secret: optional(env, "OIDC_CLIENT_SECRET")?,
+        redirect_url: optional(env, "OIDC_REDIRECT_URL")?,
+        create_accounts: optional(env, "OIDC_CREATE_ACCOUNTS")
             .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "yes")),
     })
 }
 
-fn mail() -> Result<Option<MailConfig>, ConfigError> {
-    let Some(smtp_url) = optional("SMTP_URL") else {
+fn mail(env: Lookup) -> Result<Option<MailConfig>, ConfigError> {
+    let Some(smtp_url) = optional(env, "SMTP_URL") else {
         return Ok(None);
     };
     Ok(Some(MailConfig {
         smtp_url,
-        from: required("MAIL_FROM")?,
-        public_url: required("PUBLIC_URL")?,
+        from: required(env, "MAIL_FROM")?,
+        public_url: required(env, "PUBLIC_URL")?,
     }))
 }
 
-fn bootstrap_admin() -> Option<BootstrapAdmin> {
+fn bootstrap_admin(env: Lookup) -> Option<BootstrapAdmin> {
     Some(BootstrapAdmin {
-        email: optional("BOOTSTRAP_ADMIN_EMAIL")?,
-        password: optional("BOOTSTRAP_ADMIN_PASSWORD")?,
+        email: optional(env, "BOOTSTRAP_ADMIN_EMAIL")?,
+        password: optional(env, "BOOTSTRAP_ADMIN_PASSWORD")?,
     })
 }
 
-fn required(name: &'static str) -> Result<String, ConfigError> {
-    match env::var(name) {
+type Lookup<'a> = &'a dyn Fn(&str) -> Result<String, VarError>;
+
+fn process_env(name: &str) -> Result<String, VarError> {
+    env::var(name)
+}
+
+fn required(env: Lookup, name: &'static str) -> Result<String, ConfigError> {
+    match env(name) {
         Ok(value) if !value.is_empty() => Ok(value),
         Ok(_) | Err(VarError::NotPresent) => Err(ConfigError::Missing(name)),
         Err(VarError::NotUnicode(_)) => Err(ConfigError::Invalid {
@@ -219,12 +231,16 @@ fn required(name: &'static str) -> Result<String, ConfigError> {
     }
 }
 
-fn optional(name: &str) -> Option<String> {
-    env::var(name).ok().filter(|value| !value.is_empty())
+fn optional(env: Lookup, name: &str) -> Option<String> {
+    env(name).ok().filter(|value| !value.is_empty())
 }
 
-fn parse_or<T: std::str::FromStr>(name: &'static str, fallback: T) -> Result<T, ConfigError> {
-    match optional(name) {
+fn parse_or<T: std::str::FromStr>(
+    env: Lookup,
+    name: &'static str,
+    fallback: T,
+) -> Result<T, ConfigError> {
+    match optional(env, name) {
         None => Ok(fallback),
         Some(raw) => raw.parse().map_err(|_| ConfigError::Invalid {
             name,
@@ -235,7 +251,221 @@ fn parse_or<T: std::str::FromStr>(name: &'static str, fallback: T) -> Result<T, 
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::ffi::OsString;
+
     use super::*;
+
+    fn config_from(pairs: &[(&str, &str)]) -> Result<Config, ConfigError> {
+        let vars: HashMap<String, String> = pairs
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect();
+        Config::from_lookup(&|name| vars.get(name).cloned().ok_or(VarError::NotPresent))
+    }
+
+    const MINIMAL: [(&str, &str); 2] = [("DATABASE_URL", "postgres://db"), ("JWT_SECRET", "s")];
+
+    fn with(extra: &[(&'static str, &'static str)]) -> Result<Config, ConfigError> {
+        let mut pairs = MINIMAL.to_vec();
+        pairs.extend_from_slice(extra);
+        config_from(&pairs)
+    }
+
+    #[test]
+    fn a_minimal_environment_gets_the_documented_defaults() {
+        let config = with(&[]).unwrap();
+        assert_eq!(config.port, 3001);
+        assert_eq!(config.default_quota_bytes, DEFAULT_QUOTA_BYTES);
+        assert_eq!(config.versions_kept, VERSIONS_KEPT);
+        assert_eq!(config.session_ttl_seconds, DEFAULT_SESSION_TTL_SECONDS);
+        assert_eq!(config.trash_retention_days, 0);
+        assert!(config.cors_allowed_origins.is_empty());
+        assert!(config.oidc.is_none());
+        assert!(config.mail.is_none());
+        assert!(config.bootstrap_admin.is_none());
+        assert!(config.metrics_token.is_none());
+        assert!(config.web_root.is_none());
+        assert_eq!(config.upload_root, PathBuf::from("./data/uploads"));
+        assert!(matches!(config.blobs, BlobBackend::Local { .. }));
+    }
+
+    #[test]
+    fn a_missing_database_url_or_secret_is_named() {
+        assert!(matches!(
+            config_from(&[("JWT_SECRET", "s")]),
+            Err(ConfigError::Missing("DATABASE_URL"))
+        ));
+        assert!(matches!(
+            config_from(&[("DATABASE_URL", "x")]),
+            Err(ConfigError::Missing("JWT_SECRET"))
+        ));
+    }
+
+    #[test]
+    fn an_empty_value_counts_as_missing() {
+        assert!(matches!(
+            config_from(&[("DATABASE_URL", ""), ("JWT_SECRET", "s")]),
+            Err(ConfigError::Missing("DATABASE_URL"))
+        ));
+    }
+
+    #[test]
+    fn a_value_that_is_not_unicode_is_invalid_rather_than_missing() {
+        let result = required(
+            &|_| Err(VarError::NotUnicode(OsString::from("x"))),
+            "DATABASE_URL",
+        );
+        assert!(matches!(
+            result,
+            Err(ConfigError::Invalid {
+                name: "DATABASE_URL",
+                reason: "not valid unicode"
+            })
+        ));
+    }
+
+    #[test]
+    fn a_number_that_does_not_parse_is_refused() {
+        assert!(matches!(
+            with(&[("PORT", "http")]),
+            Err(ConfigError::Invalid { name: "PORT", .. })
+        ));
+        assert_eq!(with(&[("PORT", "8080")]).unwrap().port, 8080);
+    }
+
+    #[test]
+    fn cors_origins_are_split_trimmed_and_stripped_of_blanks() {
+        let config = with(&[(
+            "CORS_ALLOWED_ORIGINS",
+            " https://a.example , ,https://b.example,",
+        )])
+        .unwrap();
+        assert_eq!(
+            config.cors_allowed_origins,
+            vec!["https://a.example", "https://b.example"]
+        );
+    }
+
+    #[test]
+    fn an_unknown_blob_backend_is_refused_instead_of_falling_back_to_disk() {
+        assert!(matches!(
+            with(&[("BLOB_BACKEND", "gcs")]),
+            Err(ConfigError::Invalid {
+                name: "BLOB_BACKEND",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn the_local_backend_honours_its_root_and_stages_uploads_beside_it() {
+        let config = with(&[("BLOB_BACKEND", "local"), ("BLOB_ROOT", "/srv/blobs")]).unwrap();
+        assert_eq!(config.upload_root, PathBuf::from("/srv/blobs/uploads"));
+        let config = with(&[("UPLOAD_ROOT", "/var/staging")]).unwrap();
+        assert_eq!(config.upload_root, PathBuf::from("/var/staging"));
+    }
+
+    #[test]
+    fn the_s3_backend_needs_a_bucket_and_an_explicit_upload_root() {
+        assert!(matches!(
+            with(&[("BLOB_BACKEND", "s3")]),
+            Err(ConfigError::Missing("S3_BUCKET"))
+        ));
+        assert!(matches!(
+            with(&[("BLOB_BACKEND", "s3"), ("S3_BUCKET", "b")]),
+            Err(ConfigError::Missing("UPLOAD_ROOT"))
+        ));
+        let config = with(&[
+            ("BLOB_BACKEND", "s3"),
+            ("S3_BUCKET", "b"),
+            ("S3_PREFIX", "p/"),
+            ("S3_REGION", "eu-west-3"),
+            ("UPLOAD_ROOT", "/var/staging"),
+        ])
+        .unwrap();
+        match config.blobs {
+            BlobBackend::S3(s3) => {
+                assert_eq!(s3.bucket, "b");
+                assert_eq!(s3.prefix, "p/");
+                assert_eq!(s3.region.as_deref(), Some("eu-west-3"));
+                assert!(s3.endpoint.is_none());
+            }
+            BlobBackend::Local { .. } => panic!("expected the s3 backend"),
+        }
+    }
+
+    #[test]
+    fn a_retention_without_a_sweeper_fails_the_whole_config() {
+        assert!(matches!(
+            with(&[
+                ("TRASH_RETENTION_DAYS", "30"),
+                ("BLOB_SWEEP_INTERVAL_SECONDS", "0")
+            ]),
+            Err(ConfigError::Invalid {
+                name: "TRASH_RETENTION_DAYS",
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn oidc_needs_all_four_settings_and_creates_accounts_only_when_asked() {
+        let full = [
+            ("OIDC_ISSUER", "https://idp"),
+            ("OIDC_CLIENT_ID", "id"),
+            ("OIDC_CLIENT_SECRET", "secret"),
+            ("OIDC_REDIRECT_URL", "https://app/cb"),
+        ];
+        assert!(with(&full[..3]).unwrap().oidc.is_none());
+        let oidc = with(&full).unwrap().oidc.unwrap();
+        assert!(!oidc.create_accounts);
+        let mut asked = full.to_vec();
+        asked.push(("OIDC_CREATE_ACCOUNTS", "yes"));
+        assert!(with(&asked).unwrap().oidc.unwrap().create_accounts);
+        let mut refused = full.to_vec();
+        refused.push(("OIDC_CREATE_ACCOUNTS", "no"));
+        assert!(!with(&refused).unwrap().oidc.unwrap().create_accounts);
+    }
+
+    #[test]
+    fn mail_needs_a_sender_and_a_public_url_once_smtp_is_set() {
+        assert!(matches!(
+            with(&[("SMTP_URL", "smtp://relay")]),
+            Err(ConfigError::Missing("MAIL_FROM"))
+        ));
+        assert!(matches!(
+            with(&[("SMTP_URL", "smtp://relay"), ("MAIL_FROM", "a@b.c")]),
+            Err(ConfigError::Missing("PUBLIC_URL"))
+        ));
+        let mail = with(&[
+            ("SMTP_URL", "smtp://relay"),
+            ("MAIL_FROM", "a@b.c"),
+            ("PUBLIC_URL", "https://files"),
+        ])
+        .unwrap()
+        .mail
+        .unwrap();
+        assert_eq!(mail.from, "a@b.c");
+    }
+
+    #[test]
+    fn the_bootstrap_admin_needs_both_halves() {
+        assert!(
+            with(&[("BOOTSTRAP_ADMIN_EMAIL", "a@b.c")])
+                .unwrap()
+                .bootstrap_admin
+                .is_none()
+        );
+        let admin = with(&[
+            ("BOOTSTRAP_ADMIN_EMAIL", "a@b.c"),
+            ("BOOTSTRAP_ADMIN_PASSWORD", "pw"),
+        ])
+        .unwrap()
+        .bootstrap_admin
+        .unwrap();
+        assert_eq!(admin.email, "a@b.c");
+    }
 
     #[test]
     fn a_retention_nothing_would_honour_is_refused() {

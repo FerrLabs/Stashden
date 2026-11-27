@@ -72,8 +72,26 @@ jobs:
           path: cobertura.xml
           retention-days: 1
 
+  web-coverage:
+    name: Web coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @stashden/web test:coverage
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-lcov-web
+          path: web/coverage/web.lcov
+          retention-days: 1
+
   scan:
-    needs: [version, coverage]
+    needs: [version, coverage, web-coverage]
     # reusable-sonarqube-scan declares `pull-requests: write` to post the diff
     # on a pull request. A called workflow cannot get more than its caller
     # grants, and permissions are checked before any job runs.
@@ -84,8 +102,12 @@ jobs:
     with:
       runner: ubuntu-latest
       project-key: RoxyCloud
-      coverage-artifact: coverage-cobertura
+      coverage-artifact-pattern: coverage-*
       args: >-
+        -Dsonar.sources=.
+        -Dsonar.tests=.
+        -Dsonar.test.inclusions=**/*.test.ts,**/*.test.mjs,web/test/**,**/tests/**
+        -Dsonar.javascript.lcov.reportPaths=.sonarcov/web.lcov
         -Dsonar.projectVersion=${{ needs.version.outputs.version }}
         -Dsonar.rust.cobertura.reportPaths=.sonarcov/cobertura.xml
     secrets: inherit
