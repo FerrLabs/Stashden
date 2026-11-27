@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use super::account::Account;
 use super::path::RelPath;
 use super::snapshot::{Entry, Snapshot};
 
@@ -42,6 +43,15 @@ pub enum StateError {
         #[source]
         source: io::Error,
     },
+    #[error(
+        "{path} belongs to {bound}, but this sync is with {expected}; nothing was changed. \
+         Deleting {path} starts a full comparison with {expected}, which deletes nothing"
+    )]
+    OtherAccount {
+        path: PathBuf,
+        bound: Account,
+        expected: Account,
+    },
     #[error("{path} is not readable sync state; delete it to start from a full comparison")]
     Corrupt {
         path: PathBuf,
@@ -59,6 +69,8 @@ pub struct Tracked {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyncState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    account: Option<Account>,
     #[serde(default)]
     tracked: BTreeMap<RelPath, Tracked>,
 }
@@ -97,6 +109,25 @@ impl SyncState {
                 source,
             }),
         }
+    }
+
+    pub fn load_bound(path: &Path, account: &Account) -> Result<Self, StateError> {
+        let mut state = Self::load(path)?;
+        match &state.account {
+            Some(bound) if bound == account => {}
+            Some(bound) => {
+                return Err(StateError::OtherAccount {
+                    path: path.to_path_buf(),
+                    bound: bound.clone(),
+                    expected: account.clone(),
+                });
+            }
+            None => {
+                state.account = Some(account.clone());
+                state.save(path)?;
+            }
+        }
+        Ok(state)
     }
 
     pub fn save(&self, path: &Path) -> Result<(), StateError> {

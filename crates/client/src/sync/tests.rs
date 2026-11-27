@@ -6,6 +6,7 @@ use std::time::Duration;
 use stashden_core::grant::Access;
 use tokio::sync::broadcast;
 
+use super::account::Account;
 use super::debounce::Debounce;
 use super::engine::{Engine, Report};
 use super::fit::{Rules, folds_case};
@@ -16,6 +17,8 @@ use super::snapshot::{Entry, Snapshot};
 use super::state::{LEGACY_STATE_FILE_NAME, STATE_FILE_NAME, SyncState};
 use super::transport::{Expect, Transport};
 use super::watch::{Command, DEFAULT_POLL, Status, watch};
+
+mod binding;
 
 struct FakeServer {
     root: PathBuf,
@@ -126,6 +129,10 @@ fn list_everything(
     Ok(())
 }
 
+fn account() -> Account {
+    Account::new("https://files.example.com", uuid::Uuid::from_u128(1))
+}
+
 struct Pair {
     local: PathBuf,
     server: PathBuf,
@@ -158,6 +165,7 @@ impl Pair {
                 fingerprinting: false,
                 walks: std::sync::Arc::default(),
             },
+            &account(),
         )
         .expect("the engine opens")
     }
@@ -172,6 +180,7 @@ impl Pair {
                 fingerprinting: false,
                 walks: std::sync::Arc::default(),
             },
+            &account(),
         )
         .expect("the engine opens")
     }
@@ -192,6 +201,7 @@ impl Pair {
                 fingerprinting: true,
                 walks: walks.clone(),
             },
+            &account(),
         )
         .expect("the engine opens");
         (engine, walks)
@@ -275,6 +285,7 @@ async fn a_server_with_no_fingerprint_is_walked_every_pass() {
             fingerprinting: false,
             walks: walks.clone(),
         },
+        &account(),
     )
     .expect("the engine opens");
 

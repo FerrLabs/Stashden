@@ -62,14 +62,19 @@ impl Shell {
     }
 
     fn load_account(&self, window: &mut Window, cx: &mut Context<Self>) {
-        let remote = self.desktop.remote();
-        let work = async move { remote?.me().await.map_err(crate::failure::Failure::from) };
+        let desktop = Arc::clone(&self.desktop);
+        let work = async move {
+            let user = desktop.remote()?.me().await?;
+            let refused = desktop.learn_account(user.id).await;
+            Ok::<_, crate::failure::Failure>((user, refused))
+        };
         run(
             window,
             cx,
             work,
             |this, account, window, cx| match account {
-                Ok(account) => {
+                Ok((account, refused)) => {
+                    this.notice = refused.or(this.notice.take());
                     this.files.update(cx, |files, cx| {
                         files.set_can_write(account.role.may_write(), cx);
                     });

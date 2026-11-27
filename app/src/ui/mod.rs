@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use gpui_kit::*;
 
-use crate::desktop::Desktop;
+use crate::desktop::{Desktop, Resumed};
 use crate::runtime;
 use shell::{Shell, SignedOut};
 use sign_in::{SignIn, SignedIn};
@@ -65,8 +65,8 @@ impl Workspace {
                 cx,
                 desktop.resume(),
                 |this, resumed, window, cx| match resumed {
-                    Ok(true) => this.signed(None, window, cx),
-                    Ok(false) => this.signing_in(None, window, cx),
+                    Ok(Resumed::Opened { notice }) => this.signed(notice, window, cx),
+                    Ok(Resumed::NoSession) => this.signing_in(None, window, cx),
                     Err(failure) => this.signing_in(
                         Some(format!(
                             "Sign in again, the saved session did not open: {failure}"

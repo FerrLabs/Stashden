@@ -4,7 +4,7 @@ use chrono::TimeDelta;
 use reqwest::StatusCode;
 use stashden_client::remote::RemoteError;
 use stashden_client::sync::{Entry, Expect, RelPath, Transport};
-use stashden_client::{Engine, Remote};
+use stashden_client::{Account, Engine, Remote};
 use stashden_core::grant::{Access, NewGrant};
 use stashden_core::role::Role;
 use stashden_core::share::NewShare;
@@ -435,7 +435,8 @@ database_test!(
         let remote = connect(&harness, &owner).await;
         let folder = tempfile::tempdir().expect("a local folder");
         std::fs::create_dir_all(folder.path().join("photos/2026")).expect("an empty folder");
-        let mut engine = Engine::open(folder.path(), remote).expect("the engine opens");
+        let account = Account::new("http://localhost", owner.id);
+        let mut engine = Engine::open(folder.path(), remote, &account).expect("the engine opens");
 
         let report = engine.sync_once().await.expect("syncing");
 

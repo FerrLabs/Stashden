@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use stashden_client::{Methods, Remote, RemoteError, free_path};
+use stashden_client::{Account, Methods, Remote, RemoteError, free_path};
 use stashden_core::node::Node;
 use tokio::sync::broadcast;
+use uuid::Uuid;
 
 use crate::failure::Failure;
 use crate::keychain::{self, Credentials};
@@ -14,6 +15,11 @@ use crate::sync::{Folders, Syncing};
 pub const IDENTIFIER: &str = "com.ferrlabs.roxycloud";
 const LAST_SERVER: &str = "server";
 const CHANGES_BUFFER: usize = 64;
+
+pub enum Resumed {
+    NoSession,
+    Opened { notice: Option<String> },
+}
 
 #[derive(Clone)]
 struct Connection {
@@ -72,6 +78,37 @@ impl Desktop {
             .map(|connection| connection.credentials.email.clone())
     }
 
+    pub(crate) async fn account(&self) -> Result<Account, Failure> {
+        let known = self.connection().as_ref().and_then(|connection| {
+            let credentials = &connection.credentials;
+            credentials
+                .user_id
+                .map(|id| Account::new(&credentials.server, id))
+        });
+        if let Some(account) = known {
+            return Ok(account);
+        }
+        let server = self.server().ok_or("not connected to a server")?;
+        let user = self.remote()?.me().await?;
+        Ok(Account::new(&server, user.id))
+    }
+
+    fn adopt_user(&self, user_id: Uuid) -> Option<Credentials> {
+        let mut connection = self.connection();
+        let credentials = &mut connection.as_mut()?.credentials;
+        if credentials.user_id.is_some() {
+            return None;
+        }
+        credentials.user_id = Some(user_id);
+        Some(credentials.clone())
+    }
+
+    pub async fn learn_account(self: &Arc<Self>, user_id: Uuid) -> Option<String> {
+        let credentials = self.adopt_user(user_id)?;
+        let _ = keychain::keep(credentials).await;
+        self.resume_saved_syncs().await
+    }
+
     pub(crate) fn fresh_remote(&self) -> Result<Remote, Failure> {
         let credentials = self
             .connection()
@@ -128,7 +165,7 @@ impl Desktop {
         server: String,
         session: Remote,
     ) -> Result<Option<String>, Failure> {
-        let email = session.me().await?.email;
+        let user = session.me().await?;
         let minted = session
             .mint_app_password(&format!("Stashden desktop on {}", this_computer()))
             .await?;
@@ -136,32 +173,45 @@ impl Desktop {
 
         let credentials = Credentials {
             server,
-            email,
+            email: user.email,
             secret: minted.secret,
+            user_id: Some(user.id),
         };
         self.keep_server(&credentials.server);
-        self.connect(credentials.clone()).await?;
-        Ok(keychain::keep(credentials).await.err().map(|reason| {
+        let refused = self.connect(credentials.clone()).await?;
+        let unsaved = keychain::keep(credentials).await.err().map(|reason| {
             format!("Signed in until the app closes, then it will ask again: {reason}")
-        }))
+        });
+        Ok([refused, unsaved]
+            .into_iter()
+            .flatten()
+            .reduce(|first, second| format!("{first}\n{second}")))
     }
 
-    pub async fn resume(self: Arc<Self>) -> Result<bool, Failure> {
+    pub async fn resume(self: Arc<Self>) -> Result<Resumed, Failure> {
         let Some(credentials) = keychain::kept().await? else {
-            return Ok(false);
+            return Ok(Resumed::NoSession);
         };
-        self.connect(credentials).await?;
-        Ok(true)
+        let notice = self.connect(credentials).await?;
+        Ok(Resumed::Opened { notice })
     }
 
-    async fn connect(self: &Arc<Self>, credentials: Credentials) -> Result<(), Failure> {
+    async fn connect(
+        self: &Arc<Self>,
+        mut credentials: Credentials,
+    ) -> Result<Option<String>, Failure> {
         let remote = Arc::new(remote_for(&credentials)?);
+        if credentials.user_id.is_none()
+            && let Ok(user) = remote.me().await
+        {
+            credentials.user_id = Some(user.id);
+            let _ = keychain::keep(credentials.clone()).await;
+        }
         *self.connection() = Some(Connection {
             remote,
             credentials,
         });
-        self.resume_saved_syncs().await;
-        Ok(())
+        Ok(self.resume_saved_syncs().await)
     }
 
     pub async fn sign_out(&self) -> Result<(), Failure> {
@@ -258,6 +308,53 @@ mod tests {
             started.map_err(|failure| failure.to_string()),
             Err("not connected to a server".to_owned())
         );
+    }
+
+    fn offline_desktop(name: &str, folder: &Path) -> Arc<Desktop> {
+        let desktop = Desktop::new(scratch(name));
+        fs::create_dir_all(folder).unwrap();
+        let credentials = Credentials {
+            server: "http://127.0.0.1:1".to_owned(),
+            email: "a@example.com".to_owned(),
+            secret: "secret".to_owned(),
+            user_id: None,
+        };
+        *desktop.connection() = Some(Connection {
+            remote: Arc::new(remote_for(&credentials).unwrap()),
+            credentials,
+        });
+        let mut remembered = crate::remembered::Remembered::default();
+        remembered.add("a@example.com", folder.to_path_buf());
+        remembered.save(&desktop.config).unwrap();
+        desktop
+    }
+
+    #[test]
+    fn saved_folders_wait_for_a_verified_account_and_start_once_it_is_known() {
+        let folder = scratch("pending-folder");
+        let desktop = offline_desktop("pending", &folder);
+
+        let notice = runtime::block_on(desktop.resume_saved_syncs());
+        assert!(notice.is_some());
+        assert_eq!(
+            runtime::block_on(desktop.syncing()),
+            Vec::<crate::sync::Syncing>::new()
+        );
+
+        assert!(desktop.adopt_user(Uuid::from_u128(7)).is_some());
+        assert!(desktop.adopt_user(Uuid::from_u128(8)).is_none());
+        assert_eq!(
+            runtime::block_on(desktop.account()).unwrap(),
+            Account::new("http://127.0.0.1:1", Uuid::from_u128(7))
+        );
+        assert_eq!(runtime::block_on(desktop.resume_saved_syncs()), None);
+        let syncing = runtime::block_on(desktop.syncing());
+        assert_eq!(syncing.len(), 1);
+        assert_eq!(syncing[0].folder, folder);
+
+        runtime::block_on(desktop.stop_all_syncs());
+        let _ = fs::remove_dir_all(&folder);
+        let _ = fs::remove_dir_all(&desktop.config);
     }
 
     #[test]

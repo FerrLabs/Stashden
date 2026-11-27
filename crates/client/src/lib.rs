@@ -7,5 +7,5 @@ mod transfer;
 mod versions;
 
 pub use remote::{Methods, Remote, RemoteError, Session};
-pub use sync::{Debounce, Engine, RelPath, Report, Status, SyncError, Transport, watch};
+pub use sync::{Account, Debounce, Engine, RelPath, Report, Status, SyncError, Transport, watch};
 pub use transfer::free_path;
