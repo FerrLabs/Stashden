@@ -113,6 +113,8 @@ chmod +x Stashden_*_x86_64.AppImage
 ```
 
 On Windows the window draws with DirectX 11, which every supported Windows has.
+The Windows app is a graphical program and opens no console window, so what it would print goes to
+`stashden.log` in its config folder (`%APPDATA%\com.ferrlabs.roxycloud`) instead.
 
 macOS has no build yet: a `.dmg` anyone can open needs an Apple developer account and notarisation.
 

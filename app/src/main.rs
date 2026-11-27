@@ -1,10 +1,12 @@
 #![allow(clippy::wildcard_imports)]
+#![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod describe;
 mod desktop;
 mod failure;
 mod keychain;
 mod location;
+mod log;
 mod remembered;
 mod runtime;
 mod sync;
@@ -69,7 +71,7 @@ fn reveal(cx: &mut App) {
     match opened {
         Ok((handle, _)) => cx.global_mut::<MainWindow>().open = Some(handle),
         Err(error) => {
-            eprintln!("the Stashden window did not open: {error}");
+            log::record(&format!("the Stashden window did not open: {error}"));
             cx.quit();
         }
     }
@@ -91,6 +93,7 @@ fn follow_tray(tray: tray::Tray, cx: &mut App) {
 }
 
 fn main() {
+    log::record_panics();
     let desktop = Desktop::new(Desktop::config_directory());
     gpui_kit::application()
         .with_assets(gpui_kit::assets::Assets)
@@ -99,7 +102,9 @@ fn main() {
             gpui_kit::init(cx);
             let installed = tray::install();
             if let Err(reason) = &installed {
-                eprintln!("no tray icon, closing the window will quit: {reason}");
+                log::record(&format!(
+                    "no tray icon, closing the window will quit: {reason}"
+                ));
             }
             cx.set_global(MainWindow {
                 desktop,
