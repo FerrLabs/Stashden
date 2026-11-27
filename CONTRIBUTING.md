@@ -63,9 +63,9 @@ in place.
 
 ## Contributor License Agreement
 
-Contributions are covered by the [CLA](https://github.com/FerrLabs/.github/blob/main/CLA.md). Sign it once by posting this comment on your first pull request:
-
-> I have read the CLA Document and I hereby sign the CLA
+Contributions are covered by the [CLA](https://github.com/FerrLabs/.github/blob/main/CLA.md). Sign it
+once, for all FerrLabs repositories, on the page linked from the `cla` check of your first pull
+request: <https://cla.ferrlabs.com>.
 
 ## Scope
 
