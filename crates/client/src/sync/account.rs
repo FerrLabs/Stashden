@@ -1,26 +1,18 @@
 use std::fmt;
 
 use reqwest::Url;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(from = "StoredAccount")]
 pub struct Account {
+    #[serde(deserialize_with = "normalized")]
     server: String,
     user_id: Uuid,
 }
 
-#[derive(Deserialize)]
-struct StoredAccount {
-    server: String,
-    user_id: Uuid,
-}
-
-impl From<StoredAccount> for Account {
-    fn from(stored: StoredAccount) -> Self {
-        Self::new(&stored.server, stored.user_id)
-    }
+fn normalized<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    String::deserialize(deserializer).map(|server| normalize(&server))
 }
 
 impl Account {
@@ -40,9 +32,20 @@ impl fmt::Display for Account {
 }
 
 fn normalize(server: &str) -> String {
+    let mut current = canonical(server);
+    loop {
+        let next = canonical(&current);
+        if next == current {
+            return current;
+        }
+        current = next;
+    }
+}
+
+fn canonical(server: &str) -> String {
     let bare = strip(server);
-    let canonical = Url::parse(bare).map_or_else(|_| bare.to_owned(), String::from);
-    strip(&canonical).to_owned()
+    let parsed = Url::parse(bare).map_or_else(|_| bare.to_owned(), String::from);
+    strip(&parsed).to_owned()
 }
 
 fn strip(text: &str) -> &str {
@@ -113,6 +116,37 @@ mod tests {
         let stored = format!(r#"{{"server":"https://Files.Example.com/","user_id":"{USER}"}}"#);
         let read: Account = serde_json::from_str(&stored).expect("reads");
         assert_eq!(read, Account::new("https://files.example.com", USER));
+    }
+
+    #[test]
+    fn dot_segments_after_a_hostless_scheme_settle_in_one_step() {
+        let account = Account::new("foo:/.//x/..", USER);
+        let written = serde_json::to_string(&account).expect("writes");
+        let read: Account = serde_json::from_str(&written).expect("reads");
+        assert_eq!(read, account);
+        assert_eq!(Account::new(&account.server, USER), account);
+    }
+
+    #[test]
+    fn normalizing_twice_is_normalizing_once() {
+        const PIECES: &[&str] = &[
+            "foo:", "file:", "https://", "HTTP://", "/", "//", ".", "..", "/./", "/../", "x", "A",
+            " ", "%2e", "%2F", ":443", "@", "?", "#", "[::1]", "\\", "\u{3000}", "a b",
+        ];
+        let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+        let mut next = move |bound: usize| {
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            usize::try_from(state.wrapping_mul(0x2545_F491_4F6C_DD1D) % bound as u64).unwrap()
+        };
+        for _ in 0..20_000 {
+            let server: String = (0..1 + next(8))
+                .map(|_| PIECES[next(PIECES.len())])
+                .collect();
+            let once = normalize(&server);
+            assert_eq!(normalize(&once), once, "{server:?}");
+        }
     }
 
     #[test]

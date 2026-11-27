@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use stashden_client::{Account, Methods, Remote, RemoteError, free_path};
 use stashden_core::node::Node;
 use tokio::sync::broadcast;
+use uuid::Uuid;
 
 use crate::failure::Failure;
 use crate::keychain::{self, Credentials};
@@ -90,6 +91,22 @@ impl Desktop {
         let server = self.server().ok_or("not connected to a server")?;
         let user = self.remote()?.me().await?;
         Ok(Account::new(&server, user.id))
+    }
+
+    fn adopt_user(&self, user_id: Uuid) -> Option<Credentials> {
+        let mut connection = self.connection();
+        let credentials = &mut connection.as_mut()?.credentials;
+        if credentials.user_id.is_some() {
+            return None;
+        }
+        credentials.user_id = Some(user_id);
+        Some(credentials.clone())
+    }
+
+    pub async fn learn_account(self: &Arc<Self>, user_id: Uuid) -> Option<String> {
+        let credentials = self.adopt_user(user_id)?;
+        let _ = keychain::keep(credentials).await;
+        self.resume_saved_syncs().await
     }
 
     pub(crate) fn fresh_remote(&self) -> Result<Remote, Failure> {
@@ -291,6 +308,53 @@ mod tests {
             started.map_err(|failure| failure.to_string()),
             Err("not connected to a server".to_owned())
         );
+    }
+
+    fn offline_desktop(name: &str, folder: &Path) -> Arc<Desktop> {
+        let desktop = Desktop::new(scratch(name));
+        fs::create_dir_all(folder).unwrap();
+        let credentials = Credentials {
+            server: "http://127.0.0.1:1".to_owned(),
+            email: "a@example.com".to_owned(),
+            secret: "secret".to_owned(),
+            user_id: None,
+        };
+        *desktop.connection() = Some(Connection {
+            remote: Arc::new(remote_for(&credentials).unwrap()),
+            credentials,
+        });
+        let mut remembered = crate::remembered::Remembered::default();
+        remembered.add("a@example.com", folder.to_path_buf());
+        remembered.save(&desktop.config).unwrap();
+        desktop
+    }
+
+    #[test]
+    fn saved_folders_wait_for_a_verified_account_and_start_once_it_is_known() {
+        let folder = scratch("pending-folder");
+        let desktop = offline_desktop("pending", &folder);
+
+        let notice = runtime::block_on(desktop.resume_saved_syncs());
+        assert!(notice.is_some());
+        assert_eq!(
+            runtime::block_on(desktop.syncing()),
+            Vec::<crate::sync::Syncing>::new()
+        );
+
+        assert!(desktop.adopt_user(Uuid::from_u128(7)).is_some());
+        assert!(desktop.adopt_user(Uuid::from_u128(8)).is_none());
+        assert_eq!(
+            runtime::block_on(desktop.account()).unwrap(),
+            Account::new("http://127.0.0.1:1", Uuid::from_u128(7))
+        );
+        assert_eq!(runtime::block_on(desktop.resume_saved_syncs()), None);
+        let syncing = runtime::block_on(desktop.syncing());
+        assert_eq!(syncing.len(), 1);
+        assert_eq!(syncing[0].folder, folder);
+
+        runtime::block_on(desktop.stop_all_syncs());
+        let _ = fs::remove_dir_all(&folder);
+        let _ = fs::remove_dir_all(&desktop.config);
     }
 
     #[test]
