@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde::Serialize;
 
+use super::account::Account;
 use super::fit::{self, Rules};
 use super::ignore;
 use super::local::{self, LocalScan, ScanError};
@@ -93,10 +94,14 @@ impl<T: Transport> Engine<T> {
         &self.root
     }
 
-    pub fn open(root: impl Into<PathBuf>, transport: T) -> Result<Self, SyncError> {
+    pub fn open(
+        root: impl Into<PathBuf>,
+        transport: T,
+        account: &Account,
+    ) -> Result<Self, SyncError> {
         let root = root.into();
         adopt_legacy(&root)?;
-        let state = SyncState::load(&state_path(&root))?;
+        let state = SyncState::load_bound(&state_path(&root), account)?;
         let rules = Rules::of(&root);
         Ok(Self {
             root,

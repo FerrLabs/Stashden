@@ -784,8 +784,15 @@ that differ only in case or in how an accent is encoded, such as `Notes.txt` and
 one of them, from the web app or a machine that can hold both, and the next pass picks them up.
 
 State lives in `.stashden-sync.json` inside the folder, which is what makes a second run cheap and
-what tells a deletion apart from a file that was never there. Delete it to start from a full
-comparison again.
+what tells a deletion apart from a file that was never there. It also records which account the
+folder syncs with: the server and the user id, the same server written with or without a trailing
+slash or in another letter case counting as one. A folder synced before this was recorded takes the
+account of the next sync that opens it. Syncing the folder with a different account, from the
+desktop app or from `stashden sync` with other credentials, is refused before anything is
+transferred or deleted, and the error names both accounts. Delete `.stashden-sync.json` to start
+from a full comparison with the new account, which deletes nothing: files only on one side are
+copied to the other, and files that differ on both keep both copies. The command line reads the user
+id from `GET /v1/auth/me` before it opens the folder, so it needs a reachable server.
 
 When a file changed on both sides, both copies are kept: the server's version keeps the name, and
 the local one is renamed `name (conflict <timestamp>).ext` and uploaded under that name. Nothing is

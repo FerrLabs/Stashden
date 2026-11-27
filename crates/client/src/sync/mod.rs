@@ -1,3 +1,4 @@
+pub mod account;
 pub mod debounce;
 pub mod engine;
 pub mod fit;
@@ -14,6 +15,7 @@ pub mod watch;
 #[cfg(test)]
 mod tests;
 
+pub use account::Account;
 pub use debounce::Debounce;
 pub use engine::{Engine, Failure, Report, SyncError};
 pub use held::Held;

@@ -1,8 +1,21 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use stashden_client::sync::watch::{DEFAULT_POLL, Status, watch};
-use stashden_client::{Debounce, Engine, Remote, Report};
+use stashden_client::{Account, Debounce, Engine, Remote, Report};
 
-pub async fn once(engine: &mut Engine<Remote>) -> Result<()> {
+pub async fn run(folder: &Path, watching: bool, remote: Remote, server: &str) -> Result<()> {
+    let user = remote.me().await.context("reading the signed in account")?;
+    let account = Account::new(server, user.id);
+    let mut engine = Engine::open(folder, remote, &account).context("reading the sync state")?;
+    if watching {
+        keep_watching(engine).await
+    } else {
+        once(&mut engine).await
+    }
+}
+
+async fn once(engine: &mut Engine<Remote>) -> Result<()> {
     let report = engine.sync_once().await.context("syncing the folder")?;
     print(&report);
     if report.failures.is_empty() {
@@ -11,7 +24,7 @@ pub async fn once(engine: &mut Engine<Remote>) -> Result<()> {
     anyhow::bail!("{} paths did not sync", report.failures.len())
 }
 
-pub async fn keep_watching(engine: Engine<Remote>) -> Result<()> {
+async fn keep_watching(engine: Engine<Remote>) -> Result<()> {
     let session =
         watch(engine, Debounce::default(), DEFAULT_POLL).context("watching the folder")?;
     let mut status = session.subscribe();

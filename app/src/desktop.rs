@@ -15,6 +15,11 @@ pub const IDENTIFIER: &str = "com.ferrlabs.roxycloud";
 const LAST_SERVER: &str = "server";
 const CHANGES_BUFFER: usize = 64;
 
+pub enum Resumed {
+    NoSession,
+    Opened { notice: Option<String> },
+}
+
 #[derive(Clone)]
 struct Connection {
     remote: Arc<Remote>,
@@ -140,28 +145,34 @@ impl Desktop {
             secret: minted.secret,
         };
         self.keep_server(&credentials.server);
-        self.connect(credentials.clone()).await?;
-        Ok(keychain::keep(credentials).await.err().map(|reason| {
+        let refused = self.connect(credentials.clone()).await?;
+        let unsaved = keychain::keep(credentials).await.err().map(|reason| {
             format!("Signed in until the app closes, then it will ask again: {reason}")
-        }))
+        });
+        Ok([refused, unsaved]
+            .into_iter()
+            .flatten()
+            .reduce(|first, second| format!("{first}\n{second}")))
     }
 
-    pub async fn resume(self: Arc<Self>) -> Result<bool, Failure> {
+    pub async fn resume(self: Arc<Self>) -> Result<Resumed, Failure> {
         let Some(credentials) = keychain::kept().await? else {
-            return Ok(false);
+            return Ok(Resumed::NoSession);
         };
-        self.connect(credentials).await?;
-        Ok(true)
+        let notice = self.connect(credentials).await?;
+        Ok(Resumed::Opened { notice })
     }
 
-    async fn connect(self: &Arc<Self>, credentials: Credentials) -> Result<(), Failure> {
+    async fn connect(
+        self: &Arc<Self>,
+        credentials: Credentials,
+    ) -> Result<Option<String>, Failure> {
         let remote = Arc::new(remote_for(&credentials)?);
         *self.connection() = Some(Connection {
             remote,
             credentials,
         });
-        self.resume_saved_syncs().await;
-        Ok(())
+        Ok(self.resume_saved_syncs().await)
     }
 
     pub async fn sign_out(&self) -> Result<(), Failure> {

@@ -174,7 +174,10 @@ Two decisions carry it. Comparison is by content, never by timestamp, which the 
 store makes free: a local file hashed with blake3 yields the same etag the server computed, so
 equality is a string compare rather than a transfer. And the state file, `.stashden-sync.json` in
 the synced folder, doubles as an mtime cache, so a restart rehashes only what changed rather than
-the whole folder.
+the whole folder. It also names the account it is in step with, the server and the user id.
+`Engine::open` takes the expected account and refuses a different one before any transfer, because
+a base recorded against one account would read what another account lacks as deleted on the server
+and delete it locally. A state with no account adopts the first one that opens it.
 
 What moves bytes sits behind a `Transport` trait with four methods, listing, download, upload and
 remove. `Remote` implements it over REST today. The reason it is a trait and not inherent methods on

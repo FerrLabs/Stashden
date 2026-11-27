@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use stashden_client::{Engine, Remote};
+use stashden_client::Remote;
 use stashden_core::node::{NodeKind, Trashed};
 use uuid::Uuid;
 
@@ -174,13 +174,7 @@ async fn main() -> Result<()> {
             connect()?.purge(*id).await?;
         }
         Command::Sync { folder, watch } => {
-            let mut engine =
-                Engine::open(folder.as_path(), connect()?).context("reading the sync state")?;
-            if *watch {
-                sync::keep_watching(engine).await?;
-            } else {
-                sync::once(&mut engine).await?;
-            }
+            sync::run(folder, *watch, connect()?, &server).await?;
         }
     }
     Ok(())
