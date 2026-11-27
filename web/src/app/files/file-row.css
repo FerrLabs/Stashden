@@ -66,6 +66,9 @@
 }
 
 .open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 2rem;
   padding-block: 0;
 }
@@ -88,10 +91,6 @@
   .actions {
     opacity: 1;
   }
-
-  .open {
-    display: none;
-  }
 }
 
 @media (max-width: 40rem) {
@@ -111,18 +110,12 @@
   }
 
   rx-open-with,
-  .open {
+  :host(:not(.selected)) .open {
     display: none;
   }
 
-  @media (hover: hover) {
-    :host(.selected) .actions {
-      grid-column: 1 / -1;
-      justify-content: flex-start;
-    }
-
-    :host(.selected) .open {
-      display: inline-flex;
-    }
+  :host(.selected) .actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }

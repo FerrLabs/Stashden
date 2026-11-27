@@ -126,7 +126,9 @@
       role="grid"
       class="listing"
       aria-describedby="file-list-help"
-      [attr.aria-label]="t('files.list.label', { folder: folderName() })"
+      [attr.aria-label]="
+        folderName() === '' ? t('files.list.labelRoot') : t('files.list.label', { folder: folderName() })
+      "
     >
       @for (node of nodes(); track node.id) {
         <rx-file-row

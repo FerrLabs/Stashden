@@ -18,3 +18,12 @@ export function targetOf(name: string | null, nodes: readonly Node[]): Target {
   }
   return node.kind === 'directory' ? { kind: 'directory', node } : { kind: 'file', node };
 }
+
+export type Listing = {
+  hasValue(): boolean;
+  value(): readonly Node[] | undefined;
+};
+
+export function loadedNodes(listing: Listing): readonly Node[] {
+  return listing.hasValue() ? (listing.value() ?? []) : [];
+}

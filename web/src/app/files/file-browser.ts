@@ -23,6 +23,7 @@ import { Prompt } from '../shared/prompt';
 import { DownloadCancelled } from '../transfer';
 import { Breadcrumb } from './breadcrumb';
 import { FileRow } from './file-row';
+import { loadedNodes } from './open-link';
 import { OpenedFile } from './opened-file';
 import { removalBody } from './removal-text';
 import { Preview } from './preview';
@@ -78,14 +79,12 @@ export class FileBrowser {
     loader: ({ params }) => this.platform.listFolder(`/${params.path}`),
   });
 
-  protected readonly nodes = computed(() => [...(this.listing.value() ?? [])].sort(byKindThenName));
+  protected readonly nodes = computed(() => [...loadedNodes(this.listing)].sort(byKindThenName));
 
   protected readonly selection = new RowSelection(
     computed(() => this.nodes().map((node) => node.id)),
   );
-  protected readonly folderName = computed(
-    () => this.segments().at(-1)?.path ?? t('files.breadcrumb.root'),
-  );
+  protected readonly folderName = computed(() => this.segments().at(-1)?.path ?? '');
 
   private readonly link = new OpenedFile({
     path: this.path,

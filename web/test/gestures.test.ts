@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { commandFor, opensOnTap, type Keystroke } from '../src/app/files/gestures.ts';
+import { commandFor, opensOnTap, visible, type Keystroke } from '../src/app/files/gestures.ts';
 
 function press(key: string, modifiers: Partial<Keystroke> = {}): Keystroke {
   return { key, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...modifiers };
@@ -51,4 +51,14 @@ test('a touch or pen tap opens, a mouse click or a synthesized one does not', ()
   assert.equal(opensOnTap('pen'), true);
   assert.equal(opensOnTap('mouse'), false);
   assert.equal(opensOnTap(''), false);
+});
+
+test('arrow navigation among actions skips the hidden ones', () => {
+  const shown = { id: 'open', checkVisibility: () => true };
+  const hidden = { id: 'menu', checkVisibility: () => false };
+  const next = { id: 'download', checkVisibility: () => true };
+  assert.deepEqual(
+    visible([shown, hidden, next]).map((item) => item.id),
+    ['open', 'download'],
+  );
 });

@@ -57,3 +57,7 @@ export function commandFor(stroke: Keystroke): RowCommand | null {
 export function opensOnTap(pointerType: string): boolean {
   return pointerType === 'touch' || pointerType === 'pen';
 }
+
+export function visible<T extends { checkVisibility(): boolean }>(items: readonly T[]): T[] {
+  return items.filter((item) => item.checkVisibility());
+}

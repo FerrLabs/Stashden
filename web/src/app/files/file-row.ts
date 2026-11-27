@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { formatDate, formatSize, t } from '../i18n/language';
 import type { Node } from '../node';
-import { commandFor, opensOnTap } from './gestures';
+import { commandFor, opensOnTap, visible } from './gestures';
 import { OpenWith } from './open-with';
 import { waysToOpen, openerFor, type Way } from './openers';
 import type { Step } from './selection';
@@ -164,7 +164,7 @@ export class FileRow {
   }
 
   private actions(): HTMLElement[] {
-    return [...this.host.querySelectorAll<HTMLElement>('.action')];
+    return visible([...this.host.querySelectorAll<HTMLElement>('.action')]);
   }
 
   private fromActions(event: MouseEvent): boolean {

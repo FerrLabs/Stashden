@@ -27,9 +27,10 @@ export const files = {
   'files.origin': 'Shared by {owner}, {access}',
 
   'files.list.label': 'Files in {folder}',
+  'files.list.labelRoot': 'Files',
   'files.list.help': 'Enter opens. Right arrow reaches the actions.',
   'files.open': 'Open',
-  'files.open.missing': 'There is no file named {name} in this folder.',
+  'files.open.missing': 'There is no file named "{name}" in this folder.',
   'files.openWith.preview': 'Preview',
 
   'files.action.open': 'Open {name}',

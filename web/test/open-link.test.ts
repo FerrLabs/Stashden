@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Node } from '../src/app/node.ts';
-import { OPEN_PARAM, targetOf } from '../src/app/files/open-link.ts';
+import { OPEN_PARAM, loadedNodes, targetOf } from '../src/app/files/open-link.ts';
 
 function entry(name: string, kind: Node['kind']): Node {
   return {
@@ -41,4 +41,20 @@ test('a missing name is reported, and names are matched exactly', () => {
   assert.deepEqual(targetOf('gone.md', nodes), { kind: 'missing' });
   assert.deepEqual(targetOf('A.MD', nodes), { kind: 'missing' });
   assert.deepEqual(targetOf('a.md', []), { kind: 'missing' });
+});
+
+test('a listing that failed to load yields no nodes and is never read', () => {
+  const failed = {
+    hasValue: () => false,
+    value: (): never => {
+      throw new Error('nope');
+    },
+  };
+  assert.deepEqual(loadedNodes(failed), []);
+  assert.deepEqual(targetOf('a.md', loadedNodes(failed)), { kind: 'missing' });
+});
+
+test('a loaded listing yields its nodes, and one still loading yields none', () => {
+  assert.deepEqual(loadedNodes({ hasValue: () => true, value: () => nodes }), nodes);
+  assert.deepEqual(loadedNodes({ hasValue: () => false, value: () => undefined }), []);
 });

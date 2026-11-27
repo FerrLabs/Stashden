@@ -30,9 +30,10 @@ export const files = {
   'files.origin': 'Partagé par {owner}, {access}',
 
   'files.list.label': 'Fichiers de {folder}',
-  'files.list.help': 'Entrée ouvre. La flèche droite atteint les actions.',
+  'files.list.labelRoot': 'Fichiers',
+  'files.list.help': 'Entrée ouvre. La flèche droite mène aux actions.',
   'files.open': 'Ouvrir',
-  'files.open.missing': 'Il n’y a aucun fichier nommé {name} dans ce dossier.',
+  'files.open.missing': 'Il n’y a aucun fichier nommé « {name} » dans ce dossier.',
   'files.openWith.preview': 'Aperçu',
 
   'files.action.open': 'Ouvrir {name}',

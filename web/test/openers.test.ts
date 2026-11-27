@@ -71,12 +71,16 @@ test('a reader gets the same viewer as a writer and no editor', () => {
   assert.equal(open('a.md', 10, reader).editor, null);
 });
 
-test('files with a viewer offer preview and download, others offer nothing', () => {
-  assert.deepEqual(waysToOpen(open('a.md')), ['preview', 'download']);
-  assert.deepEqual(waysToOpen(open('a.png')), ['preview', 'download']);
+test('the Open with menu only exists when a file has more than one way to open', () => {
+  assert.deepEqual(waysToOpen(open('a.md')), []);
+  assert.deepEqual(waysToOpen(open('a.png')), []);
   assert.deepEqual(waysToOpen(open('a.bin')), []);
-  assert.deepEqual(waysToOpen(open('a.xlsx')), []);
   assert.deepEqual(waysToOpen(open('big.txt', PREVIEW_LIMIT + 1)), []);
+  assert.deepEqual(waysToOpen({ viewer: 'text', editor: 'markdown', reason: 'ready' }), [
+    'preview',
+    'download',
+  ]);
+  assert.deepEqual(waysToOpen({ viewer: 'text', editor: null, reason: 'ready' }), []);
 });
 
 test('the mime type follows the extension and falls back to octet-stream', () => {

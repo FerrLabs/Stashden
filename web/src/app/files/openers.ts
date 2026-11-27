@@ -87,7 +87,7 @@ export function openerFor(node: Pick<Node, 'name' | 'size'>, options: Capabiliti
 }
 
 export function waysToOpen(opening: Opening): Way[] {
-  return opening.viewer === null ? [] : ['preview', 'download'];
+  return opening.viewer !== null && opening.editor !== null ? ['preview', 'download'] : [];
 }
 
 export function mimeOf(name: string): string {
