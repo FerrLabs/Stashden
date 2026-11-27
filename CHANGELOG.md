@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.61.1] - 2026-11-27
+
+### Bug Fixes
+
+- fix(app): embed the application icon in the Windows executable (#550)
+
 ## [0.61.0] - 2026-11-27
 
 ### Features
