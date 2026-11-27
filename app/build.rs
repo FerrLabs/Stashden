@@ -1,5 +1,5 @@
 #[cfg(windows)]
-fn embed_windows_resources() -> std::io::Result<()> {
+fn main() -> std::io::Result<()> {
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return Ok(());
     }
@@ -13,8 +13,5 @@ fn embed_windows_resources() -> std::io::Result<()> {
         .compile()
 }
 
-fn main() -> std::io::Result<()> {
-    #[cfg(windows)]
-    embed_windows_resources()?;
-    Ok(())
-}
+#[cfg(not(windows))]
+fn main() {}
