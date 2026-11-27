@@ -8,6 +8,10 @@ use crate::desktop::Desktop;
 
 const FILE: &str = "stashden.log";
 
+pub fn record_panics() {
+    std::panic::set_hook(Box::new(|info| record(&format!("panic: {info}"))));
+}
+
 pub fn record(message: &str) {
     eprintln!("{message}");
     let _ = append(&Desktop::config_directory(), message);
@@ -45,6 +49,7 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert!(lines[0].ends_with(" first"));
         assert!(lines[1].ends_with(" second"));
+        let _ = fs::remove_dir_all(directory.parent().unwrap());
     }
 
     #[test]
@@ -55,5 +60,6 @@ mod tests {
         fs::write(&blocker, "").unwrap();
 
         assert!(append(&blocker, "lost").is_err());
+        let _ = fs::remove_dir_all(&directory);
     }
 }

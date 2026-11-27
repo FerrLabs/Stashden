@@ -93,6 +93,7 @@ fn follow_tray(tray: tray::Tray, cx: &mut App) {
 }
 
 fn main() {
+    log::record_panics();
     let desktop = Desktop::new(Desktop::config_directory());
     gpui_kit::application()
         .with_assets(gpui_kit::assets::Assets)
