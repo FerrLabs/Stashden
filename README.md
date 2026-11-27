@@ -861,6 +861,32 @@ The site is a separate Angular app under `site/`, prerendered to static files in
 `pnpm run dev:site` for the dev server. It carries the install and API pages, so a change to a
 config key or an endpoint updates `site/src/app/content/` in the same pull request.
 
+### Languages of the web app
+
+The web app is in English and French. The first visit follows `navigator.languages`, and the choice
+made in the account menu or on the sign-in screen is remembered in the browser. `<html lang>`
+follows the active language. Messages live in `web/src/app/i18n/en/` (the source) and `fr/`, one
+file per area. Keys are typed: a key missing from French does not build, and `t()` refuses a
+parameter the English message does not declare.
+
+To add a string, add it to the English file of its area with a dotted key (`files.announce.renamed`),
+named parameters in braces and no concatenation, then add the French twin with the same key and the
+same parameters. In a template or a component, `t('files.announce.renamed', { name })`. A plural is
+`{ one, other }` and takes a `count` parameter, chosen with `Intl.PluralRules`. Dates, numbers and
+sizes go through `formatDate`, `formatMoment` and `formatSize`, which use `Intl` in the active
+language. Names that are data, not wording, stay as they are: the product name, the `Shared with me`
+folder, the `(conflict ...)` and `(web edit)` suffixes of generated file names, and the text of
+server errors, which is shown as received.
+
+To add a language, add its code to `LOCALES` and its name in that language to `LANGUAGE_NAMES` in
+`web/src/app/i18n/locale.ts`, then add a directory next to `fr/` with the same files, and register it
+in `catalogs.ts`. The compiler lists what is missing. Languages written right to left are not
+supported yet.
+
+`pnpm --filter @stashden/web test` runs the catalog tests: same keys and parameters in every
+language, no key unused, no sentence left in a template and none built by concatenation, plurals and
+`Intl` formatting, and language selection.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License

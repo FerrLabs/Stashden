@@ -6,9 +6,9 @@
 
   @if (needsPassword()) {
     <section class="gate">
-      <h1>This link needs a password</h1>
+      <h1>{{ t('public.needsPassword') }}</h1>
       <form (submit)="$event.preventDefault(); unlock()">
-        <label for="share-password">Password</label>
+        <label for="share-password">{{ t('common.password') }}</label>
         <input
           id="share-password"
           type="password"
@@ -16,23 +16,25 @@
           [value]="draft()"
           (input)="draft.set($any($event.target).value)"
         />
-        <button type="submit" class="primary" [disabled]="draft().length === 0">Open</button>
+        <button type="submit" class="primary" [disabled]="draft().length === 0">
+          {{ t('public.open') }}
+        </button>
       </form>
       @if (password().length > 0) {
-        <p class="failure" role="alert">That password did not open this link.</p>
+        <p class="failure" role="alert">{{ t('public.wrongPassword') }}</p>
       }
     </section>
   } @else if (link.isLoading()) {
-    <p class="state" aria-busy="true">Opening this link</p>
+    <p class="state" aria-busy="true">{{ t('public.opening') }}</p>
   } @else if (busyFor(); as seconds) {
     <section class="state">
-      <h1>Too many attempts</h1>
-      <p class="detail">Wait about {{ seconds }} seconds and try again.</p>
+      <h1>{{ t('public.busy.heading') }}</h1>
+      <p class="detail">{{ t('public.busy.detail', { count: seconds }) }}</p>
     </section>
   } @else if (link.error()) {
     <section class="state">
-      <h1>This link is no longer available</h1>
-      <p class="detail">It may have expired, or whoever shared it has taken it down.</p>
+      <h1>{{ t('public.gone.heading') }}</h1>
+      <p class="detail">{{ t('public.gone.detail') }}</p>
     </section>
   } @else if (entry(); as shared) {
     <section class="shared">
@@ -41,15 +43,15 @@
       @if (shared.kind === 'file') {
         <p class="detail">{{ size(shared.size) }}, {{ date(shared.updated_at) }}</p>
         <button type="button" class="primary" [disabled]="busy()" (click)="save(null)">
-          Download
+          {{ t('common.download') }}
         </button>
       } @else {
         <button type="button" [disabled]="busy()" (click)="saveFolder()">
-          Download this folder as a zip
+          {{ t('public.folderZip') }}
         </button>
 
         @if (trail().length > 0) {
-          <nav class="trail" aria-label="Folders above this one">
+          <nav class="trail" [attr.aria-label]="t('public.trail')">
             <button type="button" class="crumb" (click)="upTo(0)">{{ root() }}</button>
             @for (name of above(); track $index; let depth = $index) {
               <span aria-hidden="true">/</span>
@@ -59,7 +61,7 @@
         }
 
         @if (children().length === 0) {
-          <p class="state">This folder is empty.</p>
+          <p class="state">{{ t('common.emptyFolder') }}</p>
         } @else {
           <ul class="listing">
             @for (child of children(); track child.name) {
@@ -84,8 +86,8 @@
                     type="button"
                     class="icon"
                     [disabled]="busy()"
-                    [attr.aria-label]="'Download ' + child.name"
-                    [title]="'Download ' + child.name"
+                    [attr.aria-label]="t('common.downloadLabel', { name: child.name })"
+                    [title]="t('common.downloadLabel', { name: child.name })"
                     (click)="save(child)"
                   >
                     <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">

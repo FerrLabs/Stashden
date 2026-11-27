@@ -7,10 +7,10 @@ import {
   resource,
   signal,
 } from '@angular/core';
-import { formatSize, type Node, type Trashed } from '../node';
+import type { Node, Trashed } from '../node';
 import { PLATFORM, RequestFailed } from '../platform';
 import { Confirm } from '../shared/confirm';
-import { formatMoment } from '../version';
+import { formatMoment, formatSize, t } from '../i18n/language';
 
 @Component({
   selector: 'rx-trash-panel',
@@ -20,6 +20,7 @@ import { formatMoment } from '../version';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TrashPanel {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
 
   readonly version = input(0);
@@ -39,12 +40,12 @@ export class TrashPanel {
   protected readonly emptying = signal(false);
 
   protected describe(node: Trashed): string {
-    const parts = [node.kind === 'directory' ? 'Folder' : formatSize(node.size)];
+    const parts = [node.kind === 'directory' ? t('common.folder') : formatSize(node.size)];
     if (node.deleted_at !== undefined) {
-      parts.push(`deleted ${formatMoment(node.deleted_at)}`);
+      parts.push(t('trash.deleted', { moment: formatMoment(node.deleted_at) }));
     }
     if (node.expires_at !== undefined) {
-      parts.push(`goes for good ${formatMoment(node.expires_at)}`);
+      parts.push(t('trash.expires', { moment: formatMoment(node.expires_at) }));
     }
     return parts.join(', ');
   }
@@ -57,7 +58,7 @@ export class TrashPanel {
     }
     await this.attempt(async () => {
       await clear();
-      this.announcement.set('Emptied the trash');
+      this.announcement.set(t('trash.announce.emptied'));
     });
   }
 
@@ -71,11 +72,11 @@ export class TrashPanel {
         await bring(node.id);
       } catch (cause: unknown) {
         if (cause instanceof RequestFailed && cause.status === 409) {
-          throw new Error(`${cause.message}. Rename or move that one, then restore again.`);
+          throw new Error(t('trash.restoreConflict', { reason: cause.message }));
         }
         throw cause;
       }
-      this.announcement.set(`Restored ${node.name} to where it was`);
+      this.announcement.set(t('trash.announce.restored', { name: node.name }));
       this.restored.emit();
     });
   }
@@ -88,7 +89,7 @@ export class TrashPanel {
     }
     await this.attempt(async () => {
       await drop(node.id);
-      this.announcement.set(`Deleted ${node.name} for good`);
+      this.announcement.set(t('trash.announce.purged', { name: node.name }));
     });
   }
 

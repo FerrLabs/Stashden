@@ -1,39 +1,38 @@
 <dialog #dialog (cancel)="dismiss()">
   @if (minted(); as link) {
     <div class="done">
-      <h2>Link to {{ node().name }}</h2>
+      <h2>{{ t('share.link.heading', { name: node().name }) }}</h2>
       <p class="hint">
-        This is the only time the link is shown. The server keeps a fingerprint of it and cannot
-        show it again.
+        {{ t('share.link.onlyOnce') }}
       </p>
       <div class="link">
         <input type="text" readonly [value]="url()" (focus)="$any($event.target).select()" />
         <button type="button" class="primary" (click)="copy()">
-          {{ copied() ? 'Copied' : 'Copy' }}
+          {{ copied() ? t('common.copied') : t('common.copy') }}
         </button>
       </div>
       @if (link.has_password) {
-        <p class="hint">Whoever opens it will be asked for the password you set.</p>
+        <p class="hint">{{ t('share.link.passwordNote') }}</p>
       }
       @if (failure(); as message) {
         <p class="failure" role="alert">{{ message }}</p>
       }
       <div class="actions">
-        <button type="button" class="primary" (click)="dismiss()">Done</button>
+        <button type="button" class="primary" (click)="dismiss()">{{ t('common.done') }}</button>
       </div>
     </div>
   } @else {
-    <h2>Share {{ node().name }}</h2>
+    <h2>{{ t('share.heading', { name: node().name }) }}</h2>
 
     @if (canGrant) {
-      <div class="modes" role="group" aria-label="How to share">
+      <div class="modes" role="group" [attr.aria-label]="t('share.mode.label')">
         <button
           type="button"
           [class.chosen]="mode() === 'link'"
           [attr.aria-pressed]="mode() === 'link'"
           (click)="choose('link')"
         >
-          With a link
+          {{ t('share.mode.link') }}
         </button>
         <button
           type="button"
@@ -41,7 +40,7 @@
           [attr.aria-pressed]="mode() === 'account'"
           (click)="choose('account')"
         >
-          With an account
+          {{ t('share.mode.account') }}
         </button>
       </div>
     }
@@ -49,13 +48,11 @@
     @if (mode() === 'link') {
       <form method="dialog" (submit)="$event.preventDefault(); mint()">
         <p class="hint">
-          Anyone holding the link can
-          {{ node().kind === 'directory' ? 'browse and download this folder' : 'download this file' }}
-          without an account.
+          {{ node().kind === 'directory' ? t('share.link.folderHint') : t('share.link.fileHint') }}
         </p>
 
         <label>
-          Expires on
+          {{ t('share.expiry.label') }}
           <input
             type="date"
             [min]="earliest"
@@ -63,10 +60,10 @@
             (input)="expiry.set($any($event.target).value)"
           />
         </label>
-        <p class="hint">Leave it empty for a link that does not expire.</p>
+        <p class="hint">{{ t('share.expiry.hint') }}</p>
 
         <label>
-          Password
+          {{ t('common.password') }}
           <input
             type="password"
             autocomplete="new-password"
@@ -74,28 +71,27 @@
             (input)="password.set($any($event.target).value)"
           />
         </label>
-        <p class="hint">Optional, and at least six characters. It is not part of the link.</p>
+        <p class="hint">{{ t('share.password.hint') }}</p>
 
         @if (failure(); as message) {
           <p class="failure" role="alert">{{ message }}</p>
         }
 
         <div class="actions">
-          <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
+          <button type="button" class="ghost" (click)="dismiss()">{{ t('common.cancel') }}</button>
           <button type="submit" class="primary" [disabled]="busy()">
-            {{ busy() ? 'Creating' : 'Create link' }}
+            {{ busy() ? t('share.link.creating') : t('share.link.create') }}
           </button>
         </div>
       </form>
     } @else {
       <form method="dialog" (submit)="$event.preventDefault(); give()">
         <p class="hint">
-          They find it under Shared with me. An address with no account yet receives it when one is
-          made for it.
+          {{ t('share.account.hint', { shelf: shelf }) }}
         </p>
 
         <label>
-          Email address
+          {{ t('common.emailAddress') }}
           <input
             type="email"
             autocomplete="off"
@@ -106,15 +102,15 @@
         </label>
 
         <label>
-          They can
+          {{ t('share.account.access') }}
           <select (change)="access.set($any($event.target).value)">
-            <option value="read" [selected]="access() === 'read'">View and download</option>
-            <option value="write" [selected]="access() === 'write'">Edit, add and delete</option>
+            <option value="read" [selected]="access() === 'read'">{{ t('share.account.read') }}</option>
+            <option value="write" [selected]="access() === 'write'">{{ t('share.account.write') }}</option>
           </select>
         </label>
         @if (access() === 'write') {
           <p class="hint">
-            What they add or change is stored in your files and counts against your storage.
+            {{ t('share.account.writeHint') }}
           </p>
         }
 
@@ -124,7 +120,7 @@
         <p class="announcement" role="status" aria-live="polite">{{ announcement() }}</p>
 
         @if ((grants.value() ?? []).length > 0) {
-          <h3>Shared with</h3>
+          <h3>{{ t('share.account.people') }}</h3>
           <ul class="people">
             @for (given of grants.value() ?? []; track given.id) {
               <li>
@@ -136,10 +132,10 @@
                   type="button"
                   class="ghost danger"
                   [disabled]="busy()"
-                  [attr.aria-label]="'Stop sharing with ' + given.email"
+                  [attr.aria-label]="t('share.account.removeLabel', { email: given.email })"
                   (click)="removing.set(given)"
                 >
-                  Remove
+                  {{ t('share.account.remove') }}
                 </button>
               </li>
             }
@@ -147,9 +143,9 @@
         }
 
         <div class="actions">
-          <button type="button" class="ghost" (click)="dismiss()">Done</button>
+          <button type="button" class="ghost" (click)="dismiss()">{{ t('common.done') }}</button>
           <button type="submit" class="primary" [disabled]="busy() || email().trim().length === 0">
-            {{ busy() ? 'Sharing' : 'Share' }}
+            {{ busy() ? t('share.account.busy') : t('share.account.submit') }}
           </button>
         </div>
       </form>
@@ -159,9 +155,9 @@
 
 @if (removing(); as given) {
   <rx-confirm
-    [heading]="'Stop sharing ' + node().name + ' with ' + given.email + '?'"
-    body="It disappears from their Shared with me on their next request. Your files are untouched."
-    action="Stop sharing"
+    [heading]="t('share.account.stopHeading', { name: node().name, email: given.email })"
+    [body]="t('share.stopBody', { shelf: shelf })"
+    [action]="t('common.stopSharing')"
     (accepted)="take(given)"
     (dismissed)="removing.set(null)"
   />

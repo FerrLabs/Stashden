@@ -9,8 +9,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { linkTo, parentOf } from '../folder';
-import { formatSize, type Hit } from '../node';
+import type { Hit } from '../node';
 import { PLATFORM } from '../platform';
+import { formatSize, t } from '../i18n/language';
 
 @Component({
   selector: 'rx-search-panel',
@@ -19,6 +20,7 @@ import { PLATFORM } from '../platform';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchPanel {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
 
@@ -47,18 +49,21 @@ export class SearchPanel {
       this.hits.set(await search(term));
       this.searched.set(term);
     } catch (cause: unknown) {
-      this.failure.set(`searching failed: ${cause instanceof Error ? cause.message : cause}`);
+      this.failure.set(
+        t('search.failed', { reason: cause instanceof Error ? cause.message : String(cause) }),
+      );
     } finally {
       this.busy.set(false);
     }
   }
 
   protected where(hit: Hit): string {
-    return parentOf(hit.path) || 'your files';
+    const folder = parentOf(hit.path);
+    return folder ? t('search.inFolder', { path: folder }) : t('search.inRoot');
   }
 
   protected describe(hit: Hit): string {
-    return hit.kind === 'directory' ? 'Folder' : formatSize(hit.size);
+    return hit.kind === 'directory' ? t('common.folder') : formatSize(hit.size);
   }
 
   protected choose(hit: Hit): void {

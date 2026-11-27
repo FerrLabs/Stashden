@@ -8,8 +8,8 @@
     "dev": "ng serve",
     "build": "ng build",
     "preview": "ng serve --configuration production",
-    "lint": "tsc -p tsconfig.app.json --noEmit",
-    "test": "node --test"
+    "lint": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "TZ=UTC node --import ./test/register.mjs --test \"test/*.test.ts\" \"src/**/*.test.mjs\""
   },
   "dependencies": {
     "@angular/common": "^22.0.0",
@@ -26,6 +26,7 @@
     "@angular/cli": "^22.0.0",
     "@angular/compiler": "^22.0.0",
     "@angular/compiler-cli": "^22.0.0",
+    "@types/node": "^24.19.2",
     "playwright": "^1.63.0",
     "typescript": "~6.0.0"
   }

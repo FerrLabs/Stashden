@@ -87,3 +87,8 @@ footer a {
 footer a:hover {
   color: var(--accent-ink);
 }
+
+.sign-in rx-language-picker {
+  display: block;
+  margin-top: 1rem;
+}

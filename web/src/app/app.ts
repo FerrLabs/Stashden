@@ -7,6 +7,8 @@ import { AppPasswords } from './account/app-passwords';
 import { ChangePassword } from './account/change-password';
 import { DeleteAccount } from './account/delete-account';
 import { Session } from './account';
+import { LanguagePicker } from './shared/language-picker';
+import { t } from './i18n/language';
 import { linkTo } from './folder';
 import type { Credentials } from './login-form/credentials';
 import { LoginForm } from './login-form/login-form';
@@ -28,6 +30,7 @@ const standsAlone = (url: string): boolean =>
     AppPasswords,
     ChangePassword,
     DeleteAccount,
+    LanguagePicker,
     LoginForm,
     Prompt,
     RouterOutlet,
@@ -50,6 +53,7 @@ export class App {
     { initialValue: false },
   );
 
+  protected readonly t = t;
   protected readonly sourceUrl = STASHDEN_SOURCE_URL;
   protected readonly connected = signal(this.platform.authenticated());
   protected readonly error = signal<string | null>(null);
@@ -89,7 +93,7 @@ export class App {
       }
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(`Signing in with the identity provider failed: ${message}`);
+      this.error.set(t('app.error.provider', { reason: message }));
       void this.loadMethods();
     } finally {
       this.busy.set(false);
@@ -130,7 +134,7 @@ export class App {
         return;
       }
       const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(`Your account did not load: ${message}`);
+      this.error.set(t('app.error.account', { reason: message }));
     }
   }
 
@@ -139,7 +143,7 @@ export class App {
       await this.platform.signOut();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(`Signed out here, but ${message}`);
+      this.error.set(t('app.error.signOut', { reason: message }));
     }
     this.session.forget();
     this.connected.set(false);
@@ -151,7 +155,7 @@ export class App {
     this.deleting.set(false);
     this.session.forget();
     this.connected.set(false);
-    this.notice.set('Your account has been deleted.');
+    this.notice.set(t('app.notice.accountDeleted'));
     void this.router.navigate(linkTo(''));
   }
 
@@ -169,17 +173,17 @@ export class App {
     try {
       this.session.account.set(await update(displayName));
       this.error.set(null);
-      this.notice.set('Your display name has been changed.');
+      this.notice.set(t('app.notice.displayName'));
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      this.error.set(`Your display name was not changed: ${message}`);
+      this.error.set(t('app.error.displayName', { reason: message }));
     }
   }
 
   protected noteChanged(): void {
     this.changing.set(false);
     void this.session.load();
-    this.notice.set('Your password has been changed.');
+    this.notice.set(t('app.notice.password'));
   }
 
   protected async signIn(credentials: Credentials): Promise<void> {

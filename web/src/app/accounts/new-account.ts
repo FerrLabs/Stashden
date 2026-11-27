@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { describeRole, type Role } from '../account';
 import { ROLES, generatePassword, type NewAccount } from './managed';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-new-account',
@@ -17,6 +18,7 @@ import { ROLES, generatePassword, type NewAccount } from './managed';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NewAccountDialog {
+  protected readonly t = t;
   readonly submitted = output<NewAccount>();
   readonly dismissed = output<void>();
 

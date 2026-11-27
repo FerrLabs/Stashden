@@ -13,6 +13,7 @@ import { Session } from '../account';
 import { PLATFORM } from '../platform';
 import { Confirm } from '../shared/confirm';
 import { davUrl, describeUse, type AppPassword, type MintedPassword } from './app-password';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-app-passwords',
@@ -22,6 +23,7 @@ import { davUrl, describeUse, type AppPassword, type MintedPassword } from './ap
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppPasswords {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
   private readonly session = inject(Session);
 
@@ -97,7 +99,7 @@ export class AppPasswords {
       this.copied.set(true);
     } catch {
       this.copied.set(false);
-      this.failure.set('Copying failed. Select the password and copy it by hand.');
+      this.failure.set(t('common.copyPasswordFailed'));
     }
   }
 

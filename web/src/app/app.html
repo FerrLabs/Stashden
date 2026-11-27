@@ -30,7 +30,7 @@
       <router-outlet />
     } @else {
       <section class="sign-in">
-        <h1>Sign in</h1>
+        <h1>{{ t('app.signIn.heading') }}</h1>
         @if (error(); as message) {
           <p class="failure" role="alert">{{ message }}</p>
         }
@@ -40,6 +40,7 @@
           (submitted)="signIn($event)"
           (providerChosen)="signInWithProvider()"
         />
+        <rx-language-picker />
       </section>
     }
   </main>
@@ -50,9 +51,8 @@
 
   @if (naming()) {
     <rx-prompt
-      heading="Display name"
-      label="Name"
-      action="Save"
+      [heading]="t('app.displayName.heading')"
+      [label]="t('app.displayName.label')"
       [value]="session.account()?.display_name ?? ''"
       (submitted)="rename($event)"
       (dismissed)="naming.set(false)"
@@ -71,6 +71,6 @@
   }
 
   <footer>
-    <a [href]="sourceUrl" rel="noreferrer">Source</a>
+    <a [href]="sourceUrl" rel="noreferrer">{{ t('app.source') }}</a>
   </footer>
 }

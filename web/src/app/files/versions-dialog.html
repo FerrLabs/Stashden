@@ -1,20 +1,19 @@
 <dialog #dialog (cancel)="dismiss()">
-  <h2>Versions of {{ node().name }}</h2>
+  <h2>{{ t('versions.heading', { name: node().name }) }}</h2>
   <p class="hint">
-    Each time the file is replaced, what it held before is kept here. The oldest go first when the
-    list is full or the account runs out of room.
+    {{ t('versions.hint') }}
   </p>
 
   @if (versions.isLoading()) {
-    <p class="state" aria-busy="true">Loading the versions</p>
+    <p class="state" aria-busy="true">{{ t('versions.loading') }}</p>
   } @else if (versions.error(); as error) {
     <div class="state">
-      <p>The versions did not load.</p>
+      <p>{{ t('versions.loadFailed') }}</p>
       <p class="detail">{{ error }}</p>
-      <button type="button" class="ghost" (click)="versions.reload()">Try again</button>
+      <button type="button" class="ghost" (click)="versions.reload()">{{ t('common.tryAgain') }}</button>
     </div>
   } @else if ((versions.value() ?? []).length === 0) {
-    <p class="state">No earlier versions. This file has not been replaced yet.</p>
+    <p class="state">{{ t('versions.none') }}</p>
   } @else {
     <ul class="versions">
       @for (version of versions.value() ?? []; track version.id) {
@@ -28,20 +27,20 @@
               type="button"
               class="ghost"
               [disabled]="busy()"
-              [attr.aria-label]="'Download the version from ' + moment(version.created_at)"
+              [attr.aria-label]="t('versions.downloadLabel', { moment: moment(version.created_at) })"
               (click)="download(version)"
             >
-              Download
+              {{ t('common.download') }}
             </button>
             @if (canRestore()) {
               <button
                 type="button"
                 class="ghost"
                 [disabled]="busy()"
-                [attr.aria-label]="'Restore the version from ' + moment(version.created_at)"
+                [attr.aria-label]="t('versions.restoreLabel', { moment: moment(version.created_at) })"
                 (click)="restoring.set(version)"
               >
-                Restore
+                {{ t('common.restore') }}
               </button>
             }
           </span>
@@ -56,19 +55,15 @@
   <p class="announcement" role="status" aria-live="polite">{{ announcement() }}</p>
 
   <div class="actions">
-    <button type="button" class="primary" (click)="dismiss()">Done</button>
+    <button type="button" class="primary" (click)="dismiss()">{{ t('common.done') }}</button>
   </div>
 </dialog>
 
 @if (restoring(); as version) {
   <rx-confirm
-    [heading]="'Restore ' + node().name + '?'"
-    [body]="
-      'It goes back to the version from ' +
-      moment(version.created_at) +
-      '. The current content is kept as a version, so this can be undone.'
-    "
-    action="Restore"
+    [heading]="t('versions.restoreHeading', { name: node().name })"
+    [body]="t('versions.restoreBody', { moment: moment(version.created_at) })"
+    [action]="t('common.restore')"
     (accepted)="restore(version)"
     (dismissed)="restoring.set(null)"
   />

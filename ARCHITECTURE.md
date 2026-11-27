@@ -284,6 +284,11 @@ Unknown paths under `/v1` answer 404 rather than falling through to the app, or 
 read as a page. The router uses hash locations, so no client-side path ever reaches the server and
 there is no rewriting to get wrong.
 
+The web app translates at runtime from typed message catalogs bundled into the single build, rather
+than one build per language: the API serves one web root, and the language is a per-user choice made
+in the browser, not a different URL. English is the source and French the first translation. The
+catalogs are a few tens of kilobytes of the initial bundle and need no dependency beyond `Intl`.
+
 The chart deploys the API against a database it does not manage. Bundling Postgres would mean owning
 a second database's upgrades and backups for people who already run an operator, and the ones who do
 not are better served by the compose file. It pins one replica: the blob store is a directory behind

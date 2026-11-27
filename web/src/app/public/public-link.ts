@@ -8,10 +8,10 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { formatDate, formatSize } from '../node';
 import type { PublicEntry } from '../share';
 import { DownloadCancelled } from '../transfer';
 import { LinkIsBusy, LinkNeedsPassword, PublicLinks } from './links';
+import { formatDate, formatSize, t } from '../i18n/language';
 
 @Component({
   selector: 'rx-public-link',
@@ -20,6 +20,7 @@ import { LinkIsBusy, LinkNeedsPassword, PublicLinks } from './links';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublicLink {
+  protected readonly t = t;
   private readonly links = inject(PublicLinks);
 
   private readonly params = toSignal(inject(ActivatedRoute).params, { initialValue: {} });
@@ -39,9 +40,7 @@ export class PublicLink {
     loader: ({ params }) => this.links.open(params.token, params.password, params.path),
   });
 
-  protected readonly needsPassword = computed(
-    () => this.link.error() instanceof LinkNeedsPassword,
-  );
+  protected readonly needsPassword = computed(() => this.link.error() instanceof LinkNeedsPassword);
 
   protected readonly busyFor = computed(() => {
     const error = this.link.error();

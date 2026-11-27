@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { generatePassword } from './managed';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-account-password',
@@ -17,8 +18,9 @@ import { generatePassword } from './managed';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountPassword {
+  protected readonly t = t;
   readonly heading = input.required<string>();
-  readonly action = input('Save');
+  readonly action = input<string>();
   readonly secret = input<string | null>(null);
   readonly submitted = output<string>();
   readonly dismissed = output<void>();
@@ -48,7 +50,7 @@ export class AccountPassword {
       this.copied.set(true);
     } catch {
       this.copied.set(false);
-      this.failure.set('Copying failed. Select the password and copy it by hand.');
+      this.failure.set(t('common.copyPasswordFailed'));
     }
   }
 

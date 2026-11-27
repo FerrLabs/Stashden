@@ -17,6 +17,7 @@ import { DeleteAccountDialog } from './delete-account';
 import { NewAccountDialog } from './new-account';
 import { QuotaDialog } from './quota';
 import { ROLES, describeUsage, type ManagedAccount } from './managed';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-accounts',
@@ -26,6 +27,7 @@ import { ROLES, describeUsage, type ManagedAccount } from './managed';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Accounts {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
   private readonly router = inject(Router);
   private readonly session = inject(Session);
@@ -63,10 +65,18 @@ export class Accounts {
   protected async setRole(account: ManagedAccount, event: Event): Promise<void> {
     const select = event.target as HTMLSelectElement;
     const role = select.value as Role;
-    const changed = await this.attempt(`changing ${account.email}`, async () => {
-      await this.platform.setRole?.(account.id, role);
-      this.announcement.set(`${account.email} is now ${describeRole(role).toLowerCase()}`);
-    });
+    const changed = await this.attempt(
+      (reason) => t('accounts.failed.change', { email: account.email, reason }),
+      async () => {
+        await this.platform.setRole?.(account.id, role);
+        this.announcement.set(
+          t('accounts.announce.role', {
+            email: account.email,
+            role: describeRole(role).toLowerCase(),
+          }),
+        );
+      },
+    );
     if (!changed) {
       select.value = account.role;
     }
@@ -74,43 +84,63 @@ export class Accounts {
 
   protected async setDisabled(account: ManagedAccount, disabled: boolean): Promise<void> {
     this.disabling.set(null);
-    await this.attempt(`changing ${account.email}`, async () => {
-      await this.platform.setDisabled?.(account.id, disabled);
-      this.announcement.set(
-        disabled ? `${account.email} is disabled` : `${account.email} can sign in again`,
-      );
-    });
+    await this.attempt(
+      (reason) => t('accounts.failed.change', { email: account.email, reason }),
+      async () => {
+        await this.platform.setDisabled?.(account.id, disabled);
+        this.announcement.set(
+          disabled
+            ? t('accounts.announce.disabled', { email: account.email })
+            : t('accounts.announce.enabled', { email: account.email }),
+        );
+      },
+    );
   }
 
   protected async remove(account: ManagedAccount, handOverTo: string | null): Promise<void> {
     this.deleting.set(null);
-    await this.attempt(`deleting ${account.email}`, async () => {
-      await this.platform.deleteAccount?.(account.id, handOverTo);
-      this.announcement.set(`${account.email} is deleted`);
-    });
+    await this.attempt(
+      (reason) => t('accounts.failed.delete', { email: account.email, reason }),
+      async () => {
+        await this.platform.deleteAccount?.(account.id, handOverTo);
+        this.announcement.set(t('accounts.announce.deleted', { email: account.email }));
+      },
+    );
   }
 
   protected async unlock(account: ManagedAccount): Promise<void> {
-    await this.attempt(`unlocking ${account.email}`, async () => {
-      await this.platform.unlockAccount?.(account.id);
-      this.announcement.set(`${account.email} may try again`);
-    });
+    await this.attempt(
+      (reason) => t('accounts.failed.unlock', { email: account.email, reason }),
+      async () => {
+        await this.platform.unlockAccount?.(account.id);
+        this.announcement.set(t('accounts.announce.unlocked', { email: account.email }));
+      },
+    );
   }
 
   protected async setQuota(account: ManagedAccount, bytes: number): Promise<void> {
     this.quota.set(null);
-    await this.attempt(`changing the quota of ${account.email}`, async () => {
-      await this.platform.setQuota?.(account.id, bytes);
-      this.announcement.set(`The quota of ${account.email} is set`);
-    });
+    await this.attempt(
+      (reason) => t('accounts.failed.quota', { email: account.email, reason }),
+      async () => {
+        await this.platform.setQuota?.(account.id, bytes);
+        this.announcement.set(t('accounts.announce.quota', { email: account.email }));
+      },
+    );
   }
 
   protected async resetPassword(account: ManagedAccount, secret: string): Promise<void> {
     this.resetting.set(null);
-    await this.attempt(`resetting the password of ${account.email}`, async () => {
-      await this.platform.resetPassword?.(account.id, secret);
-      this.password.set({ heading: `New password for ${account.email}`, secret });
-    });
+    await this.attempt(
+      (reason) => t('accounts.failed.reset', { email: account.email, reason }),
+      async () => {
+        await this.platform.resetPassword?.(account.id, secret);
+        this.password.set({
+          heading: t('accounts.passwordFor.reset', { email: account.email }),
+          secret,
+        });
+      },
+    );
   }
 
   protected async create(account: {
@@ -120,16 +150,22 @@ export class Accounts {
     role: Role;
   }): Promise<void> {
     this.adding.set(false);
-    await this.attempt(`creating ${account.email}`, async () => {
-      await this.platform.createAccount?.(account);
-      this.password.set({
-        heading: `Password for ${account.email}`,
-        secret: account.password,
-      });
-    });
+    await this.attempt(
+      (reason) => t('accounts.failed.create', { email: account.email, reason }),
+      async () => {
+        await this.platform.createAccount?.(account);
+        this.password.set({
+          heading: t('accounts.passwordFor.created', { email: account.email }),
+          secret: account.password,
+        });
+      },
+    );
   }
 
-  private async attempt(what: string, run: () => Promise<void>): Promise<boolean> {
+  private async attempt(
+    failed: (reason: string) => string,
+    run: () => Promise<void>,
+  ): Promise<boolean> {
     this.failure.set(null);
     this.announcement.set(null);
     try {
@@ -137,7 +173,7 @@ export class Accounts {
       this.version.update((count) => count + 1);
       return true;
     } catch (cause: unknown) {
-      this.failure.set(`${what} failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+      this.failure.set(failed(cause instanceof Error ? cause.message : String(cause)));
       return false;
     }
   }

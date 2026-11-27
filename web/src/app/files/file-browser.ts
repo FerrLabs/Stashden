@@ -14,13 +14,14 @@ import { ActivatedRoute, Router, type UrlSegment } from '@angular/router';
 import { Session } from '../account';
 import { childOf, linkTo } from '../folder';
 import { SHARED_WITH_ME, describeOrigin, whereIs, type Received } from '../grant';
-import { byKindThenName, formatDate, formatSize, type Node } from '../node';
+import { byKindThenName, type Node } from '../node';
 import { chosenFromDrop, fromChosen, type Outgoing } from '../outgoing';
 import { PLATFORM } from '../platform';
 import { Confirm } from '../shared/confirm';
 import { Prompt } from '../shared/prompt';
 import { DownloadCancelled } from '../transfer';
 import { Breadcrumb } from './breadcrumb';
+import { removalBody } from './removal-text';
 import { Preview } from './preview';
 import { SearchPanel } from './search-panel';
 import { ShareDialog } from './share-dialog';
@@ -28,6 +29,7 @@ import { SharesPanel } from './shares-panel';
 import { TrashPanel } from './trash-panel';
 import { UploadTarget } from './upload-target';
 import { VersionsDialog } from './versions-dialog';
+import { formatDate, formatSize, t } from '../i18n/language';
 
 @Component({
   selector: 'rx-file-browser',
@@ -48,6 +50,7 @@ import { VersionsDialog } from './versions-dialog';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FileBrowser {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
   private readonly router = inject(Router);
 
@@ -68,9 +71,7 @@ export class FileBrowser {
     loader: ({ params }) => this.platform.listFolder(`/${params.path}`),
   });
 
-  protected readonly nodes = computed(() =>
-    [...(this.listing.value() ?? [])].sort(byKindThenName),
-  );
+  protected readonly nodes = computed(() => [...(this.listing.value() ?? [])].sort(byKindThenName));
 
   private readonly session = inject(Session);
 
@@ -134,6 +135,8 @@ export class FileBrowser {
   protected readonly trashed = signal(0);
   protected readonly published = signal(0);
 
+  protected readonly shelf = SHARED_WITH_ME;
+  protected readonly removalBody = removalBody;
   protected readonly size = formatSize;
   protected readonly date = formatDate;
 
@@ -180,12 +183,15 @@ export class FileBrowser {
     if (withdraw === undefined) {
       return;
     }
-    await this.attempt(`leaving ${mount.name}`, async () => {
-      await withdraw(mount.id);
-      this.announcement.set(`Left ${mount.name}`);
-      this.left.update((count) => count + 1);
-      this.listing.reload();
-    });
+    await this.attempt(
+      (reason) => t('files.failed.leave', { name: mount.name, reason }),
+      async () => {
+        await withdraw(mount.id);
+        this.announcement.set(t('files.announce.left', { name: mount.name }));
+        this.left.update((count) => count + 1);
+        this.listing.reload();
+      },
+    );
   }
 
   protected open(node: Node): void {
@@ -205,16 +211,23 @@ export class FileBrowser {
   }
 
   protected async download(node: Node): Promise<void> {
-    await this.attempt(`downloading ${node.name}`, async () => {
-      try {
-        const saved = await this.platform.download(childOf(this.path(), node.name), node.name);
-        this.announcement.set(saved ? `Saved ${node.name} to ${saved}` : `Downloaded ${node.name}`);
-      } catch (cause: unknown) {
-        if (!(cause instanceof DownloadCancelled)) {
-          throw cause;
+    await this.attempt(
+      (reason) => t('files.failed.download', { name: node.name, reason }),
+      async () => {
+        try {
+          const saved = await this.platform.download(childOf(this.path(), node.name), node.name);
+          this.announcement.set(
+            saved
+              ? t('files.announce.saved', { name: node.name, destination: saved })
+              : t('files.announce.downloaded', { name: node.name }),
+          );
+        } catch (cause: unknown) {
+          if (!(cause instanceof DownloadCancelled)) {
+            throw cause;
+          }
         }
-      }
-    });
+      },
+    );
   }
 
   protected readonly canArchive = this.platform.downloadArchive !== undefined;
@@ -224,30 +237,40 @@ export class FileBrowser {
     if (archive === undefined) {
       return;
     }
-    await this.attempt(`downloading ${node.name}`, async () => {
-      try {
-        const saved = await archive(childOf(this.path(), node.name), node.name);
-        this.announcement.set(
-          saved ? `Saved ${node.name}.zip to ${saved}` : `Downloaded ${node.name}.zip`,
-        );
-      } catch (cause: unknown) {
-        if (!(cause instanceof DownloadCancelled)) {
-          throw cause;
+    await this.attempt(
+      (reason) => t('files.failed.download', { name: node.name, reason }),
+      async () => {
+        try {
+          const saved = await archive(childOf(this.path(), node.name), node.name);
+          this.announcement.set(
+            saved
+              ? t('files.announce.savedZip', { name: node.name, destination: saved })
+              : t('files.announce.downloadedZip', { name: node.name }),
+          );
+        } catch (cause: unknown) {
+          if (!(cause instanceof DownloadCancelled)) {
+            throw cause;
+          }
         }
-      }
-    });
+      },
+    );
   }
 
   protected async rename(node: Node, destination: string): Promise<void> {
     this.renaming.set(null);
     const to = childOf(this.path(), destination);
-    await this.attempt(`renaming ${node.name}`, async () => {
-      await this.platform.rename(this.pathOf(node), to);
-      this.announcement.set(
-        destination.includes('/') ? `Moved ${node.name} to ${to}` : `Renamed ${node.name}`,
-      );
-      this.listing.reload();
-    });
+    await this.attempt(
+      (reason) => t('files.failed.rename', { name: node.name, reason }),
+      async () => {
+        await this.platform.rename(this.pathOf(node), to);
+        this.announcement.set(
+          destination.includes('/')
+            ? t('files.announce.moved', { name: node.name, destination: to })
+            : t('files.announce.renamed', { name: node.name }),
+        );
+        this.listing.reload();
+      },
+    );
   }
 
   protected async createFolder(name: string): Promise<void> {
@@ -257,11 +280,14 @@ export class FileBrowser {
       return;
     }
     const path = childOf(this.path(), name);
-    await this.attempt(`creating ${name}`, async () => {
-      await create(path);
-      this.announcement.set(`Created ${name}`);
-      this.listing.reload();
-    });
+    await this.attempt(
+      (reason) => t('files.failed.create', { name, reason }),
+      async () => {
+        await create(path);
+        this.announcement.set(t('files.announce.created', { name }));
+        this.listing.reload();
+      },
+    );
   }
 
   protected goTo(link: string[]): void {
@@ -271,12 +297,15 @@ export class FileBrowser {
 
   protected async remove(node: Node): Promise<void> {
     this.doomed.set(null);
-    await this.attempt(`deleting ${node.name}`, async () => {
-      await this.platform.remove(childOf(this.path(), node.name));
-      this.announcement.set(`Moved ${node.name} to the trash`);
-      this.trashed.update((count) => count + 1);
-      this.listing.reload();
-    });
+    await this.attempt(
+      (reason) => t('files.failed.delete', { name: node.name, reason }),
+      async () => {
+        await this.platform.remove(childOf(this.path(), node.name));
+        this.announcement.set(t('files.announce.trashed', { name: node.name }));
+        this.trashed.update((count) => count + 1);
+        this.listing.reload();
+      },
+    );
   }
 
   protected async upload(items: Outgoing[]): Promise<void> {
@@ -284,11 +313,14 @@ export class FileBrowser {
     let sent = 0;
     for (const item of items) {
       this.sending.set({ name: item.name, sent: 0, total: 0 });
-      const done = await this.attempt(`uploading ${item.name}`, async () => {
-        await item.send(childOf(this.path(), item.name), (progress, total) =>
-          this.sending.set({ name: item.name, sent: progress, total }),
-        );
-      });
+      const done = await this.attempt(
+        (reason) => t('files.failed.upload', { name: item.name, reason }),
+        async () => {
+          await item.send(childOf(this.path(), item.name), (progress, total) =>
+            this.sending.set({ name: item.name, sent: progress, total }),
+          );
+        },
+      );
       if (done) {
         sent += 1;
       }
@@ -297,7 +329,7 @@ export class FileBrowser {
     this.sending.set(null);
 
     if (sent > 0) {
-      this.announcement.set(sent === 1 ? 'Uploaded 1 file' : `Uploaded ${sent} files`);
+      this.announcement.set(t('files.announce.uploaded', { count: sent }));
       this.listing.reload();
     }
   }
@@ -367,13 +399,16 @@ export class FileBrowser {
     this.entries().at(index)?.nativeElement.focus();
   }
 
-  private async attempt(what: string, run: () => Promise<void>): Promise<boolean> {
+  private async attempt(
+    failed: (reason: string) => string,
+    run: () => Promise<void>,
+  ): Promise<boolean> {
     try {
       await run();
       return true;
     } catch (cause: unknown) {
       this.announcement.set(null);
-      this.failure.set(`${what} failed: ${reasonFor(cause)}`);
+      this.failure.set(failed(reasonFor(cause)));
       return false;
     }
   }

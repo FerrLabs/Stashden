@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { Session } from '../account';
 import { PLATFORM } from '../platform';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-change-password',
@@ -19,6 +20,7 @@ import { PLATFORM } from '../platform';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChangePassword {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
   private readonly session = inject(Session);
 

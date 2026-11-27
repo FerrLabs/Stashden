@@ -1,11 +1,11 @@
 <section class="accounts">
   <div class="bar">
-    <h1>Accounts</h1>
+    <h1>{{ t('accounts.heading') }}</h1>
     <span class="controls">
       <button type="button" class="ghost" [disabled]="accounts.isLoading()" (click)="accounts.reload()">
-        Refresh
+        {{ t('common.refresh') }}
       </button>
-      <button type="button" class="primary" (click)="adding.set(true)">Add an account</button>
+      <button type="button" class="primary" (click)="adding.set(true)">{{ t('accounts.add') }}</button>
     </span>
   </div>
 
@@ -16,12 +16,12 @@
 
   @if (accounts.error(); as error) {
     <div class="state">
-      <p>The accounts did not load.</p>
+      <p>{{ t('accounts.loadFailed') }}</p>
       <p class="detail">{{ error }}</p>
-      <button type="button" (click)="accounts.reload()">Try again</button>
+      <button type="button" (click)="accounts.reload()">{{ t('common.tryAgain') }}</button>
     </div>
   } @else if (accounts.isLoading() || accounts.value() === undefined) {
-    <p class="state" aria-busy="true">Loading the accounts</p>
+    <p class="state" aria-busy="true">{{ t('accounts.loading') }}</p>
   } @else {
     <ul class="listing">
       @for (account of accounts.value() ?? []; track account.id) {
@@ -30,17 +30,17 @@
             <span class="name">
               {{ account.display_name }}
               @if (account.id === me()) {
-                <span class="tag">you</span>
+                <span class="tag">{{ t('accounts.you') }}</span>
               }
               @if (account.disabled_at !== undefined) {
-                <span class="tag">disabled</span>
+                <span class="tag">{{ t('accounts.disabled') }}</span>
               }
             </span>
             <span class="detail">{{ account.email }}, {{ usage(account) }}</span>
           </span>
 
           <select
-            [attr.aria-label]="'Role of ' + account.email"
+            [attr.aria-label]="t('accounts.roleOf', { email: account.email })"
             [disabled]="account.id === me()"
             (change)="setRole(account, $event)"
           >
@@ -51,27 +51,27 @@
             }
           </select>
 
-          <button type="button" class="ghost" (click)="quota.set(account)">Quota</button>
-          <button type="button" class="ghost" (click)="resetting.set(account)">Password</button>
-          <button type="button" class="ghost" (click)="unlock(account)">Unlock</button>
+          <button type="button" class="ghost" (click)="quota.set(account)">{{ t('accounts.quota') }}</button>
+          <button type="button" class="ghost" (click)="resetting.set(account)">{{ t('accounts.password') }}</button>
+          <button type="button" class="ghost" (click)="unlock(account)">{{ t('accounts.unlock') }}</button>
           @if (account.id === me()) {
             <span></span>
             <span></span>
           } @else {
             @if (canDelete) {
               <button type="button" class="ghost danger" (click)="deleting.set(account)">
-                Delete
+                {{ t('common.delete') }}
               </button>
             } @else {
               <span></span>
             }
             @if (account.disabled_at === undefined) {
               <button type="button" class="ghost danger" (click)="disabling.set(account)">
-                Disable
+                {{ t('accounts.disable') }}
               </button>
             } @else {
               <button type="button" class="ghost" (click)="setDisabled(account, false)">
-                Enable
+                {{ t('accounts.enable') }}
               </button>
             }
           }
@@ -104,8 +104,8 @@
 
 @if (resetting(); as account) {
   <rx-account-password
-    [heading]="'Reset the password of ' + account.email"
-    action="Reset"
+    [heading]="t('accounts.reset.heading', { email: account.email })"
+    [action]="t('accounts.reset.action')"
     (submitted)="resetPassword(account, $event)"
     (dismissed)="resetting.set(null)"
   />
@@ -121,9 +121,9 @@
 
 @if (disabling(); as account) {
   <rx-confirm
-    [heading]="'Disable ' + account.email + '?'"
-    body="Their sessions stop working on their next request, and they cannot sign in again until you enable them. Their files are untouched."
-    action="Disable"
+    [heading]="t('accounts.disable.heading', { email: account.email })"
+    [body]="t('accounts.disable.body')"
+    [action]="t('accounts.disable')"
     (accepted)="setDisabled(account, true)"
     (dismissed)="disabling.set(null)"
   />

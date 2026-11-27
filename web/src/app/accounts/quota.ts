@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { bytesFrom, gigabytesOf, type ManagedAccount } from './managed';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-quota',
@@ -17,6 +18,7 @@ import { bytesFrom, gigabytesOf, type ManagedAccount } from './managed';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class QuotaDialog {
+  protected readonly t = t;
   readonly account = input.required<ManagedAccount>();
   readonly submitted = output<number>();
   readonly dismissed = output<void>();
@@ -36,7 +38,7 @@ export class QuotaDialog {
   protected submit(): void {
     const bytes = bytesFrom(this.gigabytes());
     if (bytes === null) {
-      this.failure.set('A quota is a number of gigabytes above zero.');
+      this.failure.set(t('accounts.quota.invalid'));
       return;
     }
     this.dialog().nativeElement.close();

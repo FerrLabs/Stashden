@@ -1,5 +1,5 @@
 import type { Role } from '../account';
-import { formatSize } from '../node';
+import { formatSize, t } from '../i18n/language';
 
 export type ManagedAccount = {
   id: string;
@@ -24,10 +24,10 @@ const GIGABYTE = 1000 * 1000 * 1000;
 
 export function describeUsage(account: ManagedAccount): string {
   if (account.bytes_max === undefined) {
-    return 'Nothing stored yet';
+    return t('accounts.nothingStored');
   }
   const used = account.bytes_used ?? 0;
-  return `${formatSize(used)} of ${formatSize(account.bytes_max)}`;
+  return t('accounts.usage', { used: formatSize(used), max: formatSize(account.bytes_max) });
 }
 
 export function gigabytesOf(bytes: number | undefined): string {

@@ -1,8 +1,17 @@
-import { ChangeDetectionStrategy, Component, inject, input, output, resource, signal } from '@angular/core';
-import { describeAccess, type Given } from '../grant';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  output,
+  resource,
+  signal,
+} from '@angular/core';
+import { SHARED_WITH_ME, describeAccess, type Given } from '../grant';
 import { PLATFORM } from '../platform';
 import { describeLink, type Share } from '../share';
 import { Confirm } from '../shared/confirm';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-shares-panel',
@@ -12,6 +21,7 @@ import { Confirm } from '../shared/confirm';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SharesPanel {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
 
   readonly version = input(0);
@@ -32,11 +42,12 @@ export class SharesPanel {
   protected readonly withdrawing = signal<Given | null>(null);
   protected readonly failure = signal<string | null>(null);
 
+  protected readonly shelf = SHARED_WITH_ME;
   protected readonly describe = describeLink;
   protected describeGiven(given: Given): string {
     const parts = [given.email, describeAccess(given.access)];
     if (given.in_trash) {
-      parts.push('in the trash');
+      parts.push(t('share.panel.inTrash'));
     }
     return parts.join(', ');
   }

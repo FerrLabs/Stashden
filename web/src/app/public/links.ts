@@ -1,17 +1,18 @@
 import { Injectable } from '@angular/core';
+import { t } from '../i18n/language';
 import { encodePath } from '../platform';
 import { saveStreaming } from '../transfer';
 import type { Linked } from '../share';
 
 export class LinkNeedsPassword extends Error {
   constructor() {
-    super('this link needs its password');
+    super(t('public.error.needsPassword'));
   }
 }
 
 export class LinkIsGone extends Error {
   constructor() {
-    super('this link is no longer available');
+    super(t('public.gone.heading'));
   }
 }
 
@@ -19,7 +20,7 @@ export class LinkIsBusy extends Error {
   readonly seconds: number;
 
   constructor(seconds: number) {
-    super('too many attempts on this link');
+    super(t('public.error.busy'));
     this.seconds = seconds;
   }
 }
@@ -34,10 +35,7 @@ export class PublicLinks {
   }
 
   async download(token: string, password: string, path: string, name: string): Promise<void> {
-    await saveStreaming(
-      () => this.get(token, `/content${encodePath(path)}`, password),
-      name,
-    );
+    await saveStreaming(() => this.get(token, `/content${encodePath(path)}`, password), name);
   }
 
   async downloadArchive(

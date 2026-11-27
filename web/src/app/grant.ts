@@ -1,4 +1,5 @@
 import { normalise } from './folder';
+import { t } from './i18n/language';
 import type { NodeKind } from './node';
 
 export type Access = 'read' | 'write';
@@ -43,9 +44,12 @@ export function whereIs(path: string): Where {
 }
 
 export function describeAccess(access: Access): string {
-  return access === 'write' ? 'can edit' : 'view only';
+  return access === 'write' ? t('access.write') : t('access.read');
 }
 
 export function describeOrigin(received: Received): string {
-  return `From ${received.owner_name || received.owner_email}, ${describeAccess(received.access)}`;
+  return t('files.origin', {
+    owner: received.owner_name || received.owner_email,
+    access: describeAccess(received.access),
+  });
 }

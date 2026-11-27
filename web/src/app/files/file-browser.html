@@ -14,7 +14,7 @@
         [disabled]="listing.isLoading()"
         (click)="listing.reload()"
       >
-        Refresh
+        {{ t('common.refresh') }}
       </button>
       @if (canSearch) {
         <button
@@ -23,7 +23,7 @@
           [attr.aria-expanded]="searching()"
           (click)="searching.set(!searching())"
         >
-          Search
+          {{ t('files.search') }}
         </button>
       }
       @if (canSeeLinks()) {
@@ -33,7 +33,7 @@
           [attr.aria-expanded]="showingLinks()"
           (click)="showingLinks.set(!showingLinks())"
         >
-          Sharing
+          {{ t('files.sharing') }}
         </button>
       }
       @if (canSeeTrash) {
@@ -43,11 +43,11 @@
           [attr.aria-expanded]="showingTrash()"
           (click)="showingTrash.set(!showingTrash())"
         >
-          Trash
+          {{ t('files.trash') }}
         </button>
       }
       @if (canCreateFolder()) {
-        <button type="button" class="ghost" (click)="naming.set(true)">New folder</button>
+        <button type="button" class="ghost" (click)="naming.set(true)">{{ t('files.newFolder') }}</button>
       }
       @if (canUpload()) {
         <rx-upload-target
@@ -77,18 +77,19 @@
 
   @if (received.error()) {
     <p class="banner failure" role="alert">
-      Who shared this with you, and how, did not load, so nothing here can be changed for now.
-      <button type="button" class="ghost" (click)="received.reload()">Try again</button>
+      {{ t('files.receivedFailed') }}
+      <button type="button" class="ghost" (click)="received.reload()">
+        {{ t('common.tryAgain') }}
+      </button>
     </p>
   }
 
   @if (mount(); as shared) {
     <p class="banner origin">
-      {{ shared.owner_name || shared.owner_email }} shares this with you.
       @if (shared.access === 'read') {
-        You can view and download what is in it, and not change it.
+        {{ t('files.sharedBy.read', { owner: shared.owner_name || shared.owner_email }) }}
       } @else {
-        What you add or change here is stored in their files.
+        {{ t('files.sharedBy.write', { owner: shared.owner_name || shared.owner_email }) }}
       }
     </p>
   }
@@ -98,25 +99,25 @@
   }
   @if (sending(); as current) {
     <p class="banner transfer">
-      <span class="what">Uploading {{ current.name }}</span>
+      <span class="what">{{ t('files.upload.progress', { name: current.name }) }}</span>
       <progress [value]="current.sent" [max]="current.total || 1"></progress>
     </p>
   }
   <p class="banner announcement" role="status" aria-live="polite">{{ announcement() }}</p>
 
   @if (listing.isLoading()) {
-    <p class="state" aria-busy="true">Loading this folder</p>
+    <p class="state" aria-busy="true">{{ t('files.loading') }}</p>
   } @else if (listing.error(); as error) {
     <div class="state">
-      <p>This folder did not load.</p>
+      <p>{{ t('files.loadFailed') }}</p>
       <p class="detail">{{ error }}</p>
-      <button type="button" (click)="listing.reload()">Try again</button>
+      <button type="button" (click)="listing.reload()">{{ t('common.tryAgain') }}</button>
     </div>
   } @else if (nodes().length === 0) {
     <div class="state">
-      <p>This folder is empty.</p>
+      <p>{{ t('common.emptyFolder') }}</p>
       @if (canUpload()) {
-        <p class="detail">Drop files here, or use the upload button.</p>
+        <p class="detail">{{ t('files.emptyHint') }}</p>
       }
     </div>
   } @else {
@@ -170,8 +171,8 @@
               <button
                 type="button"
                 class="icon"
-                [attr.aria-label]="'Download ' + node.name + ' as a zip'"
-                [title]="'Download ' + node.name + ' as a zip'"
+                [attr.aria-label]="t('files.action.downloadZip', { name: node.name })"
+                [title]="t('files.action.downloadZip', { name: node.name })"
                 (click)="downloadFolder(node)"
               >
                 <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
@@ -190,8 +191,8 @@
               <button
                 type="button"
                 class="icon"
-                [attr.aria-label]="'Download ' + node.name"
-                [title]="'Download ' + node.name"
+                [attr.aria-label]="t('common.downloadLabel', { name: node.name })"
+                [title]="t('common.downloadLabel', { name: node.name })"
                 (click)="download(node)"
               >
                 <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
@@ -210,8 +211,8 @@
               <button
                 type="button"
                 class="icon"
-                [attr.aria-label]="'Versions of ' + node.name"
-                [title]="'Versions of ' + node.name"
+                [attr.aria-label]="t('files.action.versions', { name: node.name })"
+                [title]="t('files.action.versions', { name: node.name })"
                 (click)="versioning.set(node)"
               >
                 <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
@@ -238,8 +239,8 @@
               <button
                 type="button"
                 class="icon"
-                [attr.aria-label]="'Share ' + node.name"
-                [title]="'Share ' + node.name"
+                [attr.aria-label]="t('files.action.share', { name: node.name })"
+                [title]="t('files.action.share', { name: node.name })"
                 (click)="sharing.set(node)"
               >
                 <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
@@ -260,18 +261,18 @@
               <button
                 type="button"
                 class="ghost"
-                [attr.aria-label]="'Leave ' + node.name"
+                [attr.aria-label]="t('files.action.leave', { name: node.name })"
                 (click)="leaving.set(mount)"
               >
-                Leave
+                {{ t('files.leave') }}
               </button>
             }
             @if (mayChange(node)) {
               <button
                 type="button"
                 class="icon"
-                [attr.aria-label]="'Rename ' + node.name"
-                [title]="'Rename ' + node.name"
+                [attr.aria-label]="t('files.action.rename', { name: node.name })"
+                [title]="t('files.action.rename', { name: node.name })"
                 (click)="renaming.set(node)"
               >
                 <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
@@ -293,8 +294,8 @@
               <button
                 type="button"
                 class="icon danger"
-                [attr.aria-label]="'Delete ' + node.name"
-                [title]="'Delete ' + node.name"
+                [attr.aria-label]="t('files.action.delete', { name: node.name })"
+                [title]="t('files.action.delete', { name: node.name })"
                 (click)="doomed.set(node)"
               >
                 <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
@@ -316,7 +317,7 @@
   }
 
   @if (dragging()) {
-    <p class="drop-hint" aria-hidden="true">Drop to upload</p>
+    <p class="drop-hint" aria-hidden="true">{{ t('files.dropHint') }}</p>
   }
 </section>
 
@@ -331,16 +332,9 @@
 
 @if (doomed(); as node) {
   <rx-confirm
-    [heading]="'Delete ' + node.name + '?'"
-    [body]="
-      (node.kind === 'directory'
-        ? 'The folder and everything in it move to the trash'
-        : 'The file moves to the trash') +
-      (where().kind === 'own'
-        ? ', where you can restore ' + (node.kind === 'directory' ? 'them.' : 'it.')
-        : ' of the account that shares it with you.')
-    "
-    action="Delete"
+    [heading]="t('files.delete.heading', { name: node.name })"
+    [body]="removalBody(node.kind, where().kind === 'own')"
+    [action]="t('common.delete')"
     (accepted)="remove(node)"
     (dismissed)="doomed.set(null)"
   />
@@ -348,13 +342,9 @@
 
 @if (leaving(); as mount) {
   <rx-confirm
-    [heading]="'Leave ' + mount.name + '?'"
-    [body]="
-      'It disappears from Shared with me. ' +
-      (mount.owner_name || mount.owner_email) +
-      ' keeps it, and can share it with you again.'
-    "
-    action="Leave"
+    [heading]="t('files.leave.heading', { name: mount.name })"
+    [body]="t('files.leave.body', { shelf: shelf, owner: mount.owner_name || mount.owner_email })"
+    [action]="t('files.leave')"
     (accepted)="leave(mount)"
     (dismissed)="leaving.set(null)"
   />
@@ -362,11 +352,11 @@
 
 @if (renaming(); as node) {
   <rx-prompt
-    [heading]="'Rename ' + node.name"
-    label="New name"
-    hint="Type a path with / to move it into a folder here."
+    [heading]="t('files.rename.heading', { name: node.name })"
+    [label]="t('files.rename.label')"
+    [hint]="t('files.rename.hint')"
     [value]="node.name"
-    action="Rename"
+    [action]="t('files.rename.action')"
     (submitted)="rename(node, $event)"
     (dismissed)="renaming.set(null)"
   />
@@ -374,10 +364,10 @@
 
 @if (naming()) {
   <rx-prompt
-    heading="New folder"
-    label="Name"
-    hint="Type a path with / to make folders inside folders."
-    action="Create"
+    [heading]="t('files.newFolder')"
+    [label]="t('files.newFolder.label')"
+    [hint]="t('files.newFolder.hint')"
+    [action]="t('common.create')"
     (submitted)="createFolder($event)"
     (dismissed)="naming.set(false)"
   />

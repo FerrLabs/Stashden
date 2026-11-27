@@ -1,3 +1,5 @@
+import { formatDay, t } from '../i18n/language';
+
 export type AppPassword = {
   id: string;
   name: string;
@@ -13,22 +15,13 @@ export function davUrl(): string {
 }
 
 export function describeUse(password: AppPassword, now = new Date()): string {
-  const made = new Date(password.created_at);
-  const parts = [Number.isNaN(made.getTime()) ? 'Added' : `Added ${day(made, now)}`];
-  if (password.last_used_at === null) {
-    parts.push('never used');
-  } else {
-    const used = new Date(password.last_used_at);
-    parts.push(Number.isNaN(used.getTime()) ? 'never used' : `last used ${day(used, now)}`);
-  }
-  return parts.join(', ');
+  const added = day(new Date(password.created_at), now);
+  const used = password.last_used_at === null ? null : new Date(password.last_used_at);
+  return used === null || Number.isNaN(used.getTime())
+    ? t('appPasswords.neverUsed', { added })
+    : t('appPasswords.lastUsed', { added, used: day(used, now) });
 }
 
 function day(at: Date, now: Date): string {
-  const sameYear = at.getFullYear() === now.getFullYear();
-  return at.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
+  return formatDay(at, at.getFullYear() !== now.getFullYear());
 }

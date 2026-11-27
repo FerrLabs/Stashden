@@ -3,6 +3,7 @@ import type { Account, Role } from './account';
 import type { AppPassword, MintedPassword } from './account/app-password';
 import type { ManagedAccount, NewAccount } from './accounts/managed';
 import type { Given, NewGrant, Received } from './grant';
+import { t } from './i18n/language';
 import type { Hit, Node, Trashed } from './node';
 import {
   encodePath,
@@ -210,7 +211,7 @@ function browserPlatform(baseUrl: string): Platform {
         body: JSON.stringify({ current, password }),
       });
       if (response.status === 401) {
-        throw new Error(await refusalFor(response, 'that is not your current password'));
+        throw new Error(await refusalFor(response, t('error.notCurrentPassword')));
       }
       if (!response.ok) {
         throw new Error(await messageFor(response));
@@ -226,7 +227,7 @@ function browserPlatform(baseUrl: string): Platform {
         throw new Error(
           await refusalFor(
             response,
-            'password' in confirmation ? 'that is not your password' : 'that is not your address',
+            'password' in confirmation ? t('error.notPassword') : t('error.notAddress'),
           ),
         );
       }
@@ -364,9 +365,9 @@ async function refusalFor(response: Response, fallback: string): Promise<string>
 async function messageFor(response: Response): Promise<string> {
   switch (response.status) {
     case 403:
-      return (await explanationFrom(response)) ?? 'this account may only read';
+      return (await explanationFrom(response)) ?? t('error.readOnly');
     case 507:
-      return 'there is no room left in this account';
+      return t('error.noRoom');
     default:
       return (await explanationFrom(response)) ?? `${response.status} ${response.statusText}`;
   }

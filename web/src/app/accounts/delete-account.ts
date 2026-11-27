@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { describeUsage, type ManagedAccount } from './managed';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-delete-account',
@@ -18,6 +19,7 @@ import { describeUsage, type ManagedAccount } from './managed';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeleteAccountDialog {
+  protected readonly t = t;
   readonly account = input.required<ManagedAccount>();
   readonly others = input.required<ManagedAccount[]>();
   readonly submitted = output<string | null>();

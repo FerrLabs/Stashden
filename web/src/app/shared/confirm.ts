@@ -1,3 +1,4 @@
+import { t } from '../i18n/language';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -17,7 +18,8 @@ import {
 export class Confirm {
   readonly heading = input.required<string>();
   readonly body = input.required<string>();
-  readonly action = input('Confirm');
+  readonly action = input<string>();
+  protected readonly t = t;
   readonly accepted = output<void>();
   readonly dismissed = output<void>();
 

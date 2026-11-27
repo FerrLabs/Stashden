@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ResetRefused, Resets } from './resets';
+import { t } from '../i18n/language';
 
 type Stage = 'asking' | 'mailed' | 'choosing' | 'changed';
 
@@ -13,6 +14,7 @@ type Stage = 'asking' | 'mailed' | 'choosing' | 'changed';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PasswordReset {
+  protected readonly t = t;
   private readonly resets = inject(Resets);
 
   private readonly params = toSignal(inject(ActivatedRoute).params, {
@@ -57,11 +59,7 @@ export class PasswordReset {
     try {
       await action();
     } catch (cause: unknown) {
-      this.failure.set(
-        cause instanceof ResetRefused
-          ? cause.message
-          : 'The server did not answer, try again later.',
-      );
+      this.failure.set(cause instanceof ResetRefused ? cause.message : t('error.unreachable'));
     } finally {
       this.busy.set(false);
     }

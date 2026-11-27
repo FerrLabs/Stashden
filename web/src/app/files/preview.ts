@@ -12,9 +12,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
-import { formatSize, type Node } from '../node';
+import type { Node } from '../node';
 import { PLATFORM } from '../platform';
 import { PREVIEW_LIMIT, mimeOf, previewKind } from './preview-kind';
+import { formatSize, t } from '../i18n/language';
 
 type Shown =
   | { kind: 'loading' }
@@ -31,6 +32,7 @@ type Shown =
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Preview {
+  protected readonly t = t;
   readonly node = input.required<Node>();
   readonly path = input.required<string>();
   readonly closed = output<void>();
@@ -84,8 +86,8 @@ export class Preview {
         kind: 'none',
         reason:
           node.size > PREVIEW_LIMIT
-            ? `This file is ${formatSize(node.size)}, too large to open here.`
-            : 'There is no preview for this kind of file.',
+            ? t('files.preview.tooLarge', { size: formatSize(node.size) })
+            : t('files.preview.none'),
       });
       return;
     }
