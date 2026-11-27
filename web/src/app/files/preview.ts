@@ -15,7 +15,7 @@ import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { failureText } from '../failure';
 import type { Node } from '../node';
 import { PLATFORM } from '../platform';
-import { PREVIEW_LIMIT, mimeOf, previewKind } from './preview-kind';
+import { mimeOf, openerFor } from './openers';
 import { formatSize, t } from '../i18n/language';
 
 type Shown =
@@ -25,6 +25,8 @@ type Shown =
   | { kind: 'pdf'; url: SafeResourceUrl }
   | { kind: 'none'; reason: string }
   | { kind: 'failed'; reason: string };
+
+let nextTitle = 0;
 
 @Component({
   selector: 'rx-preview',
@@ -65,6 +67,7 @@ export class Preview {
     return shown.kind === 'none' || shown.kind === 'failed' ? shown.reason : null;
   });
   protected readonly failed = computed(() => this.shown().kind === 'failed');
+  protected readonly titleId = `preview-title-${nextTitle++}`;
 
   constructor() {
     afterNextRender(() => {
@@ -79,14 +82,15 @@ export class Preview {
     this.closed.emit();
   }
 
-  private async load(): Promise<void> {
+  protected async load(): Promise<void> {
     const node = this.node();
-    const kind = previewKind(node.name, node.size);
-    if (kind === 'none') {
+    this.shown.set({ kind: 'loading' });
+    const { viewer, reason } = openerFor(node, { canChange: false });
+    if (viewer === null) {
       this.shown.set({
         kind: 'none',
         reason:
-          node.size > PREVIEW_LIMIT
+          reason === 'tooLarge'
             ? t('files.preview.tooLarge', { size: formatSize(node.size) })
             : t('files.preview.none'),
       });
@@ -95,13 +99,13 @@ export class Preview {
 
     try {
       const blob = await this.platform.read(this.path());
-      if (kind === 'text') {
+      if (viewer === 'text') {
         this.shown.set({ kind: 'text', body: await blob.text() });
         return;
       }
       this.objectUrl = URL.createObjectURL(blob.slice(0, blob.size, mimeOf(node.name)));
       this.shown.set({
-        kind,
+        kind: viewer,
         url: this.sanitizer.bypassSecurityTrustResourceUrl(this.objectUrl),
       });
     } catch (cause: unknown) {

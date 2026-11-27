@@ -1,7 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -21,8 +22,11 @@ import { Confirm } from '../shared/confirm';
 import { Prompt } from '../shared/prompt';
 import { DownloadCancelled } from '../transfer';
 import { Breadcrumb } from './breadcrumb';
+import { FileRow } from './file-row';
+import { OpenedFile } from './opened-file';
 import { removalBody } from './removal-text';
 import { Preview } from './preview';
+import { RowSelection, type Step } from './selection';
 import { SearchPanel } from './search-panel';
 import { ShareDialog } from './share-dialog';
 import { SharesPanel } from './shares-panel';
@@ -36,6 +40,7 @@ import { formatDate, formatSize, t } from '../i18n/language';
   imports: [
     Breadcrumb,
     Confirm,
+    FileRow,
     Preview,
     Prompt,
     SearchPanel,
@@ -58,7 +63,9 @@ export class FileBrowser {
     initialValue: [] as UrlSegment[],
   });
 
-  private readonly entries = viewChildren<ElementRef<HTMLElement>>('entry');
+  private readonly rows = viewChildren(FileRow);
+  private readonly injector = inject(Injector);
+  private refocusOnReload = false;
 
   protected readonly path = computed(() =>
     this.segments()
@@ -72,6 +79,23 @@ export class FileBrowser {
   });
 
   protected readonly nodes = computed(() => [...(this.listing.value() ?? [])].sort(byKindThenName));
+
+  protected readonly selection = new RowSelection(
+    computed(() => this.nodes().map((node) => node.id)),
+  );
+  protected readonly folderName = computed(
+    () => this.segments().at(-1)?.path ?? t('files.breadcrumb.root'),
+  );
+
+  private readonly link = new OpenedFile({
+    path: this.path,
+    nodes: this.nodes,
+    resolved: computed(() => this.listing.status() === 'resolved'),
+    opened: (node) => this.selection.select(node.id),
+    closed: () => this.focusSelected(),
+    missing: (name) => this.failure.set(t('files.open.missing', { name })),
+  });
+  protected readonly opened = this.link.file;
 
   private readonly session = inject(Session);
 
@@ -127,7 +151,6 @@ export class FileBrowser {
   protected readonly renaming = signal<Node | null>(null);
   protected readonly naming = signal(false);
   protected readonly searching = signal(false);
-  protected readonly opened = signal<Node | null>(null);
   protected readonly sharing = signal<Node | null>(null);
   protected readonly versioning = signal<Node | null>(null);
   protected readonly showingLinks = signal(false);
@@ -142,10 +165,16 @@ export class FileBrowser {
 
   constructor() {
     effect(() => {
+      if (this.listing.status() === 'resolved' && this.refocusOnReload) {
+        this.refocusOnReload = false;
+        afterNextRender(() => this.focusSelected(), { injector: this.injector });
+      }
+    });
+    effect(() => {
       this.path();
       this.announcement.set(null);
       this.failure.set(null);
-      this.opened.set(null);
+      this.selection.reset();
       this.renaming.set(null);
       this.naming.set(false);
       this.sharing.set(null);
@@ -195,11 +224,23 @@ export class FileBrowser {
   }
 
   protected open(node: Node): void {
+    this.selection.select(node.id);
     if (node.kind === 'directory') {
       void this.router.navigate(linkTo(this.pathOf(node)));
       return;
     }
-    this.opened.set(node);
+    this.link.open(node);
+  }
+
+  protected close(): void {
+    this.link.close();
+  }
+
+  protected move(step: Step): void {
+    const id = this.selection.move(step);
+    this.rows()
+      .find((row) => row.node().id === id)
+      ?.focus();
   }
 
   protected notePublished(): void {
@@ -268,7 +309,7 @@ export class FileBrowser {
             ? t('files.announce.moved', { name: node.name, destination: to })
             : t('files.announce.renamed', { name: node.name }),
         );
-        this.listing.reload();
+        this.reloadAndRefocus();
       },
     );
   }
@@ -301,9 +342,10 @@ export class FileBrowser {
       (reason) => t('files.failed.delete', { name: node.name, reason }),
       async () => {
         await this.platform.remove(childOf(this.path(), node.name));
+        this.selection.passFrom(node.id);
         this.announcement.set(t('files.announce.trashed', { name: node.name }));
         this.trashed.update((count) => count + 1);
-        this.listing.reload();
+        this.reloadAndRefocus();
       },
     );
   }
@@ -364,39 +406,16 @@ export class FileBrowser {
     });
   }
 
-  protected onKeydown(event: KeyboardEvent, index: number, node: Node): void {
-    const last = this.nodes().length - 1;
-    switch (event.key) {
-      case 'ArrowDown':
-        this.focus(Math.min(index + 1, last));
-        break;
-      case 'ArrowUp':
-        this.focus(Math.max(index - 1, 0));
-        break;
-      case 'Home':
-        this.focus(0);
-        break;
-      case 'End':
-        this.focus(last);
-        break;
-      case 'Delete':
-        if (this.mayChange(node)) {
-          this.doomed.set(node);
-        }
-        break;
-      case 'F2':
-        if (this.mayChange(node)) {
-          this.renaming.set(node);
-        }
-        break;
-      default:
-        return;
-    }
-    event.preventDefault();
+  private reloadAndRefocus(): void {
+    this.refocusOnReload = true;
+    this.listing.reload();
   }
 
-  private focus(index: number): void {
-    this.entries().at(index)?.nativeElement.focus();
+  private focusSelected(): void {
+    const id = this.selection.tabStop();
+    this.rows()
+      .find((row) => row.node().id === id)
+      ?.focus();
   }
 
   private async attempt(

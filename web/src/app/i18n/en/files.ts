@@ -26,6 +26,14 @@ export const files = {
     '{owner} shares this with you. What you add or change here is stored in their files.',
   'files.origin': 'Shared by {owner}, {access}',
 
+  'files.list.label': 'Files in {folder}',
+  'files.list.help': 'Enter opens. Right arrow reaches the actions.',
+  'files.open': 'Open',
+  'files.open.missing': 'There is no file named {name} in this folder.',
+  'files.openWith.preview': 'Preview',
+
+  'files.action.open': 'Open {name}',
+  'files.action.openWith': 'Open {name} with',
   'files.action.downloadZip': 'Download {name} as a zip',
   'files.action.versions': 'Versions of {name}',
   'files.action.share': 'Share {name}',

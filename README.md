@@ -45,7 +45,10 @@ Done too: password accounts with Argon2id, session tokens, and login from the we
 shell and the CLI, signing in through an OIDC provider from all three alongside passwords, plus the
 marketing and documentation site in English and French. The file browser uploads, previews, renames and deletes, shows who is signed in and lets
 them sign out, and renaming doubles as moving: type a path instead of a name and the node lands
-there. A folder opens at `/#/files/{path}`, so no folder name can collide with a page of the app, and
+there. A click on a file selects it, and a double-click, `Enter` or the Open button previews it
+(images, PDFs and text, as before; a tap on a touch screen opens at once), where it used to open on
+a single click. An open file has its own address, `/#/files/{path}?open={name}`, so it can be linked
+to. A folder opens at `/#/files/{path}`, so no folder name can collide with a page of the app, and
 an older link without `files/` is redirected there, except exactly `/#/accounts`, `/#/sync` and
 `/#/s/{token}`, which still open those pages.
 
