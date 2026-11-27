@@ -1,7 +1,6 @@
 use std::io;
 use std::sync::{Arc, Mutex};
 
-use tracing::subscriber::DefaultGuard;
 use tracing_subscriber::fmt::MakeWriter;
 
 #[derive(Clone, Default)]
@@ -35,14 +34,15 @@ impl<'a> MakeWriter<'a> for Captured {
     }
 }
 
-pub fn capture_logs() -> (Captured, DefaultGuard) {
+pub fn capture_logs() -> Captured {
     let captured = Captured::default();
-    let guard = tracing::subscriber::set_default(
+    tracing::subscriber::set_global_default(
         tracing_subscriber::fmt()
             .with_writer(captured.clone())
             .with_max_level(tracing::Level::TRACE)
             .with_ansi(false)
             .finish(),
-    );
-    (captured, guard)
+    )
+    .expect("no other subscriber is installed in this test binary");
+    captured
 }
