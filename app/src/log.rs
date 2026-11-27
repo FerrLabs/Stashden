@@ -9,7 +9,11 @@ use crate::desktop::Desktop;
 const FILE: &str = "stashden.log";
 
 pub fn record_panics() {
-    std::panic::set_hook(Box::new(|info| record(&format!("panic: {info}"))));
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = append(&Desktop::config_directory(), &format!("panic: {info}"));
+        default(info);
+    }));
 }
 
 pub fn record(message: &str) {
