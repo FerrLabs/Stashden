@@ -1,0 +1,37 @@
+:host {
+  display: inline-flex;
+}
+
+[role='menu'] {
+  position: fixed;
+  inset: auto;
+  min-width: 10rem;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgb(8 15 26 / 25%);
+}
+
+[role='menu']:popover-open {
+  display: grid;
+}
+
+[role='menuitem'] {
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+[role='menuitem']:hover,
+[role='menuitem']:focus-visible {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}

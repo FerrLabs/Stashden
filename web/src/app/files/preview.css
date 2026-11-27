@@ -28,6 +28,8 @@ header {
 }
 
 .name {
+  margin: 0;
+  font-size: 1rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -70,6 +72,17 @@ pre {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.state p {
+  margin: 0 0 1rem;
+}
+
+.recovery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .state {

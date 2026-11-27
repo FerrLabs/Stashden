@@ -1,6 +1,6 @@
-<dialog #dialog (cancel)="close()">
+<dialog #dialog [attr.aria-labelledby]="titleId" (cancel)="close()">
   <header>
-    <span class="name">{{ node().name }}</span>
+    <h2 class="name" [id]="titleId">{{ node().name }}</h2>
     <span class="meta">{{ size(node().size) }}</span>
     <button type="button" class="ghost" (click)="downloaded.emit()">{{ t('common.download') }}</button>
     <button type="button" class="ghost" [attr.aria-label]="t('files.preview.close')" (click)="close()">
@@ -30,7 +30,15 @@
       <pre><code>{{ text() }}</code></pre>
     }
     @if (message(); as reason) {
-      <p class="state" [attr.role]="failed() ? 'alert' : null">{{ reason }}</p>
+      <div class="state" [attr.role]="failed() ? 'alert' : null">
+        <p>{{ reason }}</p>
+        @if (failed()) {
+          <div class="recovery">
+            <button type="button" class="ghost" (click)="load()">{{ t('common.tryAgain') }}</button>
+            <button type="button" class="ghost" (click)="downloaded.emit()">{{ t('common.download') }}</button>
+          </div>
+        }
+      </div>
     }
   </div>
 </dialog>

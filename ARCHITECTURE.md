@@ -23,7 +23,8 @@ In: upload and download, folder tree, rename and move, trash with restore, searc
 sharing by link, per-user quotas, WebDAV, and folder sync from the desktop app and the CLI.
 
 Out, deferred to v2: CalDAV, CardDAV, WOPI office editing, end-to-end encryption, mobile sync
-clients, federated sharing.
+clients, federated sharing. Light editing in the browser of text, csv and spreadsheet files is not
+WOPI and is planned on its own, on top of the openers described under Surfaces.
 
 ## Surfaces
 
@@ -40,6 +41,25 @@ shortlist and the reasons for Stashden. None of the hosts below is registered ye
 | WebDAV | `api.stashden.dev/dav` | Same binary, separate router |
 | CLI | `stashden` | Rust, built from `cli/`; the server image carries only `stashden-api` |
 | Desktop | `app/` | Rust, GPUI with gpui-component, over `crates/client` |
+
+### Opening a file in the web app
+
+One pure table, `web/src/app/files/openers.ts`, decides how a file opens: `openerFor(node, {
+canChange })` returns the viewer, the editor (always `null` until an editor ships, and `null` for an
+account that cannot change the folder) and why there is no viewer (`tooLarge` or `unsupported`). The
+preview dialog, the "Open with" menu and the file browser read it and decide nothing themselves, so a
+new viewer or editor is a row in the table and not a change to the browser. Markdown and csv are
+declared with the plain text viewer, and xlsx with no viewer, until their own viewers exist.
+
+An open file has an address: `/#/files/{folder}?open={name}`. Opening pushes a history entry, so Back
+closes the file, and closing removes the parameter. A link opens the file with no further gesture and
+selects its row. A name that is not in the folder shows the listing and a message, and a name that
+is a folder goes into it. The parameter lives in the hash, so it is not sent to the server.
+
+The file list is an ARIA grid with row focus and a single tab stop, in `file-row.ts` and
+`selection.ts`. A click selects a row, and a double-click, `Enter` or the "Open" button opens it. A
+tap opens, decided by the pointer type of the event and not by the width of the window. The public
+link page and the desktop app keep opening on a single click.
 
 ## Identity
 
