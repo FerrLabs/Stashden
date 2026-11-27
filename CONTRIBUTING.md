@@ -53,22 +53,19 @@ diagram that lies is worse than no diagram, because people trust it.
 
 ## Licensing your contribution
 
-Stashden is AGPL-3.0-only. Contributions are accepted under the same licence, certified with the
-[Developer Certificate of Origin](https://developercertificate.org): sign off every commit with
-`git commit -s`, which appends a `Signed-off-by` line.
-
-Renovate signs its own commits through `commitBody` in `renovate.json`, because the check is
-unconditional and a dependency bump is a commit like any other. If you run a bot against this
-repository, do the same rather than asking for an exemption.
-
-There is no copyright assignment and no contributor licence agreement. You keep the copyright on
-what you write. The practical consequence, stated plainly so nobody is surprised later: nobody,
-FerrLabs included, can relicense this project or sell proprietary exceptions to it without the
-agreement of every contributor.
+Stashden is AGPL-3.0-only. Contributions are accepted under the same licence. You keep the copyright
+on what you write. The CLA grants FerrLabs a licence to your contribution that includes the right to
+relicense it, including under proprietary terms.
 
 If you run a modified Stashden as a network service, the AGPL requires you to offer your users the
 source of your modified version. The web app carries a source link for exactly that reason; leave it
 in place.
+
+## Contributor License Agreement
+
+Contributions are covered by the [CLA](https://github.com/FerrLabs/.github/blob/main/CLA.md). Sign it
+once, for all FerrLabs repositories, on the page linked from the `cla` check of your first pull
+request: <https://cla.ferrlabs.com>.
 
 ## Scope
 
