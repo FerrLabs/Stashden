@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { t } from '../i18n/language';
 import type { Methods } from '../provider';
 import type { Credentials } from './credentials';
 
@@ -12,6 +13,7 @@ import type { Credentials } from './credentials';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginForm {
+  protected readonly t = t;
   readonly busy = input(false);
   readonly methods = input<Methods | null>(null);
   readonly submitted = output<Credentials>();

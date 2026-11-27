@@ -1,4 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { t } from './i18n/language';
 import { PLATFORM } from './platform';
 
 export type Role = 'admin' | 'member' | 'reader';
@@ -6,11 +7,11 @@ export type Role = 'admin' | 'member' | 'reader';
 export function describeRole(role: Role): string {
   switch (role) {
     case 'admin':
-      return 'Administrator';
+      return t('role.admin');
     case 'member':
-      return 'Member';
+      return t('role.member');
     case 'reader':
-      return 'Read only';
+      return t('role.reader');
   }
 }
 

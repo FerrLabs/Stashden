@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { t } from '../i18n/language';
 
 export const RESET_PATH = 'reset-password';
 
@@ -22,7 +23,7 @@ export class Resets {
     });
     if (response.status === 429) {
       const seconds = Number(response.headers.get('Retry-After') ?? 60);
-      throw new ResetRefused(`Too many requests, try again in about ${seconds} seconds.`);
+      throw new ResetRefused(t('reset.tooMany', { count: seconds }));
     }
     if (!response.ok) {
       throw new ResetRefused(await explanation(response));
@@ -37,7 +38,7 @@ async function explanation(response: Response): Promise<string> {
       return `${error.charAt(0).toUpperCase()}${error.slice(1)}.`;
     }
   } catch {
-    return 'The server did not answer, try again later.';
+    return t('error.unreachable');
   }
-  return 'The server did not answer, try again later.';
+  return t('error.unreachable');
 }

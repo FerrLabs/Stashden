@@ -1,10 +1,10 @@
-<nav aria-label="Folder path">
+<nav [attr.aria-label]="t('files.breadcrumb.label')">
   <ol>
     <li>
       @if (segments().length === 0) {
-        <span aria-current="page">All files</span>
+        <span aria-current="page">{{ t('files.breadcrumb.root') }}</span>
       } @else {
-        <a [routerLink]="link('')">All files</a>
+        <a [routerLink]="link('')">{{ t('files.breadcrumb.root') }}</a>
       }
     </li>
     @for (segment of segments(); track segment.path; let last = $last) {

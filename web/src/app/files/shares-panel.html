@@ -1,7 +1,7 @@
 <section class="panel" aria-labelledby="rx-shares-heading">
   <div class="bar">
-    <h2 id="rx-shares-heading">Links you have published</h2>
-    <button type="button" class="ghost" (click)="closed.emit()">Close</button>
+    <h2 id="rx-shares-heading">{{ t('share.panel.links') }}</h2>
+    <button type="button" class="ghost" (click)="closed.emit()">{{ t('common.close') }}</button>
   </div>
 
   @if (failure(); as message) {
@@ -9,15 +9,15 @@
   }
 
   @if (links.isLoading()) {
-    <p class="state" aria-busy="true">Loading your links</p>
+    <p class="state" aria-busy="true">{{ t('share.panel.loadingLinks') }}</p>
   } @else if (links.error(); as error) {
     <div class="state">
-      <p>Your links did not load.</p>
+      <p>{{ t('share.panel.linksFailed') }}</p>
       <p class="detail">{{ error }}</p>
-      <button type="button" (click)="links.reload()">Try again</button>
+      <button type="button" (click)="links.reload()">{{ t('common.tryAgain') }}</button>
     </div>
   } @else if ((links.value() ?? []).length === 0) {
-    <p class="state">You have not published any links.</p>
+    <p class="state">{{ t('share.panel.noLinks') }}</p>
   } @else {
     <ul class="listing">
       @for (link of links.value() ?? []; track link.id) {
@@ -29,10 +29,10 @@
           <button
             type="button"
             class="ghost danger"
-            [attr.aria-label]="'Revoke the link to ' + link.name"
+            [attr.aria-label]="t('share.panel.revokeLabel', { name: link.name })"
             (click)="doomed.set(link)"
           >
-            Revoke
+            {{ t('common.revoke') }}
           </button>
         </li>
       }
@@ -40,17 +40,17 @@
   }
 
   @if (canGrant) {
-    <h2>Shared with other accounts</h2>
+    <h2>{{ t('share.panel.accounts') }}</h2>
     @if (grants.isLoading()) {
-      <p class="state" aria-busy="true">Loading what you share</p>
+      <p class="state" aria-busy="true">{{ t('share.panel.loadingAccounts') }}</p>
     } @else if (grants.error(); as error) {
       <div class="state">
-        <p>What you share did not load.</p>
+        <p>{{ t('share.panel.accountsFailed') }}</p>
         <p class="detail">{{ error }}</p>
-        <button type="button" (click)="grants.reload()">Try again</button>
+        <button type="button" (click)="grants.reload()">{{ t('common.tryAgain') }}</button>
       </div>
     } @else if ((grants.value() ?? []).length === 0) {
-      <p class="state">You do not share anything with another account.</p>
+      <p class="state">{{ t('share.panel.noAccounts') }}</p>
     } @else {
       <ul class="listing">
         @for (given of grants.value() ?? []; track given.id) {
@@ -62,10 +62,10 @@
             <button
               type="button"
               class="ghost danger"
-              [attr.aria-label]="'Stop sharing ' + given.name + ' with ' + given.email"
+              [attr.aria-label]="t('share.panel.stopLabel', { name: given.name, email: given.email })"
               (click)="withdrawing.set(given)"
             >
-              Stop sharing
+              {{ t('common.stopSharing') }}
             </button>
           </li>
         }
@@ -76,9 +76,9 @@
 
 @if (doomed(); as link) {
   <rx-confirm
-    [heading]="'Revoke the link to ' + link.name + '?'"
-    body="Anyone holding it stops being able to open it. The file itself is untouched."
-    action="Revoke"
+    [heading]="t('share.panel.revokeHeading', { name: link.name })"
+    [body]="t('share.panel.revokeBody')"
+    [action]="t('common.revoke')"
     (accepted)="revoke(link)"
     (dismissed)="doomed.set(null)"
   />
@@ -86,9 +86,9 @@
 
 @if (withdrawing(); as given) {
   <rx-confirm
-    [heading]="'Stop sharing ' + given.name + ' with ' + given.email + '?'"
-    body="It disappears from their Shared with me on their next request. Your files are untouched."
-    action="Stop sharing"
+    [heading]="t('share.account.stopHeading', { name: given.name, email: given.email })"
+    [body]="t('share.stopBody', { shelf: shelf })"
+    [action]="t('common.stopSharing')"
     (accepted)="withdraw(given)"
     (dismissed)="withdrawing.set(null)"
   />

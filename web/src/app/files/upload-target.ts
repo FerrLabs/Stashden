@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { fromFiles, type Outgoing } from '../outgoing';
 import { PLATFORM } from '../platform';
+import { t } from '../i18n/language';
 
 @Component({
   selector: 'rx-upload-target',
@@ -17,6 +18,7 @@ import { PLATFORM } from '../platform';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UploadTarget {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
 
   readonly pending = input(0);

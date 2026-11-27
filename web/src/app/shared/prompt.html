@@ -17,8 +17,8 @@
       <p class="hint" id="rx-prompt-hint">{{ hint() }}</p>
     }
     <div class="actions">
-      <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
-      <button type="submit" class="primary">{{ action() }}</button>
+      <button type="button" class="ghost" (click)="dismiss()">{{ t('common.cancel') }}</button>
+      <button type="submit" class="primary">{{ action() ?? t('common.save') }}</button>
     </div>
   </form>
 </dialog>

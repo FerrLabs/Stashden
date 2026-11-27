@@ -1,3 +1,5 @@
+import { t } from './i18n/language';
+
 export const CHUNK = 8 * 1024 * 1024;
 
 const ATTEMPTS = 5;
@@ -47,7 +49,7 @@ function exchange(
       request.upload.onprogress = (event) => onProgress(event.loaded);
     }
     request.onload = () => resolve({ status: request.status, text: request.responseText });
-    const dropped = () => reject(new Unsettled('the connection to the server was lost'));
+    const dropped = () => reject(new Unsettled(t('error.connectionLost')));
     request.onerror = dropped;
     request.ontimeout = dropped;
     request.onabort = dropped;
@@ -138,7 +140,7 @@ async function fill(
         (loaded) => progress?.(at + loaded, total),
       );
       if (reply.status === 409 || reply.status >= 500) {
-        throw new Unsettled(`the server answered ${reply.status}`);
+        throw new Unsettled(t('error.serverAnswered', { status: reply.status }));
       }
       await expectOk(link, reply);
       received = (JSON.parse(reply.text) as { received: number }).received;

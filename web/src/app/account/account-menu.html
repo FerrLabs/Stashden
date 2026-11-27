@@ -28,21 +28,22 @@
         <p class="detail">{{ role() }}</p>
       </div>
       @if (canEditProfile) {
-        <button type="button" role="menuitem" (click)="editProfile()">Change display name</button>
+        <button type="button" role="menuitem" (click)="editProfile()">{{ t('menu.displayName') }}</button>
       }
       @if (canChangePassword) {
-        <button type="button" role="menuitem" (click)="changePassword()">Change password</button>
+        <button type="button" role="menuitem" (click)="changePassword()">{{ t('menu.password') }}</button>
       }
       @if (canMintAppPasswords) {
-        <button type="button" role="menuitem" (click)="openAppPasswords()">App passwords</button>
+        <button type="button" role="menuitem" (click)="openAppPasswords()">{{ t('menu.appPasswords') }}</button>
       }
       @if (canAdminister()) {
-        <button type="button" role="menuitem" (click)="administer()">Accounts</button>
+        <button type="button" role="menuitem" (click)="administer()">{{ t('menu.accounts') }}</button>
       }
       @if (canDeleteAccount) {
-        <button type="button" role="menuitem" (click)="deleteAccount()">Delete account</button>
+        <button type="button" role="menuitem" (click)="deleteAccount()">{{ t('menu.deleteAccount') }}</button>
       }
-      <button type="button" role="menuitem" (click)="signOut()">Sign out</button>
+      <rx-language-picker [inMenu]="true" />
+      <button type="button" role="menuitem" (click)="signOut()">{{ t('menu.signOut') }}</button>
     </div>
   }
 }

@@ -1,12 +1,12 @@
 <button type="button" class="primary" [disabled]="pending() > 0" (click)="open()">
   @if (pending() > 0) {
-    Uploading {{ pending() }}
+    {{ t('files.upload.pending', { count: pending() }) }}
   } @else {
-    Upload files
+    {{ t('files.upload.files') }}
   }
 </button>
 <button type="button" class="ghost" [disabled]="pending() > 0" (click)="openFolder()">
-  Upload folder
+  {{ t('files.upload.folder') }}
 </button>
 <input #picker type="file" multiple hidden (change)="pick($event)" />
 <input #folderPicker type="file" webkitdirectory hidden (change)="pick($event)" />

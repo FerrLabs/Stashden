@@ -1,3 +1,4 @@
+import { formatDay, t } from './i18n/language';
 import type { NodeKind } from './node';
 
 export type Share = {
@@ -38,28 +39,23 @@ export function linkFor(token: string, origin: string): string {
 
 export function describeExpiry(share: Share, now = new Date()): string {
   if (share.expires_at === null) {
-    return 'No expiry';
+    return t('share.describe.none');
   }
   const at = new Date(share.expires_at);
   if (Number.isNaN(at.getTime())) {
-    return 'Expiry unreadable';
+    return t('share.describe.unreadable');
   }
-  const label = at.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  return at.getTime() <= now.getTime() ? `Expired ${label}` : `Expires ${label}`;
+  const date = formatDay(at);
+  return at.getTime() <= now.getTime()
+    ? t('share.describe.expired', { date })
+    : t('share.describe.expires', { date });
 }
 
 export function describeUse(share: Share): string {
-  if (share.last_used_at === null) {
-    return 'Never opened';
-  }
-  const at = new Date(share.last_used_at);
-  return Number.isNaN(at.getTime())
-    ? 'Never opened'
-    : `Last opened ${at.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+  const at = share.last_used_at === null ? null : new Date(share.last_used_at);
+  return at === null || Number.isNaN(at.getTime())
+    ? t('share.describe.never')
+    : t('share.describe.lastOpened', { date: formatDay(at, false) });
 }
 
 export function endOfDay(day: string): string | null {
@@ -75,7 +71,7 @@ export function today(): string {
 export function describeLink(share: Share): string {
   const parts = [describeExpiry(share), describeUse(share)];
   if (share.has_password) {
-    parts.push('Password protected');
+    parts.push(t('share.describe.password'));
   }
   return parts.join(', ');
 }

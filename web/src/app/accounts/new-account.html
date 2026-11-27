@@ -1,9 +1,9 @@
 <dialog #dialog (cancel)="dismiss()">
   <form method="dialog" (submit)="$event.preventDefault(); submit()">
-    <h2>Add an account</h2>
+    <h2>{{ t('accounts.new.heading') }}</h2>
 
     <label>
-      Email address
+      {{ t('common.emailAddress') }}
       <input
         type="email"
         autocomplete="off"
@@ -14,7 +14,7 @@
     </label>
 
     <label>
-      Display name
+      {{ t('accounts.new.displayName') }}
       <input
         type="text"
         autocomplete="off"
@@ -25,7 +25,7 @@
     </label>
 
     <label>
-      Role
+      {{ t('accounts.new.role') }}
       <select (change)="role.set($any($event.target).value)">
         @for (role of roles; track role) {
           <option [value]="role" [selected]="role === this.role()">{{ describe(role) }}</option>
@@ -34,7 +34,7 @@
     </label>
 
     <label>
-      First password
+      {{ t('accounts.new.firstPassword') }}
       <input
         type="text"
         autocomplete="off"
@@ -44,18 +44,17 @@
       />
     </label>
     <p class="hint">
-      Generated here, and yours to change. It is shown once more after the account is made, and
-      never again.
+      {{ t('accounts.new.hint') }}
     </p>
 
     <div class="actions">
-      <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
+      <button type="button" class="ghost" (click)="dismiss()">{{ t('common.cancel') }}</button>
       <button
         type="submit"
         class="primary"
         [disabled]="email().trim().length === 0 || displayName().trim().length === 0"
       >
-        Add
+        {{ t('accounts.new.submit') }}
       </button>
     </div>
   </form>

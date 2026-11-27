@@ -1,8 +1,8 @@
 <dialog #dialog (cancel)="dismiss()">
   <form method="dialog" (submit)="$event.preventDefault(); submit()">
-    <h2>Quota for {{ account().email }}</h2>
+    <h2>{{ t('accounts.quota.heading', { email: account().email }) }}</h2>
     <label>
-      Gigabytes
+      {{ t('accounts.quota.gigabytes') }}
       <input
         type="number"
         min="1"
@@ -12,15 +12,14 @@
       />
     </label>
     <p class="hint">
-      What the account may hold. Lowering it below what is already stored refuses the next upload
-      rather than deleting anything.
+      {{ t('accounts.quota.hint') }}
     </p>
     @if (failure(); as message) {
       <p class="failure" role="alert">{{ message }}</p>
     }
     <div class="actions">
-      <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
-      <button type="submit" class="primary">Set</button>
+      <button type="button" class="ghost" (click)="dismiss()">{{ t('common.cancel') }}</button>
+      <button type="submit" class="primary">{{ t('accounts.quota.submit') }}</button>
     </div>
   </form>
 </dialog>

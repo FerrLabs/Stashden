@@ -10,11 +10,12 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { describeAccess, type Access, type Given } from '../grant';
+import { SHARED_WITH_ME, describeAccess, type Access, type Given } from '../grant';
 import { Confirm } from '../shared/confirm';
 import type { Node } from '../node';
 import { PLATFORM } from '../platform';
 import { endOfDay, linkFor, today, type Minted } from '../share';
+import { t } from '../i18n/language';
 
 type Mode = 'link' | 'account';
 
@@ -26,6 +27,7 @@ type Mode = 'link' | 'account';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShareDialog {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
 
   readonly node = input.required<Node>();
@@ -61,6 +63,7 @@ export class ShareDialog {
       ),
   });
 
+  protected readonly shelf = SHARED_WITH_ME;
   protected readonly describe = describeAccess;
 
   constructor() {
@@ -82,7 +85,7 @@ export class ShareDialog {
     const day = this.expiry();
     const expires = day.length === 0 ? undefined : endOfDay(day);
     if (expires === null) {
-      this.failure.set('That expiry is not a date the browser understands.');
+      this.failure.set(t('share.expiry.invalid'));
       return;
     }
 
@@ -118,7 +121,12 @@ export class ShareDialog {
     try {
       const given = await grant({ path: this.path(), email, access: this.access() });
       this.email.set('');
-      this.announcement.set(`Shared with ${given.email}, ${describeAccess(given.access)}`);
+      this.announcement.set(
+        t('share.account.shared', {
+          email: given.email,
+          access: describeAccess(given.access),
+        }),
+      );
       this.granted.update((count) => count + 1);
       this.created.emit();
     } catch (cause: unknown) {
@@ -139,7 +147,7 @@ export class ShareDialog {
     this.busy.set(true);
     try {
       await withdraw(given.id);
-      this.announcement.set(`${given.email} no longer has access`);
+      this.announcement.set(t('share.account.withdrawn', { email: given.email }));
       this.granted.update((count) => count + 1);
       this.created.emit();
     } catch (cause: unknown) {
@@ -151,9 +159,7 @@ export class ShareDialog {
 
   protected url(): string {
     const minted = this.minted();
-    return minted === null
-      ? ''
-      : linkFor(minted.token, location.origin);
+    return minted === null ? '' : linkFor(minted.token, location.origin);
   }
 
   protected async copy(): Promise<void> {
@@ -162,7 +168,7 @@ export class ShareDialog {
       this.copied.set(true);
     } catch {
       this.copied.set(false);
-      this.failure.set('Copying failed. Select the link and copy it by hand.');
+      this.failure.set(t('share.link.copyFailed'));
     }
   }
 

@@ -1,23 +1,21 @@
 <dialog #dialog (cancel)="dismiss()">
   <form method="dialog" (submit)="$event.preventDefault(); submit()">
-    <h2>Delete {{ account().email }}?</h2>
+    <h2>{{ t('accounts.delete.heading', { email: account().email }) }}</h2>
     <label>
-      Their files
+      {{ t('accounts.delete.files') }}
       <select [value]="recipient()" (change)="recipient.set($any($event.target).value)">
-        <option value="">Delete them with the account</option>
+        <option value="">{{ t('accounts.delete.withAccount') }}</option>
         @for (other of candidates(); track other.id) {
-          <option [value]="other.id">Hand them to {{ other.display_name }} ({{ other.email }})</option>
+          <option [value]="other.id">{{ t('accounts.delete.handTo', { name: other.display_name, email: other.email }) }}</option>
         }
       </select>
     </label>
     <p class="hint">
-      They hold {{ usage() }}. Handing them over puts everything in a folder named after this
-      account in the other one's files, and counts against that account's quota. Their trash is
-      emptied either way, and the links and shares they made stop working. This cannot be undone.
+      {{ t('accounts.delete.hint', { usage: usage() }) }}
     </p>
     <div class="actions">
-      <button type="button" class="ghost" (click)="dismiss()">Cancel</button>
-      <button type="submit" class="danger">Delete the account</button>
+      <button type="button" class="ghost" (click)="dismiss()">{{ t('common.cancel') }}</button>
+      <button type="submit" class="danger">{{ t('accounts.delete.submit') }}</button>
     </div>
   </form>
 </dialog>

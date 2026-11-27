@@ -10,10 +10,13 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Session, describeRole } from '../account';
+import { t } from '../i18n/language';
 import { PLATFORM } from '../platform';
+import { LanguagePicker } from '../shared/language-picker';
 
 @Component({
   selector: 'rx-account-menu',
+  imports: [LanguagePicker],
   templateUrl: './account-menu.html',
   styleUrl: './account-menu.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +41,7 @@ export class AccountMenu {
     () => this.platform.listAccounts !== undefined && this.session.isAdmin(),
   );
 
+  protected readonly t = t;
   protected readonly account = this.session.account;
   protected readonly open = signal(false);
   protected readonly role = computed(() => {

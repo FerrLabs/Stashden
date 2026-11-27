@@ -1,0 +1,18 @@
+<div class="picker" role="group" [attr.aria-label]="t('language.label')">
+  <span class="label" aria-hidden="true">{{ t('language.label') }}</span>
+  <span class="options">
+    @for (option of options; track option.code) {
+    <button
+      type="button"
+      [lang]="option.code"
+      [class.chosen]="option.code === current()"
+      [attr.role]="inMenu() ? 'menuitemradio' : null"
+      [attr.aria-checked]="inMenu() ? option.code === current() : null"
+      [attr.aria-pressed]="inMenu() ? null : option.code === current()"
+      (click)="choose(option.code)"
+    >
+      {{ option.name }}
+    </button>
+    }
+  </span>
+</div>

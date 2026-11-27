@@ -10,11 +10,12 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { formatSize, type Node } from '../node';
+import type { Node } from '../node';
 import { PLATFORM } from '../platform';
 import { Confirm } from '../shared/confirm';
 import { DownloadCancelled } from '../transfer';
-import { formatMoment, type Version } from '../version';
+import type { Version } from '../version';
+import { formatMoment, formatSize, t } from '../i18n/language';
 
 @Component({
   selector: 'rx-versions-dialog',
@@ -24,6 +25,7 @@ import { formatMoment, type Version } from '../version';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VersionsDialog {
+  protected readonly t = t;
   private readonly platform = inject(PLATFORM);
 
   readonly node = input.required<Node>();
@@ -69,8 +71,8 @@ export class VersionsDialog {
       }
       this.announcement.set(
         saved === null
-          ? `Downloaded the version from ${when}.`
-          : `Saved the version from ${when} to ${saved}.`,
+          ? t('versions.announce.downloaded', { moment: when })
+          : t('versions.announce.saved', { moment: when, destination: saved }),
       );
     });
   }
@@ -84,7 +86,7 @@ export class VersionsDialog {
     await this.attempt(async () => {
       await put(this.path(), version.id);
       this.announcement.set(
-        `Restored the version from ${formatMoment(version.created_at)}. What it replaced is now a version too.`,
+        t('versions.announce.restored', { moment: formatMoment(version.created_at) }),
       );
       this.versions.reload();
       this.restored.emit();

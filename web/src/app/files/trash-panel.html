@@ -1,6 +1,6 @@
 <section class="panel" aria-labelledby="rx-trash-heading">
   <div class="bar">
-    <h2 id="rx-trash-heading">Trash</h2>
+    <h2 id="rx-trash-heading">{{ t('trash.heading') }}</h2>
     <span class="buttons">
       @if (canChange() && (trashed.value() ?? []).length > 0) {
         <button
@@ -9,10 +9,10 @@
           [disabled]="busy()"
           (click)="emptying.set(true)"
         >
-          Empty the trash
+          {{ t('trash.empty') }}
         </button>
       }
-      <button type="button" class="ghost" (click)="closed.emit()">Close</button>
+      <button type="button" class="ghost" (click)="closed.emit()">{{ t('common.close') }}</button>
     </span>
   </div>
 
@@ -22,15 +22,15 @@
   <p class="announcement" role="status" aria-live="polite">{{ announcement() }}</p>
 
   @if (trashed.isLoading() && !trashed.hasValue()) {
-    <p class="state" aria-busy="true">Loading the trash</p>
+    <p class="state" aria-busy="true">{{ t('trash.loading') }}</p>
   } @else if (trashed.error(); as error) {
     <div class="state">
-      <p>The trash did not load.</p>
+      <p>{{ t('trash.loadFailed') }}</p>
       <p class="detail">{{ error }}</p>
-      <button type="button" (click)="trashed.reload()">Try again</button>
+      <button type="button" (click)="trashed.reload()">{{ t('common.tryAgain') }}</button>
     </div>
   } @else if ((trashed.value() ?? []).length === 0) {
-    <p class="state">The trash is empty.</p>
+    <p class="state">{{ t('trash.isEmpty') }}</p>
   } @else {
     <ul class="listing">
       @for (node of trashed.value() ?? []; track node.id) {
@@ -45,19 +45,19 @@
                 type="button"
                 class="ghost"
                 [disabled]="busy()"
-                [attr.aria-label]="'Restore ' + node.name"
+                [attr.aria-label]="t('trash.restoreLabel', { name: node.name })"
                 (click)="restore(node)"
               >
-                Restore
+                {{ t('common.restore') }}
               </button>
               <button
                 type="button"
                 class="ghost danger"
                 [disabled]="busy()"
-                [attr.aria-label]="'Delete ' + node.name + ' for good'"
+                [attr.aria-label]="t('trash.purgeLabel', { name: node.name })"
                 (click)="doomed.set(node)"
               >
-                Delete forever
+                {{ t('trash.purge') }}
               </button>
             </span>
           }
@@ -69,9 +69,9 @@
 
 @if (emptying()) {
   <rx-confirm
-    heading="Empty the trash?"
-    body="Everything in it is deleted for good, with its versions. This cannot be undone."
-    action="Empty the trash"
+    [heading]="t('trash.emptyHeading')"
+    [body]="t('trash.emptyBody')"
+    [action]="t('trash.empty')"
     (accepted)="empty()"
     (dismissed)="emptying.set(false)"
   />
@@ -79,13 +79,9 @@
 
 @if (doomed(); as node) {
   <rx-confirm
-    [heading]="'Delete ' + node.name + ' for good?'"
-    [body]="
-      node.kind === 'directory'
-        ? 'The folder and everything in it are deleted, with their versions. This cannot be undone.'
-        : 'The file is deleted, with its versions. This cannot be undone.'
-    "
-    action="Delete forever"
+    [heading]="t('trash.purgeHeading', { name: node.name })"
+    [body]="node.kind === 'directory' ? t('trash.purgeFolder') : t('trash.purgeFile')"
+    [action]="t('trash.purge')"
     (accepted)="purge(node)"
     (dismissed)="doomed.set(null)"
   />

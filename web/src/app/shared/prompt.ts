@@ -1,3 +1,4 @@
+import { t } from '../i18n/language';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,7 +21,8 @@ export class Prompt {
   readonly label = input.required<string>();
   readonly hint = input('');
   readonly value = input('');
-  readonly action = input('Save');
+  readonly action = input<string>();
+  protected readonly t = t;
   readonly submitted = output<string>();
   readonly dismissed = output<void>();
 

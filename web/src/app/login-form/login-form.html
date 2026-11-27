@@ -1,16 +1,16 @@
 <form [formGroup]="form" (ngSubmit)="submit()">
   @if (methods()?.password !== false) {
     <label>
-      Email
+      {{ t('signIn.email') }}
       <input type="email" formControlName="email" autocomplete="username" required />
     </label>
     <label>
-      Password
+      {{ t('signIn.password') }}
       <input type="password" formControlName="password" autocomplete="current-password" required />
     </label>
-    <button type="submit" class="primary" [disabled]="busy()">{{ busy() ? 'Signing in' : 'Sign in' }}</button>
+    <button type="submit" class="primary" [disabled]="busy()">{{ busy() ? t('signIn.busy') : t('signIn.submit') }}</button>
     @if (methods()?.password_reset) {
-      <a class="forgot" routerLink="/reset-password">Forgot your password?</a>
+      <a class="forgot" routerLink="/reset-password">{{ t('signIn.forgot') }}</a>
     }
   }
   @if (methods()?.oidc) {
@@ -20,7 +20,7 @@
       [disabled]="busy()"
       (click)="chooseProvider()"
     >
-      Sign in with your identity provider
+      {{ t('signIn.provider') }}
     </button>
   }
 </form>
