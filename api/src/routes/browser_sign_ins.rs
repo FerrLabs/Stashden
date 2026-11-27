@@ -72,7 +72,8 @@ pub async fn approve(
     caller: SessionCaller,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Callback>, ApiError> {
-    let callback = browser_sign_ins::approve(&state.db, id, caller.user_id()).await?;
+    let callback =
+        browser_sign_ins::approve(&state.db, id, caller.user_id(), caller.session_id).await?;
     Ok(Json(Callback { callback }))
 }
 

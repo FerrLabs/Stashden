@@ -6,6 +6,7 @@ use crate::metrics::same_token;
 use crate::oidc::sha256;
 
 const CHALLENGE_BYTES: usize = 32;
+const SHORTEST_VERIFIER: usize = 43;
 const LONGEST_VERIFIER: usize = 128;
 const CONFIRMATION_LENGTH: usize = 6;
 const CONFIRMATION_ALPHABET: &[u8; 20] = b"BCDFGHJKLMNPQRSTVWXZ";
@@ -20,6 +21,13 @@ pub fn valid_challenge(challenge: &str) -> Result<(), ApiError> {
     }
 }
 
+fn is_verifier(verifier: &str) -> bool {
+    (SHORTEST_VERIFIER..=LONGEST_VERIFIER).contains(&verifier.len())
+        && verifier
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~'))
+}
+
 #[must_use]
 pub fn challenge_of(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(sha256(verifier.as_bytes()))
@@ -27,7 +35,7 @@ pub fn challenge_of(verifier: &str) -> String {
 
 #[must_use]
 pub fn answers(challenge: &str, verifier: &str) -> bool {
-    verifier.len() <= LONGEST_VERIFIER && same_token(&challenge_of(verifier), challenge)
+    is_verifier(verifier) && same_token(&challenge_of(verifier), challenge)
 }
 
 #[must_use]
@@ -74,6 +82,26 @@ mod tests {
     fn a_verifier_past_the_rfc_limit_never_answers() {
         let verifier = "a".repeat(LONGEST_VERIFIER + 1);
         assert!(!answers(&challenge_of(&verifier), &verifier));
+    }
+
+    #[test]
+    fn a_verifier_shorter_than_the_rfc_minimum_never_answers() {
+        let verifier = "a".repeat(SHORTEST_VERIFIER - 1);
+        assert!(!answers(&challenge_of(&verifier), &verifier));
+        let shortest = "a".repeat(SHORTEST_VERIFIER);
+        assert!(answers(&challenge_of(&shortest), &shortest));
+        let longest = "a".repeat(LONGEST_VERIFIER);
+        assert!(answers(&challenge_of(&longest), &longest));
+    }
+
+    #[test]
+    fn a_verifier_outside_the_unreserved_set_never_answers() {
+        for bad in ['+', '/', '=', ' ', 'é', '\u{0}'] {
+            let verifier = format!("{}{bad}", "a".repeat(SHORTEST_VERIFIER));
+            assert!(!answers(&challenge_of(&verifier), &verifier), "{bad:?}");
+        }
+        let unreserved = format!("{}-._~", "a".repeat(SHORTEST_VERIFIER));
+        assert!(answers(&challenge_of(&unreserved), &unreserved));
     }
 
     #[test]

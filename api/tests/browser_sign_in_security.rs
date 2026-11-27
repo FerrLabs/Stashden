@@ -2,7 +2,7 @@ mod common;
 
 use axum::http::StatusCode;
 use serde_json::json;
-use stashden_api::{app_passwords, browser_sign_ins};
+use stashden_api::{app_passwords, browser_sign_ins, sessions, users};
 use stashden_core::role::Role;
 
 use common::browser::{
@@ -329,6 +329,8 @@ database_test!(
             json!({ "device_name": "   ", "challenge": challenge, "loopback_port": PORT }),
             json!({ "device_name": "x".repeat(101), "challenge": challenge, "loopback_port": PORT }),
             json!({ "device_name": "line\nbreak", "challenge": challenge, "loopback_port": PORT }),
+            json!({ "device_name": "evil\u{202E}gpj.exe", "challenge": challenge, "loopback_port": PORT }),
+            json!({ "device_name": "Ada\u{200B}", "challenge": challenge, "loopback_port": PORT }),
             json!({ "device_name": "laptop", "challenge": "", "loopback_port": PORT }),
             json!({ "device_name": "laptop", "challenge": "short", "loopback_port": PORT }),
             json!({ "device_name": "laptop", "challenge": format!("{challenge}="), "loopback_port": PORT }),
@@ -416,5 +418,93 @@ database_test!(
         );
         assert!(denied.ends_with("&error=denied"), "{denied}");
         assert!(!denied.contains("code="), "{denied}");
+    }
+);
+
+database_test!(
+    an_approval_waiting_on_a_password_change_is_refused_and_redeems_nothing,
+    harness,
+    {
+        let ada = harness.account("ada@example.com", Role::Member).await;
+        let session = harness.session(ada.id).await;
+        let id = start(&harness.state).await;
+
+        let mut change = harness.state.db.begin().await.expect("begin");
+        users::set_password(&mut *change, ada.id, NEW_PASSWORD)
+            .await
+            .expect("setting the password");
+        sessions::revoke_all(&mut *change, ada.id, None)
+            .await
+            .expect("revoking sessions");
+        app_passwords::revoke_all(&mut change, ada.id)
+            .await
+            .expect("revoking app passwords");
+
+        let waiting = tokio::spawn({
+            let state = harness.state.clone();
+            let id = id.clone();
+            let session = session.clone();
+            async move { approve(&state, &id, &session).await }
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        assert!(
+            !waiting.is_finished(),
+            "the approval did not wait for the account lock"
+        );
+
+        change.commit().await.expect("committing the change");
+        let reply = waiting.await.expect("the approval task");
+
+        assert_eq!(reply.status, StatusCode::UNAUTHORIZED, "{}", reply.body);
+        assert_eq!(approved_rows(&harness).await, 0);
+        assert_eq!(minted_for(&harness, ada.id).await, 0);
+    }
+);
+
+database_test!(
+    approvals_racing_password_changes_never_leave_a_redeemable_code,
+    harness,
+    {
+        let admin = harness.account("root@example.com", Role::Admin).await;
+        let admin_session = harness.session(admin.id).await;
+        for round in 0..6 {
+            let email = format!("racer{round}@example.com");
+            let user = harness.account(&email, Role::Member).await;
+            let session = harness.session(user.id).await;
+            let id = start(&harness.state).await;
+
+            let approval = tokio::spawn({
+                let state = harness.state.clone();
+                let id = id.clone();
+                let session = session.clone();
+                async move { approve(&state, &id, &session).await }
+            });
+            let change = tokio::spawn({
+                let state = harness.state.clone();
+                let admin_session = admin_session.clone();
+                let user_id = user.id;
+                async move {
+                    send(
+                        &state,
+                        "PUT",
+                        &format!("/v1/users/{user_id}/password"),
+                        &Auth::Session(&admin_session),
+                        Some(json!({ "password": NEW_PASSWORD })),
+                    )
+                    .await
+                }
+            });
+            let approval = approval.await.expect("the approval task");
+            let change = change.await.expect("the change task");
+            assert_eq!(change.status, StatusCode::NO_CONTENT, "{}", change.body);
+
+            if approval.status == StatusCode::OK {
+                let callback = approval.body["callback"].as_str().expect("a callback");
+                let code = common::browser::code_in(callback);
+                let redeemed = redeem(&harness.state, &id, &code, VERIFIER).await;
+                assert_eq!(redeemed.status, StatusCode::UNAUTHORIZED, "round {round}");
+            }
+            assert_eq!(minted_for(&harness, user.id).await, 0, "round {round}");
+        }
     }
 );

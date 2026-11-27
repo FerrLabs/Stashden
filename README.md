@@ -301,11 +301,11 @@ GET    /v1/auth/methods     what this installation offers to sign in with (no se
 PUT    /v1/auth/methods     turn password login off or on            (admin)
 POST   /v1/auth/oidc/start  begin an authorization code flow (no session needed)
 POST   /v1/auth/oidc/callback  finish one, answering a session token (no session needed)
-POST   /v1/auth/browser     start a browser sign-in for a client: `device_name`, `challenge` (base64url SHA-256 of a verifier the client keeps) and `loopback_port` (1024 to 65535); answers 201 `id`, `confirmation`, `expires_in`; 503 above 1000 live requests (no session needed)
+POST   /v1/auth/browser     start a browser sign-in for a client: `device_name` (no control or invisible formatting characters), `challenge` (base64url SHA-256 of a verifier the client keeps) and `loopback_port` (1024 to 65535); answers 201 `id`, `confirmation`, `expires_in`; 503 above 1000 live requests (no session needed)
 GET    /v1/auth/browser/{id}  what is asking: `device_name`, `confirmation`, `created_at`, `expires_at`; 404 once expired or approved by another account (session only)
-POST   /v1/auth/browser/{id}/approve  attach the request to this account and answer `callback`, a `http://127.0.0.1:{port}/callback` URL carrying a one-time code, built from the port the client registered; 409 if already approved (session only)
+POST   /v1/auth/browser/{id}/approve  attach the request to this account and answer `callback`, a `http://127.0.0.1:{port}/callback` URL carrying a one-time code, built from the port the client registered; 409 if already approved, 401 if the session ended meanwhile (session only)
 DELETE /v1/auth/browser/{id}  refuse it, answering a `callback` with `error=denied` (session only)
-POST   /v1/auth/browser/{id}/redeem  `code` and `verifier` for an app password named after the device, answering the app password's fields, `secret` and `user`; once, and every refusal is the same 401 (no session needed)
+POST   /v1/auth/browser/{id}/redeem  `code` and `verifier` (43 to 128 characters of `A-Za-z0-9-._~`) for an app password named after the device, answering the app password's fields, `secret` and `user`; once, and every refusal is the same 401 (no session needed)
 GET    /v1/folders            list the root
 GET    /v1/folders/{*path}    list a directory
 POST   /v1/folders/{*path}    create one, and the ones above it; 409 if the name is taken
