@@ -6,7 +6,7 @@ export const search = {
   'search.label': 'Partie d’un nom',
   'search.placeholder': 'Partie d’un nom de fichier ou de dossier',
   'search.busy': 'Recherche en cours',
-  'search.none': 'Rien ne porte un nom proche de « {term} ».',
+  'search.none': 'Aucun fichier ni dossier ne correspond à « {term} ».',
   'search.failed': 'La recherche a échoué : {reason}',
   'search.inFolder': 'dans {path}',
   'search.inRoot': 'dans vos fichiers',

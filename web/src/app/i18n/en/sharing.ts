@@ -14,9 +14,9 @@ export const sharing = {
   'share.link.folderHint':
     'Anyone holding the link can browse and download this folder without an account.',
   'share.link.fileHint': 'Anyone holding the link can download this file without an account.',
-  'share.expiry.label': 'Expires on',
+  'share.expiry.label': 'Expiry date',
   'share.expiry.hint': 'Leave it empty for a link that does not expire.',
-  'share.expiry.invalid': 'That expiry is not a date the browser understands.',
+  'share.expiry.invalid': 'Invalid date. Pick one from the calendar.',
   'share.password.hint': 'Optional, and at least six characters. It is not part of the link.',
   'share.link.create': 'Create link',
   'share.link.creating': 'Creating',
@@ -37,7 +37,7 @@ export const sharing = {
   'share.account.withdrawn': '{email} no longer has access',
   'share.account.stopHeading': 'Stop sharing {name} with {email}?',
   'share.stopBody':
-    'It disappears from their {shelf} on their next request. Your files are untouched.',
+    'It will disappear from their {shelf}. Your files are kept.',
 
   'share.panel.links': 'Links you have published',
   'share.panel.loadingLinks': 'Loading your links',
@@ -51,7 +51,7 @@ export const sharing = {
   'share.panel.stopLabel': 'Stop sharing {name} with {email}',
   'share.panel.revokeHeading': 'Revoke the link to {name}?',
   'share.panel.revokeBody':
-    'Anyone holding it stops being able to open it. The file itself is untouched.',
+    'Anyone who has the link will no longer be able to open it. The file or folder is kept.',
   'share.panel.inTrash': 'in the trash',
 
   'share.describe.none': 'No expiry',

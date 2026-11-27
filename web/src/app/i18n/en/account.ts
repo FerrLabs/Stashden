@@ -4,16 +4,16 @@ export const account = {
     'Your account signs in through your identity provider. Sign in again to confirm it is you, then come back here to set a password.',
   'password.current': 'Current password',
   'password.new': 'New password',
-  'password.hint': 'At least twelve characters. Your sessions elsewhere are not signed out.',
+  'password.hint': 'At least twelve characters. Your other devices stay signed in.',
   'password.submit': 'Change password',
   'password.busy': 'Changing',
 
   'deleteOwn.heading': 'Delete your account',
   'deleteOwn.hint':
-    'This ends every session and removes the account. Without somebody to hand your files to, they are released and collected after the grace period.',
+    'This ends every session and removes the account. If you hand your files to nobody, they are deleted at the end of the grace period.',
   'deleteOwn.freshSignIn':
     'Your account signs in through your identity provider. Sign in again to confirm it is you, then come back here.',
-  'deleteOwn.heir': 'Hand your files to (optional)',
+  'deleteOwn.heir': 'Person to hand your files to (optional)',
   'deleteOwn.heirPlaceholder': 'colleague@example.com',
   'deleteOwn.password': 'Your password',
   'deleteOwn.address': 'Type your address to confirm',
@@ -39,7 +39,7 @@ export const account = {
   'appPasswords.adding': 'Adding',
   'appPasswords.revokeHeading': 'Revoke {name}?',
   'appPasswords.revokeBody':
-    'Whatever signs in with it stops working on its next request. Your other app passwords are untouched.',
+    'Devices using it will no longer be able to sign in. Your other app passwords keep working.',
   'appPasswords.neverUsed': 'Added {added}, never used',
   'appPasswords.lastUsed': 'Added {added}, last used {used}',
 } as const;

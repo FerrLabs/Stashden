@@ -13,7 +13,9 @@ import { linkTo } from './folder';
 import type { Credentials } from './login-form/credentials';
 import { LoginForm } from './login-form/login-form';
 import { arrivalAt, type Arrival, type Methods } from './provider';
-import { PLATFORM, RequestFailed } from './platform';
+import { failureText, signInFailure } from './failure';
+import { PLATFORM } from './platform';
+import { RequestFailed } from './request-failed';
 import { Prompt } from './shared/prompt';
 import { RESET_PATH } from './reset/resets';
 import { SHARE_PREFIX } from './share';
@@ -119,7 +121,7 @@ export class App {
         await this.session.load();
       }
     } catch (cause: unknown) {
-      this.error.set(String(cause));
+      this.error.set(failureText(cause));
     } finally {
       this.busy.set(false);
     }
@@ -195,7 +197,7 @@ export class App {
       this.connected.set(true);
       await this.session.load();
     } catch (cause: unknown) {
-      this.error.set(String(cause));
+      this.error.set(signInFailure(cause));
     } finally {
       this.busy.set(false);
     }

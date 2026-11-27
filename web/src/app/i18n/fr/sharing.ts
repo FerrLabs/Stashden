@@ -3,7 +3,7 @@ import type { Mirror } from '../message';
 
 export const sharing = {
   'access.read': 'lecture seule',
-  'access.write': 'peut modifier',
+  'access.write': 'lecture et écriture',
 
   'share.link.heading': 'Lien vers {name}',
   'share.link.onlyOnce':
@@ -19,15 +19,15 @@ export const sharing = {
     'Toute personne disposant du lien peut parcourir et télécharger ce dossier sans compte.',
   'share.link.fileHint':
     'Toute personne disposant du lien peut télécharger ce fichier sans compte.',
-  'share.expiry.label': 'Expire le',
+  'share.expiry.label': 'Date d’expiration',
   'share.expiry.hint': 'Laissez vide pour un lien qui n’expire pas.',
-  'share.expiry.invalid': 'Cette date d’expiration n’est pas une date que le navigateur comprend.',
+  'share.expiry.invalid': 'Date non valide. Choisissez-la dans le calendrier.',
   'share.password.hint': 'Facultatif, au moins six caractères. Il ne fait pas partie du lien.',
   'share.link.create': 'Créer le lien',
   'share.link.creating': 'Création en cours',
 
   'share.account.hint':
-    'Le destinataire le retrouve dans « {shelf} ». Une adresse qui n’a pas encore de compte le recevra lorsqu’un compte sera créé pour elle.',
+    'Le destinataire le retrouvera dans « {shelf} ». Si cette adresse n’a pas encore de compte, il y aura accès dès qu’un compte sera créé.',
   'share.account.access': 'Le destinataire peut',
   'share.account.read': 'Consulter et télécharger',
   'share.account.write': 'Modifier, ajouter et supprimer',
@@ -41,8 +41,7 @@ export const sharing = {
   'share.account.shared': 'Partagé avec {email}, {access}',
   'share.account.withdrawn': '{email} n’a plus accès',
   'share.account.stopHeading': 'Ne plus partager {name} avec {email} ?',
-  'share.stopBody':
-    'Il disparaît de leur dossier « {shelf} » dès leur prochaine requête. Vos fichiers ne sont pas touchés.',
+  'share.stopBody': 'Il disparaîtra de son dossier « {shelf} ». Vos fichiers sont conservés.',
 
   'share.panel.links': 'Liens que vous avez publiés',
   'share.panel.loadingLinks': 'Chargement de vos liens',
@@ -56,7 +55,7 @@ export const sharing = {
   'share.panel.stopLabel': 'Ne plus partager {name} avec {email}',
   'share.panel.revokeHeading': 'Révoquer le lien vers {name} ?',
   'share.panel.revokeBody':
-    'Toute personne qui le détient ne peut plus l’ouvrir. Le fichier lui-même n’est pas touché.',
+    'Les personnes qui ont ce lien ne pourront plus l’ouvrir. Le fichier ou le dossier est conservé.',
   'share.panel.inTrash': 'dans la corbeille',
 
   'share.describe.none': 'Sans expiration',

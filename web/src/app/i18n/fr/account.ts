@@ -2,22 +2,21 @@ import type { account as english } from '../en/account';
 import type { Mirror } from '../message';
 
 export const account = {
-  'password.heading': 'Changer votre mot de passe',
+  'password.heading': 'Modifier votre mot de passe',
   'password.freshSignIn':
-    'Votre compte se connecte via votre fournisseur d’identité. Reconnectez-vous pour confirmer votre identité, puis revenez ici pour définir un mot de passe.',
+    'Vous vous connectez avec votre fournisseur d’identité. Reconnectez-vous pour confirmer votre identité, puis revenez ici pour définir un mot de passe.',
   'password.current': 'Mot de passe actuel',
   'password.new': 'Nouveau mot de passe',
-  'password.hint':
-    'Au moins douze caractères. Vos sessions sur d’autres appareils ne sont pas déconnectées.',
-  'password.submit': 'Changer le mot de passe',
+  'password.hint': 'Au moins douze caractères. Vos autres appareils restent connectés.',
+  'password.submit': 'Modifier le mot de passe',
   'password.busy': 'Modification en cours',
 
   'deleteOwn.heading': 'Supprimer votre compte',
   'deleteOwn.hint':
-    'Cela met fin à toutes les sessions et supprime le compte. Sans personne à qui confier vos fichiers, ils sont libérés puis supprimés à l’issue du délai de grâce.',
+    'Cela met fin à toutes les sessions et supprime le compte. Si vous ne confiez vos fichiers à personne, ils seront supprimés à la fin du délai de grâce.',
   'deleteOwn.freshSignIn':
-    'Votre compte se connecte via votre fournisseur d’identité. Reconnectez-vous pour confirmer votre identité, puis revenez ici.',
-  'deleteOwn.heir': 'Confier vos fichiers à (facultatif)',
+    'Vous vous connectez avec votre fournisseur d’identité. Reconnectez-vous pour confirmer votre identité, puis revenez ici.',
+  'deleteOwn.heir': 'Personne à qui confier vos fichiers (facultatif)',
   'deleteOwn.heirPlaceholder': 'collegue@example.com',
   'deleteOwn.password': 'Votre mot de passe',
   'deleteOwn.address': 'Saisissez votre adresse e-mail pour confirmer',
@@ -38,12 +37,12 @@ export const account = {
   'appPasswords.none': 'Vous n’en avez ajouté aucun.',
   'appPasswords.revokeLabel': 'Révoquer {name}',
   'appPasswords.addFor': 'En ajouter un pour',
-  'appPasswords.placeholder': 'Portable, téléphone, Finder',
+  'appPasswords.placeholder': 'Ordinateur portable, téléphone, Finder',
   'appPasswords.add': 'Ajouter',
   'appPasswords.adding': 'Ajout en cours',
   'appPasswords.revokeHeading': 'Révoquer {name} ?',
   'appPasswords.revokeBody':
-    'Tout ce qui se connecte avec lui cesse de fonctionner dès sa prochaine requête. Vos autres mots de passe d’application ne sont pas touchés.',
+    'Les appareils qui l’utilisent ne pourront plus se connecter. Vos autres mots de passe d’application continuent de fonctionner.',
   'appPasswords.neverUsed': 'Ajouté le {added}, jamais utilisé',
   'appPasswords.lastUsed': 'Ajouté le {added}, dernière utilisation le {used}',
 } as const satisfies Mirror<typeof english>;

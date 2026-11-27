@@ -7,10 +7,12 @@ import {
   resource,
   signal,
 } from '@angular/core';
-import type { Node, Trashed } from '../node';
-import { PLATFORM, RequestFailed } from '../platform';
+import type { Node } from '../node';
+import { PLATFORM } from '../platform';
+import { RequestFailed } from '../request-failed';
 import { Confirm } from '../shared/confirm';
-import { formatMoment, formatSize, t } from '../i18n/language';
+import { t } from '../i18n/language';
+import { describeTrashed } from './trash-text';
 
 @Component({
   selector: 'rx-trash-panel',
@@ -39,16 +41,7 @@ export class TrashPanel {
   protected readonly doomed = signal<Node | null>(null);
   protected readonly emptying = signal(false);
 
-  protected describe(node: Trashed): string {
-    const parts = [node.kind === 'directory' ? t('common.folder') : formatSize(node.size)];
-    if (node.deleted_at !== undefined) {
-      parts.push(t('trash.deleted', { moment: formatMoment(node.deleted_at) }));
-    }
-    if (node.expires_at !== undefined) {
-      parts.push(t('trash.expires', { moment: formatMoment(node.expires_at) }));
-    }
-    return parts.join(', ');
-  }
+  protected readonly describe = describeTrashed;
 
   protected async empty(): Promise<void> {
     this.emptying.set(false);

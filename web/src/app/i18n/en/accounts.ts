@@ -49,7 +49,7 @@ export const accounts = {
   'accounts.quota.hint':
     'What the account may hold. Lowering it below what is already stored refuses the next upload rather than deleting anything.',
   'accounts.quota.submit': 'Set',
-  'accounts.quota.invalid': 'A quota is a number of gigabytes above zero.',
+  'accounts.quota.invalid': 'Enter a number of gigabytes above zero.',
 
   'accounts.delete.heading': 'Delete {email}?',
   'accounts.delete.files': 'Their files',

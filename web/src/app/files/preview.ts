@@ -12,6 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
+import { failureText } from '../failure';
 import type { Node } from '../node';
 import { PLATFORM } from '../platform';
 import { PREVIEW_LIMIT, mimeOf, previewKind } from './preview-kind';
@@ -104,7 +105,7 @@ export class Preview {
         url: this.sanitizer.bypassSecurityTrustResourceUrl(this.objectUrl),
       });
     } catch (cause: unknown) {
-      this.shown.set({ kind: 'failed', reason: String(cause) });
+      this.shown.set({ kind: 'failed', reason: failureText(cause) });
     }
   }
 

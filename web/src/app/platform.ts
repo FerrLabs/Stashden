@@ -4,6 +4,7 @@ import type { AppPassword, MintedPassword } from './account/app-password';
 import type { ManagedAccount, NewAccount } from './accounts/managed';
 import type { Given, NewGrant, Received } from './grant';
 import { t } from './i18n/language';
+import { RequestFailed } from './request-failed';
 import type { Hit, Node, Trashed } from './node';
 import {
   encodePath,
@@ -78,15 +79,6 @@ export interface Platform {
 }
 
 export const PLATFORM = new InjectionToken<Platform>('Stashden platform');
-
-export class RequestFailed extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 const TOKEN_KEY = 'stashden.token';
 const HANDOFF_KEY = 'stashden.handoff';
