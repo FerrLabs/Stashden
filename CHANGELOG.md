@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.61.2] - 2026-11-27
+
+### Bug Fixes
+
+- fix(app): build the Windows app for the graphical subsystem (#551)
+
 ## [0.61.1] - 2026-11-27
 
 ### Bug Fixes
