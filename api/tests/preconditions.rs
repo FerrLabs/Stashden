@@ -156,3 +156,72 @@ database_test!(a_refused_write_never_reaches_the_disk, harness, {
 
     assert_eq!(harness.blob(blake3::hash(refused).into()).await, None);
 });
+
+async fn refusal_etag(
+    harness: &Harness,
+    path: &str,
+    bearer: &str,
+    condition: (header::HeaderName, &str),
+) -> (StatusCode, Option<String>) {
+    let response = build_router(harness.state.clone(), &[], None)
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/v1/files/{path}"))
+                .header(header::AUTHORIZATION, bearer)
+                .header(condition.0, condition.1)
+                .body(Body::from("refused"))
+                .expect("a well formed request"),
+        )
+        .await
+        .expect("the router answers");
+    let etag = response
+        .headers()
+        .get(header::ETAG)
+        .map(|value| value.to_str().expect("ascii").to_owned());
+    (response.status(), etag)
+}
+
+database_test!(a_stale_if_match_answers_with_the_current_etag, harness, {
+    let (owner, bearer) = signed_in(&harness, "etag-stale@example.com").await;
+    let seen = harness.write(owner, "a.txt", b"seen").await;
+    let current = harness.write(owner, "a.txt", b"edited elsewhere").await;
+
+    let (status, etag) =
+        refusal_etag(&harness, "a.txt", &bearer, (header::IF_MATCH, &seen.etag)).await;
+
+    assert_eq!(status, StatusCode::PRECONDITION_FAILED);
+    assert_ne!(seen.etag, current.etag);
+    assert_eq!(etag, Some(current.etag));
+});
+
+database_test!(a_missing_file_answers_without_an_etag, harness, {
+    let (owner, bearer) = signed_in(&harness, "etag-missing@example.com").await;
+    let seen = harness.write(owner, "a.txt", b"seen").await;
+    harness.trash(&seen).await;
+
+    let (status, etag) =
+        refusal_etag(&harness, "a.txt", &bearer, (header::IF_MATCH, &seen.etag)).await;
+    let (never_existed, never_etag) =
+        refusal_etag(&harness, "b.txt", &bearer, (header::IF_MATCH, "*")).await;
+
+    assert_eq!(status, StatusCode::PRECONDITION_FAILED);
+    assert_eq!(etag, None);
+    assert_eq!(never_existed, StatusCode::PRECONDITION_FAILED);
+    assert_eq!(never_etag, None);
+});
+
+database_test!(
+    if_none_match_star_answers_with_the_etag_of_the_file,
+    harness,
+    {
+        let (owner, bearer) = signed_in(&harness, "etag-star@example.com").await;
+        let existing = harness.write(owner, "a.txt", b"already here").await;
+
+        let (status, etag) =
+            refusal_etag(&harness, "a.txt", &bearer, (header::IF_NONE_MATCH, "*")).await;
+
+        assert_eq!(status, StatusCode::PRECONDITION_FAILED);
+        assert_eq!(etag, Some(existing.etag));
+    }
+);

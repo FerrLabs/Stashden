@@ -49,7 +49,7 @@ pub enum ApiError {
     #[error("sign in again through your identity provider to confirm this")]
     FreshSignInRequired,
     #[error("the file changed since this client last saw it")]
-    PreconditionFailed,
+    PreconditionFailed { current_etag: Option<String> },
     #[error("this upload is at {expected} bytes")]
     OffsetMismatch { expected: i64 },
     #[error("this upload has {received} of {expected} bytes")]
@@ -115,7 +115,7 @@ impl ApiError {
             | Self::NotAnImage(_) => StatusCode::BAD_REQUEST,
             Self::TooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::QuotaExceeded => StatusCode::INSUFFICIENT_STORAGE,
-            Self::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
+            Self::PreconditionFailed { .. } => StatusCode::PRECONDITION_FAILED,
             Self::TooManySessions { .. } | Self::TooManyAttempts { .. } => {
                 StatusCode::TOO_MANY_REQUESTS
             }
@@ -145,6 +145,14 @@ impl IntoResponse for ApiError {
             response
                 .headers_mut()
                 .insert("upload-offset", HeaderValue::from(expected));
+        }
+
+        if let Self::PreconditionFailed {
+            current_etag: Some(etag),
+        } = &self
+            && let Ok(tag) = HeaderValue::from_str(etag)
+        {
+            response.headers_mut().insert(header::ETAG, tag);
         }
 
         // A limiter a client cannot cooperate with is one it answers by retrying immediately.

@@ -44,7 +44,9 @@ impl Precondition {
         if holds {
             Ok(())
         } else {
-            Err(ApiError::PreconditionFailed)
+            Err(ApiError::PreconditionFailed {
+                current_etag: existing.map(|node| node.etag.clone()),
+            })
         }
     }
 }
@@ -131,5 +133,20 @@ mod tests {
         let precondition = Precondition::from_headers(&headers(&[(header::IF_MATCH, "*")]));
         assert!(precondition.check(None).is_err());
         assert!(precondition.check(Some(&file("\"a\""))).is_ok());
+    }
+
+    #[test]
+    fn a_refusal_carries_the_etag_of_what_is_there() {
+        let stale = Precondition::from_headers(&headers(&[(header::IF_MATCH, "\"a\"")]));
+        let Err(ApiError::PreconditionFailed { current_etag }) = stale.check(Some(&file("\"b\"")))
+        else {
+            panic!("a stale tag is refused");
+        };
+        assert_eq!(current_etag.as_deref(), Some("\"b\""));
+
+        let Err(ApiError::PreconditionFailed { current_etag }) = stale.check(None) else {
+            panic!("a missing file is refused");
+        };
+        assert_eq!(current_etag, None);
     }
 }
