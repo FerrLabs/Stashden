@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.61.0] - 2026-11-27
+
+### Features
+
+- feat(web): open a file through one table of openers, addressable by link (#543)
+
 ## [0.60.1] - 2026-11-27
 
 ### Bug Fixes
