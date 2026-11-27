@@ -228,6 +228,15 @@ pnpm --filter @stashden/site build --define STASHDEN_TELEMETRY_URL="'https://rum
 The redaction and the error handler come from the shared `@ferrlabs/telemetry` package. URLs, query strings and anything that looks like a credential are redacted before
 sending, and browsers that send Global Privacy Control or Do Not Track never report.
 
+The build writes a Content-Security-Policy into `index.html` from those values: scripts and
+everything else only from the page's own origin, and `connect-src` limited to that origin, the API
+origin and the telemetry origin, so a script that gets injected can neither run nor send data to a
+third party. The policy follows `STASHDEN_API_URL` and `STASHDEN_TELEMETRY_URL`, so build with
+`pnpm --filter @stashden/web build` (not `ng build` directly) or the page ships without one. When
+`WEB_ROOT` serves the app, the API also sends `Content-Security-Policy: frame-ancestors 'none'` with
+every page, which a meta tag cannot express. A reverse proxy that sets its own policy has to keep
+those origins allowed.
+
 If you deploy a modified Stashden, point the source URL at your fork: the AGPL requires you to
 offer your users the source of the version they are actually using.
 
