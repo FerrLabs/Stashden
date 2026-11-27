@@ -1,4 +1,4 @@
-use sqlx::{PgExecutor, PgPool, Postgres, Transaction};
+use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::error::ApiError;
@@ -8,17 +8,22 @@ use stashden_core::user::{Email, User};
 const SECRET_BYTES: usize = 32;
 const MAX_NAME_LEN: usize = 100;
 
-pub async fn mint(
-    tx: &mut Transaction<'_, Postgres>,
-    user_id: Uuid,
-    name: &str,
-) -> Result<Minted, ApiError> {
+pub fn clean_name(name: &str) -> Result<&str, ApiError> {
     let name = name.trim();
     if name.is_empty() || name.chars().count() > MAX_NAME_LEN {
         return Err(ApiError::WrongKind {
             expected: "name for the app password, up to 100 characters",
         });
     }
+    Ok(name)
+}
+
+pub async fn mint(
+    tx: &mut Transaction<'_, Postgres>,
+    user_id: Uuid,
+    name: &str,
+) -> Result<Minted, ApiError> {
+    let name = clean_name(name)?;
 
     let secret = secret();
     let password = sqlx::query_as::<_, AppPassword>(
@@ -65,12 +70,13 @@ pub async fn revoke(pool: &PgPool, user_id: Uuid, id: Uuid) -> Result<(), ApiErr
     Ok(())
 }
 
-pub async fn revoke_all(executor: impl PgExecutor<'_>, user_id: Uuid) -> Result<u64, ApiError> {
+pub async fn revoke_all(connection: &mut PgConnection, user_id: Uuid) -> Result<u64, ApiError> {
+    crate::browser_sign_ins::cancel_all(connection, user_id).await?;
     Ok(sqlx::query(
         "UPDATE app_passwords SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
     )
     .bind(user_id)
-    .execute(executor)
+    .execute(connection)
     .await?
     .rows_affected())
 }

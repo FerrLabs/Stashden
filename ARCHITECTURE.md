@@ -75,7 +75,7 @@ Two authentication paths, because DAV clients cannot do anything modern:
 |---|---|
 | Web app | Password login (Argon2id) or OIDC, exchanged for a session token the server can revoke and kept in `localStorage` |
 | CLI | The same session token from `stashden login`, or an app password for an unattended sync |
-| Desktop app | Signs in once, mints an app password named after the computer and keeps it in the system keychain |
+| Desktop app | Signs in once, mints an app password named after the computer and keeps it in the system keychain; through the browser sign-in below, the server mints it |
 | WebDAV client | Scoped app password over Basic auth, minted in the web app |
 | Share link | Opaque token in the URL, optionally password-protected |
 | Provider | `OIDC` authorization code with `PKCE`, mapped to an account by a verified address |
@@ -100,6 +100,51 @@ outlive the move. Using it signs out every session and clears a sign-in lockout.
 against the address in `attempts` under their own scope, which bounds how much mail somebody can send
 a stranger without touching that person's sign-in allowance. The link carries the token in the URL
 fragment, which browsers do not send, so it never reaches a server log or a `Referer`.
+
+### Browser sign-in for clients
+
+A client that can open a browser signs in by creating a request on the instance, letting the person
+approve it in the web app, and exchanging a one-time code for an app password. The web app already
+handles passwords and the identity provider, so this works on every instance without registering
+anything with a provider, and the client ends with a credential that does not lapse like a session
+and never travels in a URL.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant B as Browser (web app)
+    participant S as API
+    C->>C: verifier, challenge = SHA-256(verifier), listen on 127.0.0.1
+    C->>S: POST /v1/auth/browser {device_name, challenge, loopback_port}
+    S-->>C: {id, confirmation, expires_in}
+    C->>B: open the web app on the request
+    B->>S: GET /v1/auth/browser/{id} (session)
+    B->>S: POST /v1/auth/browser/{id}/approve (session)
+    S-->>B: {callback: http://127.0.0.1:port/callback?id&code}
+    B->>C: navigate to the callback
+    C->>S: POST /v1/auth/browser/{id}/redeem {code, verifier}
+    S-->>C: app password and account
+```
+
+The code only ever goes to `127.0.0.1` on the machine running the browser, at the port the client
+registered when it started the request, and the callback URL is built by the server from that stored
+port, so nothing in the web app's own address can choose where it goes. Redeeming needs the verifier
+as well, which never left the client. A request started on somebody else's machine therefore cannot
+be finished by sending its link to a victim: the code lands on the victim's own loopback, where
+nothing waits for it. That is the remote phishing case RFC 8628 section 5.4 describes for device
+codes, and the reason this flow does not poll.
+
+Approving and refusing take a session and refuse an app password, like the other routes that manage
+the account. The request is bound to the account that approves it, and another account sees it as
+absent. Redeeming takes no credential and runs in one transaction: it locks the account, then the
+request, compares `SHA-256(verifier)` with the challenge and the code's `BLAKE3` fingerprint with the
+stored one in constant time, checks the account is still active, mints the app password under the
+device name and deletes the request. Locking in that order is what lets a password change, which
+takes the account first, cancel pending requests and revoke app passwords without a redeem slipping
+a new one in between. Every refusal answers the same 401, a failure is committed even though the
+request answers an error, and the fifth deletes the request. Requests live fifteen minutes and are
+removed by the sweep. Creating one needs no credential, so the number of live requests is capped at
+1000 and the next one is refused with a 503.
 
 The FerrLabs hosted deployment is the same binary with OIDC pointed at the FerrLabs identity
 provider. It gets no special code path, which keeps the self-hosted build and the one we operate on

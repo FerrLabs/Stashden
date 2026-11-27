@@ -275,7 +275,7 @@ fn random() -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-fn sha256(input: &[u8]) -> [u8; 32] {
+pub(crate) fn sha256(input: &[u8]) -> [u8; 32] {
     use sha2::Digest;
     let mut hasher = sha2::Sha256::new();
     hasher.update(input);

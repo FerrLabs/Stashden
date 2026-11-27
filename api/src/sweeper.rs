@@ -48,6 +48,13 @@ pub fn spawn(state: AppState, every: Duration, grace: Duration) {
                 Ok(_) => {}
                 Err(error) => error!(%error, "removing expired sign-ins failed"),
             }
+            match crate::browser_sign_ins::purge_expired(&state.db).await {
+                Ok(expired) if expired > 0 => {
+                    info!(requests = expired, "removed expired browser sign-ins");
+                }
+                Ok(_) => {}
+                Err(error) => error!(%error, "removing expired browser sign-ins failed"),
+            }
             match crate::thumbnails::forget_orphans(&state.db).await {
                 Ok(dropped) if dropped > 0 => {
                     info!(thumbnails = dropped, "dropped orphaned thumbnails");

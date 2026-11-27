@@ -1,6 +1,7 @@
 pub mod app_passwords;
 pub mod archive;
 pub mod auth;
+pub mod browser_sign_ins;
 pub mod files;
 pub mod grants;
 pub mod oidc;
@@ -41,6 +42,19 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/v1/auth/oidc/start", post(oidc::begin))
         .route("/v1/auth/oidc/callback", post(oidc::callback))
+        .route("/v1/auth/browser", post(browser_sign_ins::start))
+        .route(
+            "/v1/auth/browser/{id}",
+            get(browser_sign_ins::read).delete(browser_sign_ins::deny),
+        )
+        .route(
+            "/v1/auth/browser/{id}/approve",
+            post(browser_sign_ins::approve),
+        )
+        .route(
+            "/v1/auth/browser/{id}/redeem",
+            post(browser_sign_ins::redeem),
+        )
         .route(
             "/v1/app-passwords",
             get(app_passwords::list).post(app_passwords::mint),
