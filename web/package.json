@@ -6,7 +6,7 @@
   "scripts": {
     "ng": "ng",
     "dev": "ng serve",
-    "build": "ng build",
+    "build": "node scripts/build.mjs",
     "preview": "ng serve --configuration production",
     "lint": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "TZ=UTC node --import ./test/register.mjs --test \"test/*.test.ts\" \"src/**/*.test.mjs\""

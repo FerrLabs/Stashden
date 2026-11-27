@@ -472,6 +472,35 @@ database_test!(
     }
 );
 
+database_test!(only_pages_carry_a_policy_that_forbids_framing, harness, {
+    let root = web_root(&harness);
+    let policy = async |path: &str| {
+        build_router(harness.state.clone(), &[], Some(&root))
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .body(Body::empty())
+                    .expect("a well formed request"),
+            )
+            .await
+            .expect("the router answers")
+            .headers()
+            .get(header::CONTENT_SECURITY_POLICY)
+            .map(|value| value.to_str().expect("printable").to_owned())
+    };
+
+    for page in ["/", "/files/docs"] {
+        assert_eq!(
+            policy(page).await.as_deref(),
+            Some("frame-ancestors 'none'"),
+            "{page} can be framed, which lets another site overlay the app"
+        );
+    }
+    for other in ["/main.js", "/health", "/v1/folders", "/v1/nonsense"] {
+        assert_eq!(policy(other).await, None, "{other} has no page to protect");
+    }
+});
+
 database_test!(the_api_still_answers_with_the_app_alongside_it, harness, {
     let (status, body) = from_the_web_root(&harness, "/health").await;
 

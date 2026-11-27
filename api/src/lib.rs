@@ -91,7 +91,7 @@ pub fn build_router(
             .route("/v1/", any(async || ApiError::NotFound))
             .route("/v1/{*unknown}", any(async || ApiError::NotFound))
             .fallback_service(ServeDir::new(root).fallback(ServeFile::new(root.join("index.html"))))
-            .layer(map_response(revalidate_html)),
+            .layer(map_response(harden_html)),
         None => router,
     };
 
@@ -100,7 +100,7 @@ pub fn build_router(
         .layer(TraceLayer::new_for_http())
 }
 
-async fn revalidate_html(mut response: Response) -> Response {
+async fn harden_html(mut response: Response) -> Response {
     let html = response
         .headers()
         .get(header::CONTENT_TYPE)
@@ -108,9 +108,12 @@ async fn revalidate_html(mut response: Response) -> Response {
         .is_some_and(|value| value.starts_with("text/html"));
 
     if html {
-        response
-            .headers_mut()
-            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+        let headers = response.headers_mut();
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+        headers.insert(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static("frame-ancestors 'none'"),
+        );
     }
     response
 }
