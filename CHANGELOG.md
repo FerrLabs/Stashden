@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.59.0] - 2026-11-27
+
+### Features
+
+- feat(web): translate the web app into English and French (#531)
+
 ## [0.58.0] - 2026-11-27
 
 ### Features
