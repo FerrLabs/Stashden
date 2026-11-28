@@ -1,12 +1,14 @@
+mod connection;
 mod legacy;
+mod render;
 mod sync;
 
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use connection::{DEFAULT_SERVER, SERVER_HELP, remote};
 use stashden_client::Remote;
-use stashden_core::node::{NodeKind, Trashed};
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -145,11 +147,7 @@ async fn main() -> Result<()> {
         }
         Command::Ls { path } => {
             for node in connect()?.list(path).await? {
-                let marker = match node.kind {
-                    NodeKind::Directory => "/",
-                    NodeKind::File => "",
-                };
-                println!("{:>12}  {}{marker}", node.size, node.name);
+                println!("{}", render::listing_line(&node));
             }
         }
         Command::Mv { from, to } => {
@@ -159,12 +157,8 @@ async fn main() -> Result<()> {
             connect()?.delete(path).await?;
         }
         Command::Trash => {
-            for Trashed { node, .. } in connect()?.trash().await? {
-                let deleted = node
-                    .deleted_at
-                    .map(|at| at.format("%Y-%m-%d %H:%M").to_string())
-                    .unwrap_or_default();
-                println!("{}  {deleted}  {}", node.id, node.name);
+            for trashed in connect()?.trash().await? {
+                println!("{}", render::trash_line(&trashed));
             }
         }
         Command::Restore { id } => {
@@ -178,17 +172,4 @@ async fn main() -> Result<()> {
         }
     }
     Ok(())
-}
-
-const DEFAULT_SERVER: &str = "http://localhost:3001";
-const SERVER_HELP: &str = "Server to talk to [default: http://localhost:3001]";
-
-fn remote(server: &str, token: Option<&str>) -> Result<Remote> {
-    let Some(token) = token.filter(|token| !token.is_empty()) else {
-        anyhow::bail!(
-            "not signed in: set STASHDEN_TOKEN from `stashden login`, or STASHDEN_EMAIL and \
-             STASHDEN_APP_PASSWORD from `stashden login --create-app-password <name>`"
-        );
-    };
-    Remote::new(server, token.to_owned()).context("building the API client")
 }

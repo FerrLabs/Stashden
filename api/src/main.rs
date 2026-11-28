@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use std::time::Duration;
 
-use stashden_api::{bootstrap, build_router, config::Config, migrations, state::AppState, sweeper};
+use stashden_api::{
+    bootstrap, build_router, check_report, config::Config, migrations, state::AppState, sweeper,
+};
 use stashden_core::user::Email;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
@@ -132,62 +134,17 @@ async fn migrate() -> Result<()> {
 }
 
 async fn check(cfg: &Config, flags: Vec<String>) -> Result<()> {
-    let mut options = stashden_api::check::Options::default();
-    for flag in &flags {
-        match flag.as_str() {
-            "--verify-content" => options.verify_content = true,
-            "--repair" => options.repair = true,
-            other => anyhow::bail!(
-                "unknown option {other}; the ones there are: --verify-content, --repair"
-            ),
-        }
-    }
+    let options = check_report::options_from(&flags)?;
 
     let state = AppState::from_config(cfg).await?;
     let findings = stashden_api::check::run(&state.db, state.blobs.as_ref(), options)
         .await
         .context("checking the instance")?;
 
-    for hash in &findings.missing {
-        println!("blob {}: referenced, but not in the store", hash.to_hex());
+    for line in check_report::report(&findings, options) {
+        println!("{line}");
     }
-    for hash in &findings.corrupt {
-        println!("blob {}: its bytes no longer match its hash", hash.to_hex());
-    }
-    for wrong in &findings.wrong_counts {
-        println!(
-            "blob {}: reference count {}, should be {}",
-            wrong.hash.to_hex(),
-            wrong.stored,
-            wrong.expected
-        );
-    }
-    for wrong in &findings.wrong_usage {
-        println!(
-            "account {}: usage {} bytes, should be {}",
-            wrong.owner_id, wrong.stored, wrong.expected
-        );
-    }
-
-    let content = if options.verify_content {
-        "bytes and hashes"
-    } else {
-        "presence"
-    };
-    println!("checked {} blobs for {content}", findings.checked_blobs);
-    if findings.repaired {
-        println!("reference counts and usage corrected");
-    }
-    if findings.needs_a_person() {
-        anyhow::bail!(
-            "{} blobs are missing and {} corrupt: restore them from a backup",
-            findings.missing.len(),
-            findings.corrupt.len()
-        );
-    }
-    if !findings.is_clean() {
-        anyhow::bail!("counts or usage are off: run it again with --repair");
-    }
+    check_report::verdict(&findings)?;
     println!("clean");
     Ok(())
 }
