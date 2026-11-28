@@ -8378,6 +8378,7 @@ name = "stashden-cli"
 version = "0.62.3"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "stashden-client",
  "stashden-core",
