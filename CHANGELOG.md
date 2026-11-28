@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.62.5] - 2026-11-28
+
+### Refactoring
+
+- refactor(web): move French and site catalogs to JSON and share the account dialog base (#578)
+
 ## [0.62.4] - 2026-11-28
 
 ### Bug Fixes
