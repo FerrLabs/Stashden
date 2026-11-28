@@ -904,12 +904,12 @@ config key or an endpoint updates `site/src/app/content/` in the same pull reque
 
 The web app is in English and French. The first visit follows `navigator.languages`, and the choice
 made in the account menu or on the sign-in screen is remembered in the browser. `<html lang>`
-follows the active language. Messages live in `web/src/app/i18n/en/` (the source) and `fr/`, one
-file per area. Keys are typed: a key missing from French does not build, and `t()` refuses a
+follows the active language. Messages live in `web/src/app/i18n/en/` (the source, TypeScript files that type the keys and parameters) and `fr/` (JSON, one
+file per area). Keys are typed: a key missing from French does not build, and `t()` refuses a
 parameter the English message does not declare.
 
 To add a string, add it to the English file of its area with a dotted key (`files.announce.renamed`),
-named parameters in braces and no concatenation, then add the French twin with the same key and the
+named parameters in braces and no concatenation, then add the French twin in the matching JSON file with the same key and the
 same parameters. In a template or a component, `t('files.announce.renamed', { name })`. A plural is
 `{ one, other }` and takes a `count` parameter, chosen with `Intl.PluralRules`. Dates, numbers and
 sizes go through `formatDate`, `formatMoment` and `formatSize`, which use `Intl` in the active

@@ -7,6 +7,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DocTable {
-  readonly columns = input.required<[string, string, string]>();
-  readonly rows = input.required<[string, string, string][]>();
+  readonly columns = input.required<string[]>();
+  readonly rows = input.required<string[][]>();
 }
