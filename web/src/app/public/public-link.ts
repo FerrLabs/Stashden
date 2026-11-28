@@ -10,7 +10,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import type { PublicEntry } from '../share';
 import { DownloadCancelled } from '../transfer';
-import { LinkIsBusy, LinkNeedsPassword, PublicLinks } from './links';
+import { PublicLinks } from './links';
+import { LinkIsBusy, LinkNeedsPassword } from './public-request';
 import { formatDate, formatSize, t } from '../i18n/language';
 
 @Component({
