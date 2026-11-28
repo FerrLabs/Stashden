@@ -6,6 +6,7 @@ pub mod auth;
 pub mod bootstrap;
 pub mod browser_sign_ins;
 pub mod check;
+pub mod check_report;
 pub mod config;
 pub mod dav;
 pub mod db;
