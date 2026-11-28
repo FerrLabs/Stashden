@@ -1,36 +1,13 @@
 import { Injectable } from '@angular/core';
-import { t } from '../i18n/language';
 import { encodePath } from '../platform';
 import { saveStreaming } from '../transfer';
 import type { Linked } from '../share';
-
-export class LinkNeedsPassword extends Error {
-  constructor() {
-    super(t('public.error.needsPassword'));
-  }
-}
-
-export class LinkIsGone extends Error {
-  constructor() {
-    super(t('public.gone.heading'));
-  }
-}
-
-export class LinkIsBusy extends Error {
-  readonly seconds: number;
-
-  constructor(seconds: number) {
-    super(t('public.error.busy'));
-    this.seconds = seconds;
-  }
-}
+import { entriesAt, getPublic } from './public-request';
 
 @Injectable({ providedIn: 'root' })
 export class PublicLinks {
   async open(token: string, password: string, path: string): Promise<Linked> {
-    const below = encodePath(path);
-    const at = below.length === 0 ? '' : `/entries${below}`;
-    const response = await this.get(token, at, password);
+    const response = await this.get(token, entriesAt(path), password);
     return (await response.json()) as Linked;
   }
 
@@ -50,23 +27,7 @@ export class PublicLinks {
     );
   }
 
-  private async get(token: string, at: string, password: string): Promise<Response> {
-    const response = await fetch(
-      `${STASHDEN_API_URL}/v1/public/${encodeURIComponent(token)}${at}`,
-      {
-        headers: password.length > 0 ? { 'X-Share-Password': password } : {},
-      },
-    );
-
-    if (response.status === 401) {
-      throw new LinkNeedsPassword();
-    }
-    if (response.status === 429) {
-      throw new LinkIsBusy(Number(response.headers.get('Retry-After') ?? 60));
-    }
-    if (!response.ok) {
-      throw new LinkIsGone();
-    }
-    return response;
+  private get(token: string, at: string, password: string): Promise<Response> {
+    return getPublic(STASHDEN_API_URL, token, at, password);
   }
 }
