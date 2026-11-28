@@ -88,12 +88,20 @@
   overflow: hidden;
 }
 
-.listing > * + * {
+.listing tbody {
+  display: contents;
+}
+
+.listing tbody > * + * {
   border-top: 1px solid var(--rule-soft);
 }
 
 @media (max-width: 40rem) {
   .listing {
+    display: block;
+  }
+
+  .listing tbody {
     display: block;
   }
 }

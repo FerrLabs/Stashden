@@ -28,12 +28,12 @@ export type Leaving = {
   readonly replace: () => void;
 };
 
-export function closeFile(openedFromList: boolean, leaving: Leaving): void {
-  if (openedFromList) {
-    leaving.back();
-  } else {
-    leaving.replace();
-  }
+export type Arrival = 'list' | 'link';
+
+const EXIT = { list: 'back', link: 'replace' } as const satisfies Record<Arrival, keyof Leaving>;
+
+export function closeFile(arrival: Arrival, leaving: Leaving): void {
+  leaving[EXIT[arrival]]();
 }
 
 export class OpenedFile {
@@ -44,7 +44,7 @@ export class OpenedFile {
     initialValue: convertToParamMap({}),
   });
   private readonly name = computed(() => this.query().get(OPEN_PARAM));
-  private fromList = false;
+  private arrival: Arrival = 'link';
   private wasOpen = false;
   private readonly options: OpenedFileOptions;
 
@@ -61,14 +61,14 @@ export class OpenedFile {
   }
 
   open(node: Node): void {
-    this.fromList = true;
+    this.arrival = 'list';
     void this.router.navigate(linkTo(this.options.path()), {
       queryParams: { [OPEN_PARAM]: node.name },
     });
   }
 
   close(): void {
-    closeFile(this.fromList, {
+    closeFile(this.arrival, {
       back: () => this.location.back(),
       replace: () => void this.router.navigate(linkTo(this.options.path()), { replaceUrl: true }),
     });
@@ -96,7 +96,7 @@ export class OpenedFile {
     if (node !== null) {
       untracked(() => this.options.opened(node));
     } else if (this.wasOpen) {
-      this.fromList = false;
+      this.arrival = 'link';
       afterNextRender(() => this.options.closed(), { injector: this.injector });
     }
     this.wasOpen = node !== null;

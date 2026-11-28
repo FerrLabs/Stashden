@@ -1,6 +1,6 @@
 import { type Signal, signal } from '@angular/core';
 import type { Args, Key } from './catalogs';
-import { dateIn, dayIn, joinDetails, momentIn, sizeIn } from './format';
+import { dateIn, dayIn, momentIn, sizeIn } from './format';
 import { type Locale, isLocale, negotiate } from './locale';
 import { translate } from './translate';
 
@@ -47,4 +47,4 @@ export const formatMoment = (iso: string): string => momentIn(active(), iso);
 
 export const formatDay = (at: Date, withYear = true): string => dayIn(active(), at, withYear);
 
-export { joinDetails };
+export { joinDetails } from './format';

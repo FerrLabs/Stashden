@@ -1,4 +1,4 @@
-<div role="rowheader" class="name-cell" [id]="nameId">
+<th scope="row" class="name-cell" [id]="nameId">
   <span class="glyph" aria-hidden="true">
     @if (node().kind === 'directory') {
       <svg viewBox="0 0 20 20" width="18" height="18">
@@ -25,14 +25,14 @@
       <span class="from">{{ from }}</span>
     }
   </span>
-</div>
-<div role="gridcell" class="size" [id]="sizeId">
+</th>
+<td class="size" [id]="sizeId">
   @if (node().kind === 'file') {
     {{ size(node().size) }}
   }
-</div>
-<div role="gridcell" class="date" [id]="dateId">{{ date(node().updated_at) }}</div>
-<div role="gridcell" class="actions">
+</td>
+<td class="date" [id]="dateId">{{ date(node().updated_at) }}</td>
+<td class="actions">
   <button
     type="button"
     class="ghost action open"
@@ -195,4 +195,4 @@
       </svg>
     </button>
   }
-</div>
+</td>

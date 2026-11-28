@@ -80,7 +80,7 @@ export function openerFor(
     return { viewer: null, editor: null, reason: 'tooLarge' };
   }
   const opener = openerOf(node.name, table);
-  if (opener === undefined || opener.viewer === null) {
+  if (opener?.viewer == null) {
     return { viewer: null, editor: null, reason: 'unsupported' };
   }
   return {

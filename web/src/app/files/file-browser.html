@@ -122,7 +122,7 @@
     </div>
   } @else {
     <p id="file-list-help" class="help">{{ t('files.list.help') }}</p>
-    <div
+    <table
       role="grid"
       class="listing"
       aria-describedby="file-list-help"
@@ -130,8 +130,10 @@
         folderName() === '' ? t('files.list.labelRoot') : t('files.list.label', { folder: folderName() })
       "
     >
+      <tbody>
       @for (node of nodes(); track node.id) {
-        <rx-file-row
+        <tr
+          rx-file-row
           #row
           [node]="node"
           [origin]="originOf(node)"
@@ -154,9 +156,10 @@
           (left)="leaving.set(mountFor(node))"
           (renamed)="renaming.set(node)"
           (removed)="doomed.set(node)"
-        />
+        ></tr>
       }
-    </div>
+      </tbody>
+    </table>
   }
 
   @if (dragging()) {

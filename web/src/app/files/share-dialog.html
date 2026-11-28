@@ -25,7 +25,8 @@
     <h2>{{ t('share.heading', { name: node().name }) }}</h2>
 
     @if (canGrant) {
-      <div class="modes" role="group" [attr.aria-label]="t('share.mode.label')">
+      <fieldset class="modes">
+        <legend class="visually-hidden">{{ t('share.mode.label') }}</legend>
         <button
           type="button"
           [class.chosen]="mode() === 'link'"
@@ -42,7 +43,7 @@
         >
           {{ t('share.mode.account') }}
         </button>
-      </div>
+      </fieldset>
     }
 
     @if (mode() === 'link') {
