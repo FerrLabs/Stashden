@@ -1,12 +1,12 @@
-import { account } from './account';
-import { accounts } from './accounts';
-import { common } from './common';
-import { files } from './files';
-import { history } from './history';
-import { publicLink } from './public';
-import { search } from './search';
-import { sharing } from './sharing';
-import { shell } from './shell';
+import account from './account.json' with { type: 'json' };
+import accounts from './accounts.json' with { type: 'json' };
+import common from './common.json' with { type: 'json' };
+import files from './files.json' with { type: 'json' };
+import history from './history.json' with { type: 'json' };
+import publicLink from './public.json' with { type: 'json' };
+import search from './search.json' with { type: 'json' };
+import sharing from './sharing.json' with { type: 'json' };
+import shell from './shell.json' with { type: 'json' };
 
 export const fr = {
   ...account,
@@ -18,4 +18,4 @@ export const fr = {
   ...search,
   ...sharing,
   ...shell,
-} as const;
+};

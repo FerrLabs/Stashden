@@ -9,8 +9,8 @@ export type CodeBlock = {
 };
 
 export type TableContent = {
-  columns: [string, string, string];
-  rows: [string, string, string][];
+  columns: string[];
+  rows: string[][];
 };
 
 export type Chrome = {

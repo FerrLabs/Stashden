@@ -1,0 +1,497 @@
+{
+  "chrome": {
+    "skipToContent": "Skip to content",
+    "nav": {
+      "overview": "Overview",
+      "install": "Install",
+      "api": "API"
+    },
+    "languageName": "English",
+    "languageSwitch": "Lire en français",
+    "footer": {
+      "tagline": "Self-hosted file storage in Rust.",
+      "licence": "AGPL-3.0",
+      "source": "Source",
+      "parent": "A FerrLabs project"
+    }
+  },
+  "home": {
+    "documentTitle": "Stashden, self-hosted file storage in Rust",
+    "description": "Stashden is a self-hosted file server written in Rust: a web app, a REST API and WebDAV over a content-addressed blob store, under the AGPL.",
+    "heading": "Your files, on your hardware.",
+    "lead": "Stashden is a file server written in Rust. It keeps what you upload in a content-addressed blob store, serves it over a REST API and a web app, and runs on a machine you control.",
+    "install": "Install it",
+    "source": "Read the source",
+    "status": {
+      "heading": "Where the project actually is",
+      "lead": "Early, and not usable end to end yet. Here is the split, so you can decide whether to run it now or watch it for a while.",
+      "shippedHeading": "Working today",
+      "shipped": [
+        "A content-addressed blob store on local disk, deduplicating identical uploads",
+        "The node tree, with per-user quotas and refcounts on the blobs",
+        "Upload, download, listing, trash and restore over REST",
+        "Password accounts with Argon2id, session tokens, and login from the web app, the desktop window and the CLI",
+        "App passwords, and the WebDAV surface they authenticate",
+        "Share links, with an optional expiry and an optional password, published and revoked from the web app",
+        "Sharing a folder or a file with another account on the instance, to view or to edit, over the web app, WebDAV and sync",
+        "Search by name, with the path each match was found at",
+        "Resumable uploads, so a large file over a bad link does not start again from zero",
+        "Thumbnails, made on demand and cached against the source digest",
+        "OIDC login alongside passwords, with an admin switch to turn passwords off",
+        "The sweep that collects blobs nothing points at any more",
+        "S3-compatible object storage as well as local disk, which is what lets the chart run more than one replica",
+        "Folder sync from the desktop window or the command line, keeping both copies when a file changed on both sides",
+        "Installers for Windows and Linux on every release, and updates installed from inside the app",
+        "Previous versions of a file, kept on every overwrite and restorable, counted against the quota"
+      ],
+      "plannedHeading": "Not written yet",
+      "planned": [
+        "A Windows installer signed so SmartScreen stops warning, and a macOS build"
+      ]
+    },
+    "design": {
+      "heading": "How it is built",
+      "items": [
+        {
+          "title": "One blob store, addressed by content",
+          "body": "A file is stored under the hash of its bytes, so the same attachment uploaded twice costs one copy. Refcounts on the node tree decide when those bytes may go."
+        },
+        {
+          "title": "One interface, two hosts",
+          "body": "The browser app and the desktop window run the same Angular build. What differs is not the interface but what it is allowed to reach, and that lives in one file."
+        },
+        {
+          "title": "A binary and a database",
+          "body": "Migrations are one command, `stashden-api migrate`, configuration is environment only, and there is no plugin system to keep secure. Upgrading is replacing the image."
+        },
+        {
+          "title": "The source link is not decoration",
+          "body": "Stashden is AGPL-3.0. Run a modified version for other people and they get to read it, which is why the web app carries a link to the source of the build it came from."
+        }
+      ]
+    }
+  },
+  "install": {
+    "documentTitle": "Install Stashden",
+    "description": "Run Stashden with Docker Compose or from source: prerequisites, the environment it reads, the first administrator, and the web app build.",
+    "heading": "Install Stashden",
+    "lead": "Two paths. Docker Compose if you want it answering on port 3001 in a few minutes, a Rust toolchain if you intend to change it.",
+    "requirements": {
+      "heading": "Before you start",
+      "items": [
+        "Postgres 15 or later. Compose brings its own, so you only need to provide one on the source path.",
+        "A Rust toolchain matching rust-toolchain.toml, for the source path.",
+        "Node 24 and pnpm, to build the web app."
+      ]
+    },
+    "compose": {
+      "heading": "With Docker Compose",
+      "body": "Clone the repository, set the secrets Compose refuses to start without, and bring it up. The image builds the API from source, so the first run takes a few minutes.",
+      "blocks": [
+        {
+          "caption": "Clone and configure",
+          "code": "git clone https://github.com/FerrLabs/Stashden.git\ncd Stashden\n\nexport POSTGRES_PASSWORD='a long random string'\nexport JWT_SECRET='a different long random string'\nexport BOOTSTRAP_ADMIN_EMAIL='you@example.com'\nexport BOOTSTRAP_ADMIN_PASSWORD='at least twelve characters'"
+        },
+        {
+          "caption": "Start it, and check that it answers",
+          "code": "docker compose -f deploy/docker-compose.yml up -d --build\ncurl --fail http://localhost:3001/health"
+        }
+      ],
+      "note": "The two bootstrap variables only do something on an empty database, where they create the first administrator. Take them back out of the environment once that has happened: every account after the first is created through the API by an administrator."
+    },
+    "source": {
+      "heading": "From source",
+      "body": "The server reads its configuration from the environment and migrates with `stashden-api migrate`, so a database and a signing secret are enough to get it up.",
+      "blocks": [
+        {
+          "caption": "Run the API against a local Postgres",
+          "code": "DATABASE_URL=postgres://localhost/stashden \\\nJWT_SECRET=dev-secret \\\ncargo run -p stashden-api"
+        }
+      ]
+    },
+    "configuration": {
+      "heading": "Configuration",
+      "body": "Environment only. There is no configuration file to mount, and no admin page that writes one behind your back.",
+      "columns": [
+        "Variable",
+        "Default",
+        "Purpose"
+      ],
+      "rows": [
+        [
+          "DATABASE_URL",
+          "required",
+          "Postgres connection string"
+        ],
+        [
+          "JWT_SECRET",
+          "required",
+          "HS256 secret used to sign session tokens"
+        ],
+        [
+          "PORT",
+          "3001",
+          "Listen port"
+        ],
+        [
+          "BLOB_ROOT",
+          "./data",
+          "Root of the local blob store"
+        ],
+        [
+          "WEB_ROOT",
+          "set in the image",
+          "Directory holding the built web app, served alongside the API"
+        ],
+        [
+          "CORS_ALLOWED_ORIGINS",
+          "empty",
+          "Comma-separated origins allowed to call the API from a browser, unnecessary when WEB_ROOT serves it"
+        ],
+        [
+          "DEFAULT_QUOTA_BYTES",
+          "10 GiB",
+          "Quota granted to an account on its first write"
+        ],
+        [
+          "SESSION_TTL_SECONDS",
+          "12 h",
+          "Session token lifetime"
+        ],
+        [
+          "BLOB_SWEEP_INTERVAL_SECONDS",
+          "1 h",
+          "How often blobs nothing points at are collected, 0 disables it"
+        ],
+        [
+          "BLOB_GRACE_PERIOD_SECONDS",
+          "24 h",
+          "How long an unreferenced blob is kept before collection"
+        ],
+        [
+          "BOOTSTRAP_ADMIN_EMAIL",
+          "unset",
+          "Creates the first administrator on an empty database"
+        ],
+        [
+          "BOOTSTRAP_ADMIN_PASSWORD",
+          "unset",
+          "Required alongside the email, twelve characters minimum"
+        ]
+      ]
+    },
+    "firstLogin": {
+      "heading": "The first login",
+      "body": "The CLI lives in the same workspace and talks to the same API, which makes it the shortest way to check that the administrator exists.",
+      "blocks": [
+        {
+          "caption": "Log in from the command line",
+          "code": "cargo run -p stashden-cli -- login you@example.com --password '...'"
+        }
+      ]
+    },
+    "webApp": {
+      "heading": "The web app",
+      "body": "The image carries it, and the API serves it from the same origin, so there is nothing to deploy separately and no CORS to configure. Hosting it yourself is still supported: build web/dist with the address of your API compiled in, serve it from any static host, and name its origin in CORS_ALLOWED_ORIGINS. Compile in the source of the version you are actually running while you are there.",
+      "blocks": [
+        {
+          "caption": "Build the browser interface for a host of your own",
+          "code": "pnpm install\npnpm --filter @stashden/web build \\\n  --define STASHDEN_API_URL=\"'https://files.example.com'\" \\\n  --define STASHDEN_SOURCE_URL=\"'https://git.example.com/stashden'\""
+        }
+      ]
+    }
+  },
+  "api": {
+    "documentTitle": "The Stashden API",
+    "description": "The Stashden REST API: session tokens, the folder and file endpoints, and what is not implemented yet.",
+    "heading": "The API",
+    "lead": "One REST surface, JSON in and out, bearer tokens. WebDAV shares the same binary and the same tree under /dav, authenticated by an app password rather than a session.",
+    "session": {
+      "heading": "Getting a token",
+      "body": "Every /v1 route except login expects an Authorization header. A session lasts twelve hours unless SESSION_TTL_SECONDS says otherwise, and there is no refresh: log in again. The account carries a role, admin, member or reader, and a reader is answered 403 on upload and delete rather than being trusted to hide the buttons.",
+      "blocks": [
+        {
+          "caption": "Exchange a password for a session",
+          "code": "curl -X POST http://localhost:3001/v1/auth/login \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"email\":\"you@example.com\",\"password\":\"...\"}'"
+        },
+        {
+          "caption": "What comes back",
+          "code": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIs...\",\n  \"expires_in\": 43200,\n  \"user\": {\n    \"id\": \"b7f0c2de-6a1e-4d5f-9a0b-2f9c1d7e4a30\",\n    \"email\": \"you@example.com\",\n    \"display_name\": \"you\",\n    \"role\": \"admin\",\n    \"is_admin\": true,\n    \"created_at\": \"2026-09-03T08:00:00Z\"\n  }\n}"
+        }
+      ]
+    },
+    "endpoints": {
+      "heading": "Endpoints",
+      "body": "This is the whole surface, not a selection from it.",
+      "columns": [
+        "Method",
+        "Path",
+        "What it does"
+      ],
+      "rows": [
+        [
+          "GET",
+          "/health",
+          "Liveness, and the only route that takes no token"
+        ],
+        [
+          "POST",
+          "/v1/auth/login",
+          "Exchange an email and a password for a session token"
+        ],
+        [
+          "GET",
+          "/v1/auth/me",
+          "The authenticated account"
+        ],
+        [
+          "GET",
+          "/v1/auth/methods",
+          "What this installation offers to sign in with"
+        ],
+        [
+          "PUT",
+          "/v1/auth/methods",
+          "Turn password login off or on (admin)"
+        ],
+        [
+          "POST",
+          "/v1/auth/oidc/start",
+          "Begin an authorization code flow"
+        ],
+        [
+          "POST",
+          "/v1/auth/oidc/callback",
+          "Finish one, answering a session token"
+        ],
+        [
+          "GET",
+          "/v1/folders",
+          "List the root"
+        ],
+        [
+          "GET",
+          "/v1/folders/{*path}",
+          "List a directory"
+        ],
+        [
+          "PUT",
+          "/v1/files/{*path}",
+          "Upload, creating the parent directories"
+        ],
+        [
+          "GET",
+          "/v1/files/{*path}",
+          "Download"
+        ],
+        [
+          "DELETE",
+          "/v1/files/{*path}",
+          "Move to the trash"
+        ],
+        [
+          "POST",
+          "/v1/move",
+          "Rename a node, or move it under another directory"
+        ],
+        [
+          "GET",
+          "/v1/uploads",
+          "The sessions this account is holding open"
+        ],
+        [
+          "POST",
+          "/v1/uploads",
+          "Open a resumable upload"
+        ],
+        [
+          "GET",
+          "/v1/uploads/{id}",
+          "Where it got to, for resuming"
+        ],
+        [
+          "PATCH",
+          "/v1/uploads/{id}",
+          "Append at Upload-Offset"
+        ],
+        [
+          "POST",
+          "/v1/uploads/{id}/finish",
+          "Hash what arrived and place it"
+        ],
+        [
+          "DELETE",
+          "/v1/uploads/{id}",
+          "Abandon it, taking the staged bytes"
+        ],
+        [
+          "GET",
+          "/v1/search?q=",
+          "Find a node by part of its name"
+        ],
+        [
+          "GET",
+          "/v1/thumbnails/{*path}",
+          "A thumbnail of an image, made on demand"
+        ],
+        [
+          "GET",
+          "/v1/app-passwords",
+          "The credentials this account has minted"
+        ],
+        [
+          "POST",
+          "/v1/app-passwords",
+          "Mint one, shown once"
+        ],
+        [
+          "DELETE",
+          "/v1/app-passwords/{id}",
+          "Revoke one, taking effect immediately"
+        ],
+        [
+          "PUT",
+          "/v1/auth/password",
+          "Change your own, giving the current one"
+        ],
+        [
+          "GET",
+          "/v1/users",
+          "Every account, with what each is using (admin)"
+        ],
+        [
+          "POST",
+          "/v1/users",
+          "Create one (admin)"
+        ],
+        [
+          "POST",
+          "/v1/users/{id}/disable",
+          "End its sessions and refuse it at login (admin)"
+        ],
+        [
+          "POST",
+          "/v1/users/{id}/enable",
+          "Let it back in (admin)"
+        ],
+        [
+          "PUT",
+          "/v1/users/{id}/role",
+          "Admin, member or reader (admin)"
+        ],
+        [
+          "PUT",
+          "/v1/users/{id}/quota",
+          "How many bytes it may hold (admin)"
+        ],
+        [
+          "PUT",
+          "/v1/users/{id}/password",
+          "Reset it without knowing the old one (admin)"
+        ],
+        [
+          "POST",
+          "/v1/users/{id}/unlock",
+          "Let a locked out account try again (admin)"
+        ],
+        [
+          "GET",
+          "/v1/trash",
+          "What the account has deleted"
+        ],
+        [
+          "DELETE",
+          "/v1/trash",
+          "Empty it"
+        ],
+        [
+          "POST",
+          "/v1/trash/{id}/restore",
+          "Bring it back, with the directories it needs"
+        ],
+        [
+          "DELETE",
+          "/v1/trash/{id}",
+          "Delete it for good, and release its bytes"
+        ],
+        [
+          "GET",
+          "/v1/grants",
+          "What this account shares with other accounts"
+        ],
+        [
+          "POST",
+          "/v1/grants",
+          "Share a folder or a file with one, read or write"
+        ],
+        [
+          "GET",
+          "/v1/grants/received",
+          "What other accounts share with this one"
+        ],
+        [
+          "DELETE",
+          "/v1/grants/{id}",
+          "Take a share back, or leave one shared with you"
+        ],
+        [
+          "GET",
+          "/v1/shares",
+          "The links this account has published"
+        ],
+        [
+          "POST",
+          "/v1/shares",
+          "Publish one, its token shown once"
+        ],
+        [
+          "DELETE",
+          "/v1/shares/{id}",
+          "Revoke one, taking effect immediately"
+        ],
+        [
+          "GET",
+          "/v1/public/{token}",
+          "What is behind a link, and its listing"
+        ],
+        [
+          "GET",
+          "/v1/public/{token}/entries/{*path}",
+          "The same, for something under it"
+        ],
+        [
+          "GET",
+          "/v1/public/{token}/content",
+          "Download what the link names"
+        ],
+        [
+          "GET",
+          "/v1/public/{token}/content/{*path}",
+          "Download something under it"
+        ]
+      ]
+    },
+    "transfers": {
+      "heading": "Moving bytes",
+      "body": "An upload is the raw file in the request body, and it answers 201 with the node and an ETag. A download streams the bytes back with that same ETag, and a delete answers 204 once the node sits in the trash.",
+      "blocks": [
+        {
+          "caption": "Upload a file",
+          "code": "curl -X PUT http://localhost:3001/v1/files/notes/todo.md \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  --data-binary @todo.md"
+        },
+        {
+          "caption": "Rename a file, then move it into a directory",
+          "code": "curl -X POST http://localhost:3001/v1/move \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"from\": \"/draft.md\", \"to\": \"/todo.md\"}'\n\ncurl -X POST http://localhost:3001/v1/move \\\n  -H \"Authorization: Bearer $TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"from\": \"/todo.md\", \"to\": \"/notes/todo.md\"}'"
+        },
+        {
+          "caption": "List a directory, then download from it",
+          "code": "curl http://localhost:3001/v1/folders/notes \\\n  -H \"Authorization: Bearer $TOKEN\"\n\ncurl -O http://localhost:3001/v1/files/notes/todo.md \\\n  -H \"Authorization: Bearer $TOKEN\""
+        }
+      ]
+    },
+    "gaps": {
+      "heading": "What is missing",
+      "body": "A path that is not in the table above answers 404."
+    }
+  }
+}

@@ -1,17 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  ElementRef,
-  afterNextRender,
-  inject,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
-import { Session } from '../account';
-import { PLATFORM } from '../platform';
-import { t } from '../i18n/language';
+import { ChangeDetectionStrategy, Component, output, signal } from '@angular/core';
+import { AccountDialog } from './account-dialog';
 
 @Component({
   selector: 'rx-change-password',
@@ -19,72 +7,23 @@ import { t } from '../i18n/language';
   styleUrl: './change-password.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ChangePassword {
-  protected readonly t = t;
-  private readonly platform = inject(PLATFORM);
-  private readonly session = inject(Session);
-
-  protected readonly asksCurrent = computed(() => this.session.account()?.has_password ?? true);
-  protected readonly needsFreshSignIn = computed(
-    () => !this.asksCurrent() && !(this.session.account()?.fresh_sign_in ?? false),
-  );
-
-  readonly dismissed = output<void>();
+export class ChangePassword extends AccountDialog {
   readonly changed = output<void>();
-
-  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
   protected readonly current = signal('');
   protected readonly replacement = signal('');
-  protected readonly busy = signal(false);
-  protected readonly failure = signal<string | null>(null);
-
-  constructor() {
-    afterNextRender(() => this.dialog().nativeElement.showModal());
-    void this.refresh();
-  }
-
-  private async refresh(): Promise<void> {
-    try {
-      await this.session.load();
-    } catch {
-      return;
-    }
-  }
 
   protected async submit(): Promise<void> {
     const change = this.platform.changePassword;
-    if (change === undefined || this.busy()) {
+    if (change === undefined) {
       return;
     }
 
-    this.failure.set(null);
-    this.busy.set(true);
-    try {
-      await change(this.asksCurrent() ? this.current() : null, this.replacement());
-      this.dialog().nativeElement.close();
+    const done = await this.attempt(() =>
+      change(this.hasPassword() ? this.current() : null, this.replacement()),
+    );
+    if (done) {
       this.changed.emit();
-    } catch (cause: unknown) {
-      this.failure.set(cause instanceof Error ? cause.message : String(cause));
-      await this.refresh();
-    } finally {
-      this.busy.set(false);
     }
-  }
-
-  protected async signInAgain(): Promise<void> {
-    this.failure.set(null);
-    this.busy.set(true);
-    try {
-      await this.platform.loginWithProvider();
-    } catch (cause: unknown) {
-      this.failure.set(cause instanceof Error ? cause.message : String(cause));
-      this.busy.set(false);
-    }
-  }
-
-  protected dismiss(): void {
-    this.dialog().nativeElement.close();
-    this.dismissed.emit();
   }
 }
