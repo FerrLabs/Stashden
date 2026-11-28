@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.62.3] - 2026-11-28
+
+### Bug Fixes
+
+- fix(deps): update dependency @ferrlabs/telemetry to ^0.6.2 (#576)
+
 ## [0.62.2] - 2026-11-27
 
 ### Bug Fixes
