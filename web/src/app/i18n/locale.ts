@@ -10,7 +10,7 @@ export const LANGUAGE_NAMES: Readonly<Record<Locale, string>> = {
 };
 
 export function isLocale(value: unknown): value is Locale {
-  return LOCALES.some((locale) => locale === value);
+  return (LOCALES as readonly unknown[]).includes(value);
 }
 
 export function negotiate(languages: readonly string[]): Locale {

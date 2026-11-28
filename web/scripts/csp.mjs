@@ -41,10 +41,15 @@ export function withContentSecurityPolicy(html, policy) {
   return html.replace(CHARSET_META, (charset) => `${charset}${meta}`);
 }
 
+function defineValue(arg, following) {
+  if (arg === '--define') return following;
+  return arg.startsWith('--define=') ? arg.slice('--define='.length) : null;
+}
+
 export function definesFrom(args, fallback) {
   const defines = { ...fallback };
   args.forEach((arg, index) => {
-    const value = arg === '--define' ? args[index + 1] : arg.startsWith('--define=') ? arg.slice(9) : null;
+    const value = defineValue(arg, args[index + 1]);
     const match = value?.match(/^(\w+)=(.*)$/s);
     if (match) defines[match[1]] = match[2].replace(/^(['"])(.*)\1$/s, '$2');
   });

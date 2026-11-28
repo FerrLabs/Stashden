@@ -18,7 +18,7 @@ import type { Step } from './selection';
 let nextRow = 0;
 
 @Component({
-  selector: 'rx-file-row',
+  selector: 'tr[rx-file-row]',
   imports: [OpenWith],
   templateUrl: './file-row.html',
   styleUrl: './file-row.css',
@@ -153,7 +153,7 @@ export class FileRow {
       return;
     }
     const actions = this.actions();
-    const at = actions.findIndex((action) => action === document.activeElement);
+    const at = actions.indexOf(document.activeElement as HTMLElement);
     const next = event.key === 'ArrowRight' ? actions.at(at + 1) : actions.at(at - 1);
     if (event.key === 'ArrowLeft' && at <= 0) {
       this.focus();

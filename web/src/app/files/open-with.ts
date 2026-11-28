@@ -64,7 +64,7 @@ export class OpenWith {
   protected onMenuKey(event: KeyboardEvent): void {
     event.stopPropagation();
     const items = this.items().map((item) => item.nativeElement);
-    const at = items.findIndex((item) => item === document.activeElement);
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
     const last = items.length - 1;
     switch (event.key) {
       case 'ArrowDown':

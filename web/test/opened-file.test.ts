@@ -15,13 +15,13 @@ function leaving() {
 
 test('closing a file opened from the list goes back in the history', () => {
   const target = leaving();
-  closeFile(true, target);
+  closeFile('list', target);
   assert.deepEqual(target.calls, ['back']);
 });
 
 test('closing a file reached by a link replaces the address instead', () => {
   const target = leaving();
-  closeFile(false, target);
+  closeFile('link', target);
   assert.deepEqual(target.calls, ['replace']);
 });
 
