@@ -4,6 +4,12 @@ All notable changes to `roxycloud` will be documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.62.4] - 2026-11-28
+
+### Bug Fixes
+
+- fix(web): resolve new Sonar violations with native table, fieldset and output elements (#577)
+
 ## [0.62.3] - 2026-11-28
 
 ### Bug Fixes
